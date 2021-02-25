@@ -1,0 +1,9 @@
+[Unit]
+Description=update server load periodically in file '/run/b3lb/load'.
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /srv/loadcalc/load.py
+
+[Install]
+WantedBy=multi-user.target

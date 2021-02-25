@@ -1,0 +1,130 @@
+[
+  {
+    "model": "django_celery_beat.intervalschedule",
+    "pk": 1,
+    "fields": {
+      "every": 15,
+      "period": "seconds"
+    }
+  },
+  {
+    "model": "django_celery_beat.intervalschedule",
+    "pk": 2,
+    "fields": {
+      "every": 1,
+      "period": "hours"
+    }
+  },
+  {
+    "model": "django_celery_beat.periodictask",
+    "pk": 2,
+    "fields": {
+      "name": "Check Slides",
+      "task": "rest.tasks.check_slides",
+      "interval": 2,
+      "crontab": null,
+      "solar": null,
+      "clocked": null,
+      "args": "[]",
+      "kwargs": "{}",
+      "queue": null,
+      "exchange": null,
+      "routing_key": null,
+      "headers": "{}",
+      "priority": null,
+      "expires": null,
+      "expire_seconds": null,
+      "one_off": false,
+      "start_time": null,
+      "enabled": false,
+      "last_run_at": "2021-02-24T16:12:14.829Z",
+      "total_run_count": 1,
+      "date_changed": "2021-02-24T16:13:39.807Z",
+      "description": ""
+    }
+  },
+  {
+    "model": "django_celery_beat.periodictask",
+    "pk": 3,
+    "fields": {
+      "name": "Check Status",
+      "task": "rest.tasks.check_status",
+      "interval": 1,
+      "crontab": null,
+      "solar": null,
+      "clocked": null,
+      "args": "[]",
+      "kwargs": "{}",
+      "queue": null,
+      "exchange": null,
+      "routing_key": null,
+      "headers": "{}",
+      "priority": null,
+      "expires": null,
+      "expire_seconds": null,
+      "one_off": false,
+      "start_time": null,
+      "enabled": true,
+      "last_run_at": "2021-02-24T16:41:42.087Z",
+      "total_run_count": 0,
+      "date_changed": "2021-02-24T16:42:22.302Z",
+      "description": ""
+    }
+  },
+  {
+    "model": "django_celery_beat.periodictask",
+    "pk": 4,
+    "fields": {
+      "name": "Update Statistic",
+      "task": "rest.tasks.update_statistic",
+      "interval": 1,
+      "crontab": null,
+      "solar": null,
+      "clocked": null,
+      "args": "[]",
+      "kwargs": "{}",
+      "queue": null,
+      "exchange": null,
+      "routing_key": null,
+      "headers": "{}",
+      "priority": null,
+      "expires": null,
+      "expire_seconds": null,
+      "one_off": false,
+      "start_time": null,
+      "enabled": true,
+      "last_run_at": "2021-02-24T16:41:42.062Z",
+      "total_run_count": 0,
+      "date_changed": "2021-02-24T16:42:22.284Z",
+      "description": ""
+    }
+  },
+  {
+    "model": "django_celery_beat.periodictask",
+    "pk": 6,
+    "fields": {
+      "name": "Update Secrets List",
+      "task": "rest.tasks.update_secrets_lists",
+      "interval": 1,
+      "crontab": null,
+      "solar": null,
+      "clocked": null,
+      "args": "[]",
+      "kwargs": "{}",
+      "queue": null,
+      "exchange": null,
+      "routing_key": null,
+      "headers": "{}",
+      "priority": null,
+      "expires": null,
+      "expire_seconds": null,
+      "one_off": false,
+      "start_time": null,
+      "enabled": true,
+      "last_run_at": "2021-02-24T16:41:24.873Z",
+      "total_run_count": 0,
+      "date_changed": "2021-02-24T16:42:22.320Z",
+      "description": ""
+    }
+  }
+]
