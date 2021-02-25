@@ -409,7 +409,7 @@ def update_metrics(secret_uuid):
         "secrets": [],
         "metrics": {},
         "metric_helps": {x[0]: x[1] for x in Metric.NAME_CHOICES},
-        "metric_types": Metric.GAUGES,
+        "metric_gauges": Metric.GAUGES,
     }
 
     if not secret_uuid:
