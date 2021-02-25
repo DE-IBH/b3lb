@@ -1,5 +1,5 @@
 # ChangeLog
 
-## x.y.z - 2021-02-DD
+## 1.0.0 - 2021-02-25
 
 Initial release.
