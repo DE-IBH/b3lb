@@ -143,6 +143,8 @@ def run_check_node(uuid):
                     metrics[meeting.secret] = {k: 0 for k in metric_keys}
                 m = metrics[meeting.secret]
 
+                m[Metric.MEETINGS] += 1
+
                 meeting.attendees = meeting_dict[meeting.id]["participantCount"]
                 m[Metric.ATTENDEES] += meeting_dict[meeting.id]["participantCount"]
 
