@@ -127,3 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Local stuff
+.vscode
+.idea
+debug.yml
+nginx
+db
+*.img
+b3lb/loadbalancer/settings.py
+.run
