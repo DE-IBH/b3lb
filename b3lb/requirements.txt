@@ -10,5 +10,5 @@ django-redis==4.12.1
 django-split-settings==1.0.1
 psycopg2==2.8.6
 uvicorn[standard]==0.13.4
-aiohttp==3.7.3
+aiohttp==3.7.4
 jinja2==2.11.3
