@@ -1,0 +1,157 @@
+name: docker publish
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    branches:
+     - main
+
+  push:
+    branches:
+     - main
+
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build-django:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build django image
+        run: |
+          docker build . --file docker/Dockerfile --tag b3lb
+          docker save b3lb > /tmp/b3lb.tar
+
+      - name: Upload django artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: b3lb
+          path: /tmp/b3lb.tar
+
+
+  build-caddy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build static image
+        run: |
+          docker build . --file docker/Dockerfile.static --tag b3lb-static
+          docker save b3lb-static > /tmp/b3lb-static.tar
+
+      - name: Upload static artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: b3lb-static
+          path: /tmp/b3lb-static.tar
+
+
+  build-dev:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build dev image
+        run: |
+          docker build . --file docker/Dockerfile.dev --tag b3lb-dev
+          docker save b3lb-dev > /tmp/b3lb-dev.tar
+
+      - name: Upload dev artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: b3lb-dev
+          path: /tmp/b3lb-dev.tar
+
+
+
+  push-latest:
+    needs: build-dev
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Log into registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: b3lb-dev
+          path: /tmp
+
+      - name: Push images
+        run: |
+          docker load < /tmp/b3lb-dev.tar
+
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+          echo IMAGE_ID =$IMAGE_ID
+          echo IMAGE_TAG=latest
+
+          docker tag b3lb-dev $IMAGE_ID/b3lb-dev:latest
+          docker push $IMAGE_ID/b3lb-dev:latest
+
+
+  push-release:
+    needs: ["build-django", "build-dev", "build-caddy"]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.event.ref_type == 'tag'
+
+    steps:
+      - name: Log into registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+
+      - name: Download django artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: b3lb
+          path: /tmp
+
+      - name: Download dev artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: b3lb-dev
+          path: /tmp
+
+      - name: Download caddy artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: b3lb-caddy
+          path: /tmp
+
+      - name: Push images
+        run: |
+          docker load < /tmp/b3lb.tar
+          docker load < /tmp/b3lb-dev.tar
+          docker load < /tmp/b3lb-caddy.tar
+
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+          echo IMAGE_ID =$IMAGE_ID
+          echo IMAGE_TAG=latest
+
+          docker tag b3lb $IMAGE_ID/b3lb:$VERSION
+          docker tag b3lb-dev $IMAGE_ID/b3lb-dev:$VERSION
+          docker tag b3lb-static $IMAGE_ID/b3lb-static:$VERSION
+
+          docker push $IMAGE_ID/b3lb:$VERSION
+          docker push $IMAGE_ID/b3lb-dev:$VERSION
+          docker push $IMAGE_ID/b3lb-static:$VERSION
