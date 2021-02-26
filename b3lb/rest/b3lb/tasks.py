@@ -143,6 +143,8 @@ def run_check_node(uuid):
                     metrics[meeting.secret] = {k: 0 for k in metric_keys}
                 m = metrics[meeting.secret]
 
+                m[Metric.MEETINGS] += 1
+
                 meeting.attendees = meeting_dict[meeting.id]["participantCount"]
                 m[Metric.ATTENDEES] += meeting_dict[meeting.id]["participantCount"]
 
@@ -407,7 +409,7 @@ def update_metrics(secret_uuid):
         "secrets": [],
         "metrics": {},
         "metric_helps": {x[0]: x[1] for x in Metric.NAME_CHOICES},
-        "metric_types": Metric.GAUGES,
+        "metric_gauges": Metric.GAUGES,
     }
 
     if not secret_uuid:
