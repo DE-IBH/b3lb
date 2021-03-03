@@ -14,21 +14,21 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='secret',
             name='attendee_limit',
-            field=models.IntegerField(default=0, help_text='Max. number of attendees (soft limit). 0 for inf.', validators=[django.core.validators.MinValueValidator(0)]),
+            field=models.IntegerField(default=0, help_text='Max. number of attendees (soft limit, 0 = unlimited).', validators=[django.core.validators.MinValueValidator(0)]),
         ),
         migrations.AddField(
             model_name='secret',
             name='meeting_limit',
-            field=models.IntegerField(default=0, help_text='Max. number of meetings. 0 for inf.', validators=[django.core.validators.MinValueValidator(0)]),
+            field=models.IntegerField(default=0, help_text='Max. number of meetings (0 = unlimited).', validators=[django.core.validators.MinValueValidator(0)]),
         ),
         migrations.AddField(
             model_name='tenant',
             name='attendee_limit',
-            field=models.IntegerField(default=0, help_text='Max. number of attendees (soft limit). 0 for inf.', validators=[django.core.validators.MinValueValidator(0)]),
+            field=models.IntegerField(default=0, help_text='Max. number of attendees (soft limit, 0 = unlimited).', validators=[django.core.validators.MinValueValidator(0)]),
         ),
         migrations.AddField(
             model_name='tenant',
             name='meeting_limit',
-            field=models.IntegerField(default=0, help_text='Max. number of meetings. 0 for inf.', validators=[django.core.validators.MinValueValidator(0)]),
+            field=models.IntegerField(default=0, help_text='Max. number of meetings (0 = unlimited).', validators=[django.core.validators.MinValueValidator(0)]),
         ),
     ]
