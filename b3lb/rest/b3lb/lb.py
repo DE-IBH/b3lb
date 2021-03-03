@@ -55,14 +55,14 @@ def check_auth_token(auth_token, forwarded_host):
 @sync_to_async
 def check_meeting_existence(meeting_id, secret):
     if meeting_id is None:
-        return get_node_params_by_lowest_workload(secret.tenant.cluster_group)
+        return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
 
     with transaction.atomic():
         try:
             meeting = Meeting.objects.get(id=meeting_id, secret=secret)
-            return meeting.node
+            return meeting.node, False
         except ObjectDoesNotExist:
-            return get_node_params_by_lowest_workload(secret.tenant.cluster_group)
+            return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
 
 
 def check_tenant(secret, checksum, endpoint, params):
