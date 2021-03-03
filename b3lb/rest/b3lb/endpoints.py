@@ -69,13 +69,15 @@ async def requested_endpoint(secret, endpoint, request, params):
             return HttpResponseBadRequest()
 
     if endpoint == "create":
-        limit_check = await lb.limit_check(secret)
-        if limit_check:
-            node = await lb.check_meeting_existence(params["meetingID"], secret)
-            if node:
+        node, new_meeting = await lb.check_meeting_existence(params["meetingID"], secret)
+        if node and new_meeting:
+            limit_check = await lb.limit_check(secret)
+            if limit_check:
                 return await create(request, endpoint, params, node, secret)
             else:
                 return HttpResponse(settings.RETURN_STRING_CREATE_FAILED, content_type='text/html')
+        elif node:
+            return await create(request, endpoint, params, node, secret)
         else:
             return HttpResponse(settings.RETURN_STRING_CREATE_LIMIT_REACHED, content_type='text/html')
 
