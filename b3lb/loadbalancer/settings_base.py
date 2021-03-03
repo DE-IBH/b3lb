@@ -154,6 +154,7 @@ CACHE_NML_TIMEOUT = 30
 RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
 RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n</response>'
 RETURN_STRING_CREATE_FAILED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>No node available.</message>\r\n</response>'
+RETURN_STRING_CREATE_LIMIT_REACHED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting/Attendee limit reached.</message>\r\n</response>'
 RETURN_STRING_IS_MEETING_RUNNING_FALSE = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<running>false</running>\r\n</response>'
 RETURN_STRING_GET_MEETING_INFO_NOT_FOUND = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>notFound</messageKey><message>We could not find a meeting with that meeting ID</message>\r\n</response>'
 RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
