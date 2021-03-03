@@ -75,11 +75,11 @@ async def requested_endpoint(secret, endpoint, request, params):
             if limit_check:
                 return await create(request, endpoint, params, node, secret)
             else:
-                return HttpResponse(settings.RETURN_STRING_CREATE_FAILED, content_type='text/html')
+                return HttpResponse(settings.RETURN_STRING_CREATE_LIMIT_REACHED, content_type='text/html')
         elif node:
             return await create(request, endpoint, params, node, secret)
         else:
-            return HttpResponse(settings.RETURN_STRING_CREATE_LIMIT_REACHED, content_type='text/html')
+            return HttpResponse(settings.RETURN_STRING_CREATE_FAILED, content_type='text/html')
 
     if endpoint == "end":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
