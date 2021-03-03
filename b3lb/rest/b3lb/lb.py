@@ -155,6 +155,19 @@ def incr_metric(name, secret, node, incr=1):
     metric.save(update_fields=["value"])
 
 
+@sync_to_async
+def limit_check(secret):
+    if secret.tenant.meeting_limit > 0 and not secret.tenant.meeting_limit < Meeting.objects.filter(secret__tenant=secret.tenant).count():
+        return False
+    if secret.meeting_limit > 0 and not secret.meeting_limit < Meeting.objects.filter(secret__tenant=secret.tenant).count():
+        return False
+    if secret.tenant.attendee_limit > 0 and not secret.tenant.attendee_limit < Meeting.objects.filter(secret=secret).count():
+        return False
+    if secret.attendee_limit > 0 and not secret.attendee_limit < Meeting.objects.filter(secret=secret).aggregate('attendees'):
+        return False
+    return True
+
+
 def parse_endpoint(forwarded_host, get_secret=False):
     regex_search = slug_regex.search(forwarded_host)
     if regex_search:
