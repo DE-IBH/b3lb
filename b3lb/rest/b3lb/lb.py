@@ -22,7 +22,7 @@ from urllib.parse import urlencode
 from random import randint
 import re
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Sum
 import base64
 import hashlib
 from django.conf import settings
@@ -157,14 +157,25 @@ def incr_metric(name, secret, node, incr=1):
 
 @sync_to_async
 def limit_check(secret):
-    if secret.tenant.meeting_limit > 0 and not secret.tenant.meeting_limit < Meeting.objects.filter(secret__tenant=secret.tenant).count():
+    if secret.tenant.meeting_limit > 0 and not Meeting.objects.filter(secret__tenant=secret.tenant).count() < secret.tenant.meeting_limit:
         return False
-    if secret.meeting_limit > 0 and not secret.meeting_limit < Meeting.objects.filter(secret__tenant=secret.tenant).count():
+
+    if secret.meeting_limit > 0 and not Meeting.objects.filter(secret=secret).count() < secret.meeting_limit:
         return False
-    if secret.tenant.attendee_limit > 0 and not secret.tenant.attendee_limit < Meeting.objects.filter(secret=secret).count():
-        return False
-    if secret.attendee_limit > 0 and not secret.attendee_limit < Meeting.objects.filter(secret=secret).aggregate('attendees'):
-        return False
+
+    if secret.tenant.attendee_limit > 0:
+        attendee_sum = Meeting.objects.filter(secret__tenant=secret.tenant).aggregate(Sum('attendees'))["attendees_sum"]
+
+        # Aggregation sum can return None or [0, inf).
+        # Only check for limit if aggregation sum is an integer.
+        if isinstance(attendee_sum, int) and not attendee_sum < secret.tenant.attendee_limit:
+            return False
+
+    if secret.attendee_limit > 0:
+        attendee_sum = Meeting.objects.filter(secret=secret).aggregate(Sum('attendees'))
+        # Same as above
+        if isinstance(attendee_sum, int) and not attendee_sum < secret.attendee_limit:
+            return False
     return True
 
 
