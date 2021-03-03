@@ -164,15 +164,14 @@ def limit_check(secret):
         return False
 
     if secret.tenant.attendee_limit > 0:
-        attendee_sum = Meeting.objects.filter(secret__tenant=secret.tenant).aggregate(Sum('attendees'))["attendees_sum"]
-
+        attendee_sum = Meeting.objects.filter(secret__tenant=secret.tenant).aggregate(Sum('attendees'))["attendees__sum"]
         # Aggregation sum can return None or [0, inf).
         # Only check for limit if aggregation sum is an integer.
         if isinstance(attendee_sum, int) and not attendee_sum < secret.tenant.attendee_limit:
             return False
 
     if secret.attendee_limit > 0:
-        attendee_sum = Meeting.objects.filter(secret=secret).aggregate(Sum('attendees'))
+        attendee_sum = Meeting.objects.filter(secret=secret).aggregate(Sum('attendees'))["attendees__sum"]
         # Same as above
         if isinstance(attendee_sum, int) and not attendee_sum < secret.attendee_limit:
             return False
