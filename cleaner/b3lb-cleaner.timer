@@ -1,0 +1,8 @@
+[Unit]
+Description=daily BBB meetings cleanup
+
+[Timer]
+OnCalendar=05:00
+
+[Install]
+WantedBy=multi-user.target
