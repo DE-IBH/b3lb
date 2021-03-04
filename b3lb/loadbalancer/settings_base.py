@@ -144,6 +144,7 @@ API_ENDPOINT = 'bigbluebutton/api/'
 
 NODE_BASE_PROTOCOL = 'https://'
 NODE_LOAD_ENDPOINT = 'b3lb/load'
+NODE_DOMAIN_DEFAULT = 'bbbconf.de'
 NODE_REQUEST_TIMEOUT = 5
 
 NO_CUSTOM_SLIDE_STRING = '<default>'

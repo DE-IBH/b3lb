@@ -45,17 +45,20 @@ class ClusterAdmin(admin.ModelAdmin):
     list_display = ['name', 'load_a_factor', 'load_m_factor', 'load_cpu_iterations', 'load_cpu_max']
 
 
+def get_node_domain_default():
+    return settings.NODE_DOMAIN_DEFAULT
+
 class Node(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    slug = models.CharField(max_length=100, help_text="hostname")
-    domain = models.CharField(max_length=50, default="bbbconf.de", help_text="Node domain")
-    secret = models.CharField(max_length=50, help_text="BBB API secret")
+    slug = models.CharField(max_length=100, help_text="node hostname setting")
+    domain = models.CharField(max_length=50, default=get_node_domain_default, help_text="node domainname setting")
+    secret = models.CharField(max_length=50, help_text="BBB API secret setting")
     cluster = models.ForeignKey(Cluster, on_delete=models.PROTECT, null=False)
-    attendees = models.IntegerField(default=0, help_text="polled number of attendees")
-    meetings = models.IntegerField(default=0, help_text="polled number of meetings")
-    cpu_load = models.IntegerField(default=0, help_text="cpu load as percentage * 100")
-    has_errors = models.BooleanField(default=True, help_text="polling has returned an error")
-    maintenance = models.BooleanField(default=False, help_text="node is in maintenance")
+    attendees = models.IntegerField(default=0, help_text="number of attendees metric")
+    meetings = models.IntegerField(default=0, help_text="number of meetings metric")
+    cpu_load = models.IntegerField(default=0, help_text="cpu load metric (base 10000)")
+    has_errors = models.BooleanField(default=True, help_text="polling has detected a failure")
+    maintenance = models.BooleanField(default=False, help_text="in maintenance setting")
 
     class Meta(object):
         ordering = ['slug']
