@@ -28,6 +28,11 @@ import requests as rq
 import json
 from jinja2 import Template
 
+#
+# Celery task routines
+#
+LIMIT_METRICS = [("attendee_limit", "Attendee soft limit"), ("meeting_limit", "Attendee soft limit")]
+
 
 #
 # Celery task routines
@@ -392,21 +397,19 @@ def update_metrics(secret_uuid):
         else:
             secrets = [secret_zero]
         del secret_zero
-    else:
-        secrets = Secret.objects.all()
-
-    metric_count = 0
-
-    if secret_uuid:
         template = load_template("metrics_secret")
         secret_text = secrets[0].__str__()
     else:
+        secrets = Secret.objects.all()
         template = load_template("metrics_all")
         secret_text = "all metrics."
 
+    metric_count = 0
+
     context = {
         "nodes": [],
-        "secrets": [],
+        "secret_limits": [],
+        "tenant_limits": [],
         "metrics": {},
         "metric_helps": {x[0]: x[1] for x in Metric.NAME_CHOICES},
         "metric_gauges": Metric.GAUGES,
@@ -421,9 +424,12 @@ def update_metrics(secret_uuid):
         tenant_slug = secret.tenant.slug
         if secret.sub_id == 0:
             secret_slug = tenant_slug
+            context["secret_limits"].append([secret_slug, secret.attendee_limit, secret.meeting_limit])
+            context["tenant_limits"].append([secret_slug, secret.tenant.attendee_limit, secret.tenant.meeting_limit])
         else:
             secret_slug = secret.__str__()
-        context["secrets"].append(secret_slug)
+            context["secret_limits"].append([secret_slug, "attendee", secret.attendee_limit])
+            context["secret_limits"].append([secret_slug, "meeting", secret.meeting_limit])
         if secret.sub_id != 0:
             metrics = Metric.objects.filter(secret=secret)
         else:
