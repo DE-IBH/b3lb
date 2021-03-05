@@ -1,0 +1,6 @@
+[Unit]
+Description=BBB meetings cleanup
+
+[Service]
+Type=oneshot
+ExecStart=/opt/b3lb/scripts/cleaner.py
