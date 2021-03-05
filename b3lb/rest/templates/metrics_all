@@ -12,7 +12,7 @@
 {% for slug, attendee, meeting in secret_limits %}b3lb_secret_limit_attendee{secret="{{ slug }}"} {{ attendee }}
 {% endfor %}# HELP b3lb_secret_limit_meeting Meeting limit per secret
 # TYPE b3lb_secret_limit_meeting gauge
-{% for slug, attendee, meeting in tenant_limits %}b3lb_secret_limit_meeting{secret="{{ slug }}"} {{ meeting }}
+{% for slug, attendee, meeting in secret_limits %}b3lb_secret_limit_meeting{secret="{{ slug }}"} {{ meeting }}
 {% endfor %}{% endif %}{% for metric_key, metric_value in metrics.items() %}# HELP b3lb_{{ metric_key }} {{ metric_value.name_choice }}
 # TYPE b3lb_{{ metric_key }} {% if metric_key in metric_gauges %}gauge{% else %}counter{% endif %}
 {% for secret_key, secret_value in metric_value.secrets.items() %}b3lb_{{ metric_key }}{secret="{{ secret_key }}"} {{ secret_value.value }}
