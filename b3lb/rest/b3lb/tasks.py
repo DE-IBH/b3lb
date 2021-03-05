@@ -428,8 +428,7 @@ def update_metrics(secret_uuid):
             context["tenant_limits"].append([secret_slug, secret.tenant.attendee_limit, secret.tenant.meeting_limit])
         else:
             secret_slug = secret.__str__()
-            context["secret_limits"].append([secret_slug, "attendee", secret.attendee_limit])
-            context["secret_limits"].append([secret_slug, "meeting", secret.meeting_limit])
+            context["secret_limits"].append([secret_slug, secret.attendee_limit, secret.meeting_limit])
         if secret.sub_id != 0:
             metrics = Metric.objects.filter(secret=secret)
         else:
