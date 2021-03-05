@@ -7,8 +7,7 @@
 {% endfor %}# HELP b3lb_tenant_limit_meeting Meeting limit per tenant
 # TYPE b3lb_tenant_limit_meeting gauge
 {% for slug, attendee, meeting in tenant_limits %}b3lb_tenant_limit_meeting{tenant="{{ slug }}"} {{ meeting }}
-{% endfor %}{% endif %}
-{% if secret_limits %}# HELP b3lb_secret_attendee_limit Attendee limit per secret
+{% endfor %}{% endif %}{% if secret_limits %}# HELP b3lb_secret_attendee_limit Attendee limit per secret
 # TYPE b3lb_secret_attendee_limit gauge
 {% for slug, attendee, meeting in tenant_limits %}b3lb_secret_limit_attendee{secret="{{ slug }}"} {{ attendee }}
 {% endfor %}# HELP b3lb_secret_limit_meeting Meeting limit per secret
