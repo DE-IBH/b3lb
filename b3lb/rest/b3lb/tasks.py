@@ -29,7 +29,6 @@ import json
 from jinja2 import Template
 
 
-
 #
 # Celery task routines
 #
