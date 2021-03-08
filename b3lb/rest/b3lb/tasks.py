@@ -28,10 +28,6 @@ import requests as rq
 import json
 from jinja2 import Template
 
-#
-# Celery task routines
-#
-LIMIT_METRICS = [("attendee_limit", "Attendee soft limit"), ("meeting_limit", "Attendee soft limit")]
 
 
 #
