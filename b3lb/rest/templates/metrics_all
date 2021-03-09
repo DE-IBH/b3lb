@@ -1,9 +1,18 @@
 # HELP b3lb_node_load Calculated node load
 # TYPE b3lb_node_load gauge
 {% for node, cluster, load in nodes %}b3lb_node_load{node="{{ node }}",cluster="{{ cluster }}"} {{ load }}
-{% endfor %}# HELP secret_endpoint_limit Attendee limit per secret
-# TYPE secret_endpoint_limit gauge
-{% for secret in secrets %}b3lb_endpoint_limit{secret="{{ secret }}"} 0
+{% endfor %}# HELP b3lb_tenant_attendee_limit Attendee limit per tenant
+# TYPE b3lb_tenant_attendee_limit gauge
+{% for slug, attendee, meeting in tenant_limits %}b3lb_tenant_attendee_limit{tenant="{{ slug }}"} {{ attendee }}
+{% endfor %}# HELP b3lb_tenant_meeting_limit Meeting limit per tenant
+# TYPE b3lb_tenant_meeting_limit gauge
+{% for slug, attendee, meeting in tenant_limits %}b3lb_tenant_meeting_limit{tenant="{{ slug }}"} {{ meeting }}
+{% endfor %}# HELP b3lb_secret_attendee_limit Attendee limit per secret
+# TYPE b3lb_secret_attendee_limit gauge
+{% for slug, attendee, meeting in secret_limits %}b3lb_secret_attendee_limit{secret="{{ slug }}"} {{ attendee }}
+{% endfor %}# HELP b3lb_secret_meeting_limit Meeting limit per secret
+# TYPE b3lb_secret_meeting_limit gauge
+{% for slug, attendee, meeting in secret_limits %}b3lb_secret_meeting_limit{secret="{{ slug }}"} {{ meeting }}
 {% endfor %}{% for metric_key, metric_value in metrics.items() %}# HELP b3lb_{{ metric_key }} {{ metric_value.name_choice }}
 # TYPE b3lb_{{ metric_key }} {% if metric_key in metric_gauges %}gauge{% else %}counter{% endif %}
 {% for secret_key, secret_value in metric_value.secrets.items() %}b3lb_{{ metric_key }}{secret="{{ secret_key }}"} {{ secret_value.value }}
