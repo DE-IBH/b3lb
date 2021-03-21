@@ -172,17 +172,18 @@ def run_check_node(uuid):
                         lb.incr_metric(Metric.DURATION_SUM, meeting.secret, node, mci_lifetime)
                     meeting.delete()
 
-        for secret in Secret.objects.all():
-            if secret in metrics:
-                for name in metric_keys:
-                    if name in Metric.GAUGES:
-                        lb.set_metric(name, secret, node, metrics[secret][name])
-                    else:
-                        lb.incr_metric(name, secret, node, metrics[secret][name])
-            else:
-                for name in metric_keys:
-                    if name in Metric.GAUGES:
-                        lb.set_metric(name, secret, node, 0)
+        with transaction.atomic():
+            for secret in Secret.objects.all():
+                if secret in metrics:
+                    for name in metric_keys:
+                        if name in Metric.GAUGES:
+                            lb.set_metric(name, secret, node, metrics[secret][name])
+                        else:
+                            lb.incr_metric(name, secret, node, metrics[secret][name])
+                else:
+                    for name in metric_keys:
+                        if name in Metric.GAUGES:
+                            lb.set_metric(name, secret, node, 0)
 
     return json.dumps([node.slug, load, meetings, attendees])
 
