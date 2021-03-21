@@ -119,6 +119,10 @@ CELERY_RESULT_BACKEND = 'django-db'
 
 CELERY_RESULT_EXPIRES = 3600
 
+# Lock expiry time in second for singleton task locks.
+
+CELERY_SINGLETON_LOCK_EXPIRY = 300
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
