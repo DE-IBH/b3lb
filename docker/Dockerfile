@@ -17,7 +17,7 @@
 
 FROM alpine:3.13 AS build
 
-RUN apk --no-cache add build-base python3 python3-dev py3-pip py3-psycopg2 py3-asgiref py3-sqlparse py3-tz py3-redis py3-requests py3-aiohttp py3-dateutil py3-dotenv py3-wheel py3-websockets py3-yaml
+RUN apk --no-cache add build-base python3 python3-dev py3-pip py3-psycopg2 py3-asgiref py3-sqlparse py3-tz py3-redis py3-requests py3-aiohttp py3-dateutil py3-dotenv py3-wheel py3-websockets py3-yaml py3-libseccomp
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH /usr/local/lib/python3.8/site-packages
@@ -30,7 +30,7 @@ RUN pip3 install --prefix=/usr/local -r requirements.txt
 
 FROM alpine:3.13
 
-RUN apk --no-cache add python3 py3-pip py3-psycopg2 py3-asgiref py3-sqlparse py3-tz py3-redis py3-requests py3-aiohttp py3-dateutil py3-dotenv py3-wheel py3-websockets py3-yaml
+RUN apk --no-cache add python3 py3-pip py3-psycopg2 py3-asgiref py3-sqlparse py3-tz py3-redis py3-requests py3-aiohttp py3-dateutil py3-dotenv py3-wheel py3-websockets py3-yaml py3-libseccomp
 
 ARG B3LBUID=8318
 ENV PYTHONUNBUFFERED 1
