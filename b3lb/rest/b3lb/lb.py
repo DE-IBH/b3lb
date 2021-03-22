@@ -150,9 +150,10 @@ def get_slide_body_for_post(slide):
 
 
 def incr_metric(name, secret, node, incr=1):
-    metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
-    metric.value = (F("value") + incr) % settings.METRIC_BIGINT_MODULO
-    metric.save(update_fields=["value"])
+    if Metric.objects.filter(name=name, secret=secret, node=node).update(value=(F("value") + incr) % settings.METRIC_BIGINT_MODULO) == 0:
+        metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
+        metric.value = (F("value") + incr) % settings.METRIC_BIGINT_MODULO
+        metric.save(update_fields=["value"])
 
 
 @sync_to_async
@@ -193,9 +194,10 @@ def parse_endpoint(forwarded_host, get_secret=False):
 
 
 def set_metric(name, secret, node, value):
-    metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
-    metric.value = value
-    metric.save(update_fields=["value"])
+    if Metric.objects.filter(name=name, secret=secret, node=node).update(value=value) == 0:
+        metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
+        metric.value = value
+        metric.save(update_fields=["value"])
 
 
 @sync_to_async
