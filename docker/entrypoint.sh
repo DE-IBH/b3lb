@@ -22,7 +22,7 @@ shift
 
 case "$CMD" in
     addnode)
-        exec /usr/bin/python3 ./manage.py addnode $@
+        exec /usr/bin/env python3 ./manage.py addnode $@
         ;;
     celery-beat)
         exec celery -A loadbalancer beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
@@ -34,37 +34,37 @@ case "$CMD" in
         exec celery -A loadbalancer worker -l info
         ;;
     loadbalancer)
-        /usr/bin/python3 ./manage.py migrate --no-input --force-color
-        exec /usr/bin/python3 ./manage.py $@
+        /usr/bin/env python3 ./manage.py migrate --no-input --force-color
+        exec /usr/bin/env python3 ./manage.py $@
         ;;
     gunicorn)
-        /usr/bin/python3 ./manage.py migrate --no-input --force-color
+        /usr/bin/env python3 ./manage.py migrate --no-input --force-color
         exec gunicorn $@ loadbalancer.wsgi:application
         ;;
     uvicorn)
-        /usr/bin/python3 ./manage.py migrate --no-input --force-color
+        /usr/bin/env python3 ./manage.py migrate --no-input --force-color
         exec uvicorn $@ loadbalancer.asgi:application
         ;;
     slide)
-        exec /usr/bin/python3 ./manage.py checkslides
+        exec /usr/bin/env python3 ./manage.py checkslides
         ;;
     meetingstats)
-        exec /usr/bin/python3 ./manage.py meetingstats
+        exec /usr/bin/env python3 ./manage.py meetingstats
         ;;
     getloadvalues)
-        exec /usr/bin/python3 ./manage.py getloadvalues
+        exec /usr/bin/env python3 ./manage.py getloadvalues
         ;;
     gettenantsecrets)
-        exec /usr/bin/python3 ./manage.py gettenantsecrets
+        exec /usr/bin/env python3 ./manage.py gettenantsecrets
         ;;
     listalltenantsecrets)
-        exec /usr/bin/python3 ./manage.py listalltenantsecrets
+        exec /usr/bin/env python3 ./manage.py listalltenantsecrets
         ;;
     addsecrets)
-        exec /usr/bin/python3 ./manage.py addsecrets $@
+        exec /usr/bin/env python3 ./manage.py addsecrets $@
         ;;
     static)
-        cd static && exec /usr/bin/python3 -m http.server 8001
+        cd static && exec /usr/bin/env python3 -m http.server 8001
         ;;
     *)
         echo "Unknown command '$CMD'!" 1>&2

@@ -17,4 +17,4 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-cd /usr/src/app/static && exec /usr/bin/python3 -m http.server 8001
+cd /usr/src/app/static && exec /usr/bin/env python3 -m http.server 8001
