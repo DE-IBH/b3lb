@@ -38,6 +38,25 @@ jobs:
           path: /tmp/b3lb.tar
 
 
+  build-pypy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build django image
+        run: |
+          docker build . --file docker/Dockerfile.pypy --tag b3lb-pypy
+          docker save b3lb-pypy > /tmp/b3lb-pypy.tar
+
+      - name: Upload django artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: b3lb-pypy
+          path: /tmp/b3lb-pypy.tar
+
+
   build-caddy:
     runs-on: ubuntu-latest
 
@@ -109,7 +128,7 @@ jobs:
 
 
   push-release:
-    needs: ["build-django", "build-dev", "build-caddy"]
+    needs: ["build-django", "build-pypy", "build-dev", "build-caddy"]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'created'
 
@@ -121,6 +140,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: b3lb
+          path: /tmp
+
+      - name: Download django pypy artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: b3lb-pypy
           path: /tmp
 
       - name: Download dev artifact
@@ -138,6 +163,7 @@ jobs:
       - name: Push images
         run: |
           docker load < /tmp/b3lb.tar
+          docker load < /tmp/b3lb-pypy.tar
           docker load < /tmp/b3lb-dev.tar
           docker load < /tmp/b3lb-caddy.tar
 
@@ -153,9 +179,11 @@ jobs:
           echo IMAGE_TAG=latest
 
           docker tag b3lb $IMAGE_ID/b3lb:$VERSION
+          docker tag b3lb-pypy $IMAGE_ID/b3lb-pypy:$VERSION
           docker tag b3lb-dev $IMAGE_ID/b3lb-dev:$VERSION
           docker tag b3lb-static $IMAGE_ID/b3lb-static:$VERSION
 
           docker push $IMAGE_ID/b3lb:$VERSION
+          docker push $IMAGE_ID/b3lb-pypy:$VERSION
           docker push $IMAGE_ID/b3lb-dev:$VERSION
           docker push $IMAGE_ID/b3lb-static:$VERSION
