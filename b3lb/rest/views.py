@@ -27,7 +27,7 @@ import rest.b3lb.endpoints as ep
 from datetime import datetime
 
 
-async def api_pass_through(request, endpoint=""):
+async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
     # async: workaround for @require_http_methods decorator
     if request.method not in ["GET", "POST"]:
         return HttpResponseNotAllowed(["GET", "POST"])
@@ -44,9 +44,7 @@ async def api_pass_through(request, endpoint=""):
     else:
         return HttpResponse("Unauthorized", status=401)
 
-    forwarded_host = lb.get_forwarded_host(request)
-    secret = await sync_to_async(lb.parse_endpoint)(forwarded_host, True)
-
+    secret = await sync_to_async(lb.get_request_secret)(request, slug, sub_id)
     if not secret:
         return HttpResponse("Unauthorized", status=401)
 
@@ -88,16 +86,12 @@ def ping(request):
 # Statistic endpoint for tenants
 # secured via auth token
 @require_http_methods(["GET"])
-def stats(request):
-    forwarded_host = lb.get_forwarded_host(request)
+def stats(request, slug=None, sub_id=0):
     auth_token = request.headers.get('Authorization')
+    tenant = lb.get_request_tenant(request, slug, sub_id)
 
-    if lb.check_auth_token(auth_token, forwarded_host):
-        tenant = lb.parse_endpoint(forwarded_host)
-        if tenant:
-            return HttpResponse(ep.tenant_stats(tenant), content_type='application/json')
-        else:
-            return HttpResponse("Unauthorized", status=401)
+    if auth_token and tenant and auth_token == tenant.stats_token:
+        return HttpResponse(ep.tenant_stats(tenant), content_type='application/json')
     else:
         return HttpResponse("Unauthorized", status=401)
 
@@ -105,17 +99,14 @@ def stats(request):
 # Metric endpoint for tenants
 # secured via auth token
 @require_http_methods(["GET"])
-def metrics(request):
+def metrics(request, slug=None, sub_id=0):
     forwarded_host = lb.get_forwarded_host(request)
     auth_token = request.headers.get('Authorization')
-    if forwarded_host == settings.B3LP_API_BASE_DOMAIN:
+    secret = lb.get_request_secret(request, slug, sub_id)
+
+    if forwarded_host == settings.B3LP_API_BASE_DOMAIN and slug is None:
         return HttpResponse(SecretMetricsList.objects.get(secret=None).metrics, content_type='text/plain')
-    elif auth_token and lb.check_auth_token(auth_token, forwarded_host):
-        secret = lb.parse_endpoint(forwarded_host, get_secret=True)
-        if secret:
-            return HttpResponse(SecretMetricsList.objects.get(secret=secret).metrics, content_type='text/plain')
-        else:
-            return HttpResponse("Unauthorized", status=401)
+    elif auth_token and secret and auth_token == secret.tenant.stats_token:
+        return HttpResponse(SecretMetricsList.objects.get(secret=secret).metrics, content_type='text/plain')
     else:
         return HttpResponse("Unauthorized", status=401)
-

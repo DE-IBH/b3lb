@@ -44,20 +44,6 @@ METRIC_BIGINT_MODULO = 9223372036854775808
 ##
 # Routines
 ##
-def check_auth_token(auth_token, forwarded_host):
-
-    try:
-        tenant = Tenant.objects.get(stats_token=auth_token)
-        if tenant.hostname == forwarded_host:
-            return True
-        else:
-            return False
-    except ObjectDoesNotExist:
-        return False
-    except ValidationError:
-        return False
-
-
 @sync_to_async
 def check_meeting_existence(meeting_id, secret):
     if meeting_id is None:
@@ -185,17 +171,39 @@ def limit_check(secret):
     return True
 
 
-def parse_endpoint(forwarded_host, get_secret=False):
-    regex_search = slug_regex.search(forwarded_host)
-    if regex_search:
-        try:
-            if get_secret:
-                return Secret.objects.select_related("tenant", "tenant__slide").get(tenant__slug=regex_search.group(1).upper(), sub_id=int(regex_search.group(3) or 0))
-            else:
-                return Tenant.objects.get(slug=regex_search.group(1).upper())
-        except ObjectDoesNotExist:
-            return None
+def get_slug(request, slug, sub_id):
+    if slug is None:
+        host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
+        host = forwarded_host_regex.sub(r'\1', host)
+
+        regex_search = slug_regex.search(host)
+        if regex_search:
+            return (regex_search.group(1).upper(), int(regex_search.group(3) or 0))
+        else:
+            return (None, None)
     else:
+        return (slug, int(sub_id))
+
+
+def get_request_tenant(request, slug, sub_id):
+    (slug, sub_id) = get_slug(request, slug, sub_id)
+    if not slug:
+        return None
+
+    try:
+        return Tenant.objects.get(slug=slug)
+    except ObjectDoesNotExist:
+        return None
+
+
+def get_request_secret(request, slug, sub_id):
+    (slug, sub_id) = get_slug(request, slug, sub_id)
+    if not slug:
+        return None
+
+    try:
+        return Secret.objects.select_related("tenant", "tenant__slide").get(tenant__slug=slug, sub_id=sub_id)
+    except ObjectDoesNotExist:
         return None
 
 

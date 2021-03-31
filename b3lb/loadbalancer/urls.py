@@ -25,5 +25,8 @@ urlpatterns = [
     url(r'^bigbluebutton/api/(?P<endpoint>[0-9.a-zA-Z]*)$', api_pass_through),
     path('b3lb/stats', stats),
     path('b3lb/metrics', metrics),
-    path('b3lb/ping', ping)
+    path('b3lb/ping', ping),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10}(-(?P<sub_id>\d{3}))?)/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', api_pass_through),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10}(-(?P<sub_id>\d{3}))?)/stats', stats),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10}(-(?P<sub_id>\d{3}))?)/metrics', metrics)
 ]
