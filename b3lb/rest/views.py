@@ -108,7 +108,7 @@ def stats(request):
 def metrics(request):
     forwarded_host = lb.get_forwarded_host(request)
     auth_token = request.headers.get('Authorization')
-    if forwarded_host == settings.API_BASE_DOMAIN:
+    if forwarded_host == settings.B3LP_API_BASE_DOMAIN:
         return HttpResponse(SecretMetricsList.objects.get(secret=None).metrics, content_type='text/plain')
     elif auth_token and lb.check_auth_token(auth_token, forwarded_host):
         secret = lb.parse_endpoint(forwarded_host, get_secret=True)

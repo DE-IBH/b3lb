@@ -45,13 +45,13 @@ class ClusterAdmin(admin.ModelAdmin):
     list_display = ['name', 'load_a_factor', 'load_m_factor', 'load_cpu_iterations', 'load_cpu_max']
 
 
-def get_node_domain_default():
-    return settings.NODE_DOMAIN_DEFAULT
+def get_B3LB_NODE_DEFAULT_DOMAIN():
+    return settings.B3LB_NODE_DEFAULT_DOMAIN
 
 class Node(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     slug = models.CharField(max_length=100, help_text="node hostname setting")
-    domain = models.CharField(max_length=50, default=get_node_domain_default, help_text="node domainname setting")
+    domain = models.CharField(max_length=50, default=get_B3LB_NODE_DEFAULT_DOMAIN, help_text="node domainname setting")
     secret = models.CharField(max_length=50, help_text="BBB API secret setting")
     cluster = models.ForeignKey(Cluster, on_delete=models.PROTECT, null=False)
     attendees = models.IntegerField(default=0, help_text="number of attendees metric")
@@ -68,11 +68,11 @@ class Node(models.Model):
 
     @property
     def api_base_url(self):
-        return "{}{}.{}/{}".format(settings.NODE_BASE_PROTOCOL, self.slug, self.domain, settings.API_ENDPOINT)
+        return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_BBB_ENDPOINT)
 
     @property
     def load_base_url(self):
-        return "{}{}.{}/{}".format(settings.NODE_BASE_PROTOCOL, self.slug, self.domain, settings.NODE_LOAD_ENDPOINT)
+        return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_LOAD_ENDPOINT)
 
     @property
     def load(self):
@@ -207,7 +207,7 @@ class Tenant(models.Model):
 
     @property
     def hostname(self):
-        return "{}.{}".format(str(self.slug).lower(), settings.API_BASE_DOMAIN)
+        return "{}.{}".format(str(self.slug).lower(), settings.B3LP_API_BASE_DOMAIN)
 
 
 class TenantAdmin(admin.ModelAdmin):
@@ -235,9 +235,9 @@ class Secret(models.Model):
     @property
     def endpoint(self):
         if self.sub_id == 0:
-            return "{}.{}".format(str(self.tenant.slug).lower(), settings.API_BASE_DOMAIN)
+            return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LP_API_BASE_DOMAIN)
         else:
-            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.API_BASE_DOMAIN)
+            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LP_API_BASE_DOMAIN)
 
 
 class SecretAdmin(admin.ModelAdmin):

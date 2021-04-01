@@ -144,39 +144,6 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
-######
-# B3LB Base Settings + Constants
-######
-
-ASSETS_FOLDER_URL = 'https://localhost/logos'
-API_BASE_DOMAIN = 'localhost'
-API_ENDPOINT = 'bigbluebutton/api/'
-
-NODE_BASE_PROTOCOL = 'https://'
-NODE_LOAD_ENDPOINT = 'b3lb/load'
-NODE_DOMAIN_DEFAULT = 'bbbconf.de'
-NODE_REQUEST_TIMEOUT = 5
-
-NO_CUSTOM_SLIDE_STRING = '<default>'
-
-CACHE_NML_PATTERN = 'NML#{}'
-CACHE_NML_TIMEOUT = 30
-
-RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
-RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n</response>'
-RETURN_STRING_CREATE_FAILED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>No node available.</message>\r\n</response>'
-RETURN_STRING_CREATE_LIMIT_REACHED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting/Attendee limit reached.</message>\r\n</response>'
-RETURN_STRING_IS_MEETING_RUNNING_FALSE = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<running>false</running>\r\n</response>'
-RETURN_STRING_GET_MEETING_INFO_NOT_FOUND = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>notFound</messageKey><message>We could not find a meeting with that meeting ID</message>\r\n</response>'
-RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
-RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<recordings></recordings>\r\n<messageKey>noRecordings</messageKey>\r\n<message>There are no recordings for the meeting(s).</message>\r\n</response>'
-RETURN_STRING_MISSING_MEETING_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamMeetingID</messageKey>\r\n<message>You must specify a meeting ID for the meeting.</message>\r\n</response>'
-
-SAFE_QUOTE_SYMBOLS = '*'
-
-# wrap metric counters
-METRIC_BIGINT_MODULO = 9223372036854775808
-
 
 # enable ORM caching for the rest app
 CACHEOPS = {
@@ -189,3 +156,22 @@ CACHEOPS = {
 
 # fail gracefully if redis breaks
 CACHEOPS_DEGRADE_ON_FAILURE = True
+
+
+######
+# B3LB Base Settings
+######
+
+B3LB_ASSETS_URL = 'https://localhost/logos'
+B3LP_API_BASE_DOMAIN = 'localhost'
+
+B3LB_NODE_PROTOCOL = 'https://'
+B3LB_NODE_DEFAULT_DOMAIN = 'bbbconf.de'
+B3LB_NODE_BBB_ENDPOINT = 'bigbluebutton/api/'
+B3LB_NODE_LOAD_ENDPOINT = 'b3lb/load'
+B3LB_NODE_REQUEST_TIMEOUT = 5
+
+B3LB_NO_SLIDES_TEXT = '<default>'
+
+B3LB_CACHE_NML_PATTERN = 'NML#{}'
+B3LB_CACHE_NML_TIMEOUT = 30

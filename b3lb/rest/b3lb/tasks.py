@@ -22,6 +22,7 @@ from django.db import transaction
 from django.conf import settings
 from rest.models import Metric, Node, Meeting, Slide, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList
 import rest.b3lb.lb as lb
+import rest.b3lb.constants as constants
 import os
 import xml.etree.ElementTree as ElementTree
 import requests as rq
@@ -47,7 +48,7 @@ def run_check_node(uuid):
     node = Node.objects.get(uuid=uuid)
 
     try:
-        response = rq.get(node.load_base_url, timeout=settings.NODE_REQUEST_TIMEOUT)
+        response = rq.get(node.load_base_url, timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
         if response.status_code == 200:
             if response.text.find('\n') != -1:
                 with transaction.atomic():
@@ -64,10 +65,10 @@ def run_check_node(uuid):
     meetings = 0
 
     try:
-        response = rq.get(url, timeout=settings.NODE_REQUEST_TIMEOUT)
+        response = rq.get(url, timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
         if response.status_code == 200:
             get_meetings_text = response.content.decode('utf-8')
-            cache.set(settings.CACHE_NML_PATTERN.format(uuid), get_meetings_text, timeout=settings.CACHE_NML_TIMEOUT)
+            cache.set(settings.B3LB_CACHE_NML_PATTERN.format(uuid), get_meetings_text, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
             with transaction.atomic():
                 NodeMeetingList.objects.update_or_create(node=node, defaults={'xml': get_meetings_text})
 
@@ -115,9 +116,9 @@ def run_check_node(uuid):
         pass
 
     if has_errors:
-        cache.set(settings.CACHE_NML_PATTERN.format(uuid), settings.RETURN_STRING_GET_MEETINGS_NO_MEETINGS, timeout=settings.CACHE_NML_TIMEOUT)
+        cache.set(settings.B3LB_CACHE_NML_PATTERN.format(uuid), constants.RETURN_STRING_GET_MEETINGS_NO_MEETINGS, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
         with transaction.atomic():
-            NodeMeetingList.objects.update_or_create(node=node, defaults={'xml': settings.RETURN_STRING_GET_MEETINGS_NO_MEETINGS})
+            NodeMeetingList.objects.update_or_create(node=node, defaults={'xml': constants.RETURN_STRING_GET_MEETINGS_NO_MEETINGS})
 
     with transaction.atomic():
         node_temporary = Node.objects.select_for_update().get(uuid=node.uuid)
@@ -191,7 +192,7 @@ def run_check_node(uuid):
 def run_check_slides():
     slide_dir = "rest/slides/"
     slide_files = os.listdir(slide_dir)
-    slide_files.append(settings.NO_CUSTOM_SLIDE_STRING)
+    slide_files.append(settings.B3LB_NO_SLIDES_TEXT)
     slides = {}
 
     # check for new slide files
@@ -333,7 +334,7 @@ def update_get_meetings_xml(secret_uuid):
     for node in nodes:
         try:
             try:
-                node_meeting = cache.get(settings.CACHE_NML_PATTERN.format(node.uuid))
+                node_meeting = cache.get(settings.B3LB_CACHE_NML_PATTERN.format(node.uuid))
                 if node_meeting is None:
                     node_meeting = NodeMeetingList.objects.get(node=node).xml
             except ObjectDoesNotExist:
@@ -374,7 +375,7 @@ def update_get_meetings_xml(secret_uuid):
     if context["meetings"]:
         response = template.render(context)
     else:
-        response = settings.RETURN_STRING_GET_MEETINGS_NO_MEETINGS
+        response = constants.RETURN_STRING_GET_MEETINGS_NO_MEETINGS
 
     with transaction.atomic():
         obj, created = SecretMeetingList.objects.update_or_create(secret=secret, defaults={'xml': response})

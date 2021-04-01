@@ -22,6 +22,7 @@ from rest.models import Meeting, Metric, Stats, SecretMeetingList
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.core.exceptions import ObjectDoesNotExist
 import rest.b3lb.lb as lb
+import rest.b3lb.constants as constants
 import os
 from django.conf import settings
 import json
@@ -59,7 +60,7 @@ LEGAL_ENDPOINTS = WHITELISTED_ENDPOINTS + BLACKLISTED_ENDPOINTS
 ##
 async def requested_endpoint(secret, endpoint, request, params):
     if not endpoint:
-        return HttpResponse(settings.RETURN_STRING_VERSION, content_type='text/html')
+        return HttpResponse(constants.RETURN_STRING_VERSION, content_type='text/html')
 
     if endpoint == "join":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
@@ -75,11 +76,11 @@ async def requested_endpoint(secret, endpoint, request, params):
             if limit_check:
                 return await create(request, endpoint, params, node, secret)
             else:
-                return HttpResponse(settings.RETURN_STRING_CREATE_LIMIT_REACHED, content_type='text/html')
+                return HttpResponse(constants.RETURN_STRING_CREATE_LIMIT_REACHED, content_type='text/html')
         elif node:
             return await create(request, endpoint, params, node, secret)
         else:
-            return HttpResponse(settings.RETURN_STRING_CREATE_FAILED, content_type='text/html')
+            return HttpResponse(constants.RETURN_STRING_CREATE_FAILED, content_type='text/html')
 
     if endpoint == "end":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
@@ -95,7 +96,7 @@ async def requested_endpoint(secret, endpoint, request, params):
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
-            return HttpResponse(settings.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
+            return HttpResponse(constants.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
 
     if endpoint == "getMeetings":
         return await sync_to_async(get_meetings)(secret)
@@ -105,7 +106,7 @@ async def requested_endpoint(secret, endpoint, request, params):
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
-            return HttpResponse(settings.RETURN_STRING_GET_MEETING_INFO_NOT_FOUND, content_type='text/html')
+            return HttpResponse(constants.RETURN_STRING_GET_MEETING_INFO_NOT_FOUND, content_type='text/html')
 
     if endpoint == "setConfigXML":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
@@ -124,7 +125,7 @@ def get_meetings(secret):
     try:
         secret_meeting_list = SecretMeetingList.objects.get(secret=secret)
     except ObjectDoesNotExist:
-        return HttpResponse(settings.RETURN_STRING_GET_MEETINGS_NO_MEETINGS, content_type='text/html')
+        return HttpResponse(constants.RETURN_STRING_GET_MEETINGS_NO_MEETINGS, content_type='text/html')
 
     return HttpResponse(secret_meeting_list.xml, content_type='text/html')
 
@@ -147,14 +148,14 @@ async def create(request, endpoint, params, node, secret):
     try:
         meeting_id = params["meetingID"]
     except KeyError:
-        return HttpResponse(settings.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
+        return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
 
     # check for custom logo
     if "logo" not in params:
         if os.path.isfile("rest/logos/{}.png".format(secret.tenant.slug.lower())):
-            params["logo"] = "{}/{}.png".format(settings.ASSETS_FOLDER_URL, secret.tenant.slug.lower())
+            params["logo"] = "{}/{}.png".format(settings.B3LB_ASSETS_URL, secret.tenant.slug.lower())
 
-    if request.method == "GET" and secret.tenant.slide and secret.tenant.slide.name != settings.NO_CUSTOM_SLIDE_STRING:
+    if request.method == "GET" and secret.tenant.slide and secret.tenant.slide.name != settings.B3LB_NO_SLIDES_TEXT:
         body = lb.get_slide_body_for_post(secret.tenant.slide.name)
         if body:
             request.method = "POST"

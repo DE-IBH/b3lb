@@ -31,8 +31,14 @@ from django.conf import settings
 ##
 # CONSTANTS
 ##
-slug_regex = re.compile(r'([a-z]{2,10})(-(\d{3}))?\.' + re.escape(settings.API_BASE_DOMAIN) + '$')
+slug_regex = re.compile(r'([a-z]{2,10})(-(\d{3}))?\.' + re.escape(settings.B3LP_API_BASE_DOMAIN) + '$')
 forwarded_host_regex = re.compile(r'([^:]+)(:\d+)?$')
+
+# symbols not to be encoded to match bbb's checksum calculation
+SAFE_QUOTE_SYMBOLS = '*'
+
+# wrap metric counters
+METRIC_BIGINT_MODULO = 9223372036854775808
 
 
 ##
@@ -71,7 +77,7 @@ def check_tenant(secret, checksum, endpoint, params):
         parameter_str = ""
 
         if params:
-            parameter_str += "{}".format(urlencode(params, safe=settings.SAFE_QUOTE_SYMBOLS))
+            parameter_str += "{}".format(urlencode(params, safe=SAFE_QUOTE_SYMBOLS))
 
         sha_1.update("{}{}{}".format(endpoint, parameter_str, secret).encode())
         if sha_1.hexdigest() == checksum:
@@ -89,7 +95,7 @@ def get_endpoint_str(endpoint, params, secret):
     parameter_str = ""
 
     if params:
-        parameter_str += "{}".format(urlencode(params, safe=settings.SAFE_QUOTE_SYMBOLS))
+        parameter_str += "{}".format(urlencode(params, safe=SAFE_QUOTE_SYMBOLS))
 
     sha_1 = hashlib.sha1()
     sha_1.update("{}{}{}".format(endpoint, parameter_str, secret).encode())
@@ -150,9 +156,9 @@ def get_slide_body_for_post(slide):
 
 
 def incr_metric(name, secret, node, incr=1):
-    if Metric.objects.filter(name=name, secret=secret, node=node).update(value=(F("value") + incr) % settings.METRIC_BIGINT_MODULO) == 0:
+    if Metric.objects.filter(name=name, secret=secret, node=node).update(value=(F("value") + incr) % METRIC_BIGINT_MODULO) == 0:
         metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
-        metric.value = (F("value") + incr) % settings.METRIC_BIGINT_MODULO
+        metric.value = (F("value") + incr) % METRIC_BIGINT_MODULO
         metric.save(update_fields=["value"])
 
 

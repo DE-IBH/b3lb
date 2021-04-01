@@ -43,5 +43,5 @@ CELERY_BROKER_URL = 'amqp://user:password@localhost:5672/'
 
 DEBUG = True
 
-ASSETS_FOLDER_URL = "https://localhost/logos"
-API_BASE_DOMAIN = "localhost"
+B3LB_ASSETS_URL = "https://localhost/logos"
+B3LP_API_BASE_DOMAIN = "localhost"
