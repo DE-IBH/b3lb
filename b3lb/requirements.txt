@@ -7,6 +7,7 @@ django-cacheops==5.1
 django-celery-admin==0.1
 django-celery-beat==2.2.0
 django-celery-results==2.0.1
+django-environ==0.4.5
 django-redis==4.12.1
 django-split-settings==1.0.1
 psycopg2cffi==2.9.0
