@@ -41,6 +41,7 @@ WORKDIR /usr/src/app
 COPY --from=build /usr/local /usr/local
 
 COPY b3lb/manage.py \
+     b3lb/loadbalancer/.env.dev \
      docker/entrypoint.sh \
      docker/static.sh \
      ./
@@ -48,8 +49,8 @@ COPY b3lb/loadbalancer ./loadbalancer
 COPY b3lb/rest ./rest
 
 RUN adduser -u $B3LBUID -h /usr/src/app -D -H b3lb && \
-    DJANGO_SETTINGS_MODULE=loadbalancer.settings_dev ./manage.py check --force-color && \
-    DJANGO_SETTINGS_MODULE=loadbalancer.settings_dev ./manage.py collectstatic --no-input --force-color
+    ENV_FILE=.env.dev ./manage.py check --force-color && \
+    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
 
 USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]

@@ -135,6 +135,5 @@ debug.yml
 nginx
 db
 *.img
-b3lb/loadbalancer/settings.py
 .run
 .github

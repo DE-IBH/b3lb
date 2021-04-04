@@ -29,6 +29,12 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 import os
 import sys
+import environ
+
+# reading .env file
+env = environ.Env()
+environ.Env.read_env(env.str('ENV_FILE', default='.env'))
+
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,10 +49,18 @@ except Exception as ex:
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = env.bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = env.str('SECRET_KEY')
 
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
+
+DATABASES = {
+    'default': env.db()
+}
+CACHES = {
+    'default': env.cache(default="locmemcache://b3lb-default-cache")
+}
 
 # Application definition
 
@@ -129,6 +143,9 @@ CELERY_RESULT_EXPIRES = 3600
 
 CELERY_SINGLETON_LOCK_EXPIRY = 300
 
+# Celery Broker
+
+CELERY_BROKER_URL = env.url
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
@@ -136,6 +153,9 @@ CELERY_SINGLETON_LOCK_EXPIRY = 300
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
+
+LANGUAGE_CODE = env.str('LANGUAGE_CODE', default='en-us')
+TIME_ZONE = env.str('TIME_ZONE', default='UTC')
 
 
 # Static files (CSS, JavaScript, Images)
@@ -154,24 +174,27 @@ CACHEOPS = {
     'rest.meeting': None,
 }
 
+# redis db for cacheops
+CACHEOPS_REDIS = env.str('CACHEOPS_REDIS', default='redis://redis/2')
+
 # fail gracefully if redis breaks
-CACHEOPS_DEGRADE_ON_FAILURE = True
+CACHEOPS_DEGRADE_ON_FAILURE = env.bool('CACHEOPS_DEGRADE_ON_FAILURE', True)
 
 
 ######
 # B3LB Base Settings
 ######
 
-B3LB_ASSETS_URL = 'https://localhost/logos'
-B3LP_API_BASE_DOMAIN = 'localhost'
+B3LP_API_BASE_DOMAIN = env.str('B3LP_API_BASE_DOMAIN')
+B3LB_ASSETS_URL = env.str('B3LB_ASSETS_URL', default='https://{}/logos'.format(B3LP_API_BASE_DOMAIN))
 
-B3LB_NODE_PROTOCOL = 'https://'
-B3LB_NODE_DEFAULT_DOMAIN = 'bbbconf.de'
-B3LB_NODE_BBB_ENDPOINT = 'bigbluebutton/api/'
-B3LB_NODE_LOAD_ENDPOINT = 'b3lb/load'
-B3LB_NODE_REQUEST_TIMEOUT = 5
+B3LB_NODE_PROTOCOL = env.str('B3LB_NODE_PROTOCOL', default='https://')
+B3LB_NODE_DEFAULT_DOMAIN = env.str('B3LB_NODE_DEFAULT_DOMAIN', default='bbbconf.de')
+B3LB_NODE_BBB_ENDPOINT = env.str('B3LB_NODE_BBB_ENDPOINT', default='bigbluebutton/api/')
+B3LB_NODE_LOAD_ENDPOINT = env.str('B3LB_NODE_LOAD_ENDPOINT', default='b3lb/load')
+B3LB_NODE_REQUEST_TIMEOUT = env.int('B3LB_NODE_REQUEST_TIMEOUT', default=5)
 
-B3LB_NO_SLIDES_TEXT = '<default>'
+B3LB_NO_SLIDES_TEXT = env.str('B3LB_NO_SLIDES_TEXT', default='<default>')
 
-B3LB_CACHE_NML_PATTERN = 'NML#{}'
-B3LB_CACHE_NML_TIMEOUT = 30
+B3LB_CACHE_NML_PATTERN = env.str('B3LB_CACHE_NML_PATTERN', default='NML#{}')
+B3LB_CACHE_NML_TIMEOUT = env.int('B3LB_CACHE_NML_TIMEOUT', default=30)
