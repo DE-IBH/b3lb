@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='node',
             name='domain',
-            field=models.CharField(default=rest.models.get_B3LB_NODE_DEFAULT_DOMAIN, help_text='node domainname setting', max_length=50),
+            field=models.CharField(default=rest.models.get_b3lb_node_default_domain, help_text='node domainname setting', max_length=50),
         ),
         migrations.AlterField(
             model_name='node',
