@@ -45,13 +45,14 @@ class ClusterAdmin(admin.ModelAdmin):
     list_display = ['name', 'load_a_factor', 'load_m_factor', 'load_cpu_iterations', 'load_cpu_max']
 
 
-def get_B3LB_NODE_DEFAULT_DOMAIN():
+def get_b3lb_node_default_domain():
     return settings.B3LB_NODE_DEFAULT_DOMAIN
+
 
 class Node(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     slug = models.CharField(max_length=100, help_text="node hostname setting")
-    domain = models.CharField(max_length=50, default=get_B3LB_NODE_DEFAULT_DOMAIN, help_text="node domainname setting")
+    domain = models.CharField(max_length=50, default=get_b3lb_node_default_domain, help_text="node domainname setting")
     secret = models.CharField(max_length=50, help_text="BBB API secret setting")
     cluster = models.ForeignKey(Cluster, on_delete=models.PROTECT, null=False)
     attendees = models.IntegerField(default=0, help_text="number of attendees metric")
