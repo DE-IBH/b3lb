@@ -20,7 +20,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
-from rest.models import Metric, Node, Meeting, Slide, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList
+from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList
 import rest.b3lb.lb as lb
 import rest.b3lb.constants as constants
 import os
@@ -198,14 +198,14 @@ def run_check_slides():
     # check for new slide files
     for slide_file in slide_files:
         try:
-            Slide.objects.get(name=slide_file)
+            Asset.objects.get(name=slide_file)
         except ObjectDoesNotExist:
-            slide = Slide(name=slide_file)
+            slide = Asset(name=slide_file)
             slide.save()
             slides[slide_file] = "added"
 
     # check for deleted slide files
-    for slide in Slide.objects.all():
+    for slide in Asset.objects.all():
         if slide.name not in slide_files:
             slide.delete()
             slides[slide.name] = "deleted"

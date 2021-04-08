@@ -137,21 +137,6 @@ class NodeMeetingListAdmin(admin.ModelAdmin):
     list_display = ['node']
 
 
-class Slide(models.Model):
-    name = models.CharField(max_length=256, primary_key=True)
-
-    class Meta(object):
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-
-class SlideAdmin(admin.ModelAdmin):
-    model = Slide
-    list_display = ['name']
-
-
 def get_random_secret():
     return get_random_string(42, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
@@ -193,7 +178,6 @@ class ClusterGroupRelationAdmin(admin.ModelAdmin):
 class Tenant(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     slug = models.CharField(max_length=10, validators=[RegexValidator('[A-Z]{2,10}')])
-    slide = models.ForeignKey(Slide, default=None, on_delete=models.SET_NULL, null=True)
     description = models.CharField(max_length=256, blank=True, default="")
     stats_token = models.UUIDField(default=uid.uuid4)
     cluster_group = models.ForeignKey(ClusterGroup, on_delete=models.PROTECT)
@@ -213,7 +197,7 @@ class Tenant(models.Model):
 
 class TenantAdmin(admin.ModelAdmin):
     model = Tenant
-    list_display = ['slug', 'description', 'hostname', 'slide', 'cluster_group', 'attendee_limit', 'meeting_limit']
+    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'attendee_limit', 'meeting_limit']
 
 
 class Secret(models.Model):
@@ -239,6 +223,26 @@ class Secret(models.Model):
             return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LP_API_BASE_DOMAIN)
         else:
             return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LP_API_BASE_DOMAIN)
+
+
+class Asset(models.Model):
+    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
+    slide = models.BinaryField(editable=True, null=True)
+    slide_filename = models.CharField(max_length=250, null=True)
+    slide_mime_type = models.CharField(max_length=50, editable=False, null=True)
+    logo = models.BinaryField(editable=True, null=True)
+    logo_mime_type = models.CharField(max_length=50, editable=False, null=True)
+
+    class Meta(object):
+        ordering = ['tenant__slug']
+
+    def __str__(self):
+        return self.tenant.slug
+
+
+class AssetAdmin(admin.ModelAdmin):
+    model = Asset
+    list_display = ['__str__']
 
 
 class SecretAdmin(admin.ModelAdmin):
