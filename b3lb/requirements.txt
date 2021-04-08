@@ -14,3 +14,4 @@ psycopg2cffi==2.9.0
 uvicorn[standard]==0.13.4
 aiohttp==3.7.4.post0
 jinja2==2.11.3
+python-magic==0.4.22
