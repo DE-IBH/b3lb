@@ -20,7 +20,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
-from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList
+from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList, AssetLogo, AssetSlide
 import rest.b3lb.lb as lb
 import rest.b3lb.constants as constants
 import os
@@ -33,6 +33,33 @@ from jinja2 import Template
 #
 # Celery task routines
 #
+def housekeeing():
+    slides = list(AssetSlide.objects.all())
+    logos = list(AssetLogo.objects.all())
+    assets = Asset.objects.all()
+
+    for asset in assets:
+        for slide_index in range(len(slides)-1, -1, -1):
+            if asset.slide.name == slides[slide_index].filename:
+                del slides[slide_index]
+        for logo_index in range(len(logos)-1, -1, -1):
+            if asset.logo.name == logos[logo_index].filename:
+                del logos[logo_index]
+
+    del asset
+
+    slides_deleted = 0
+    for slide in slides:
+        slide.delete()
+        slides_deleted += 1
+    logos_deleted = 0
+    for logo in logos:
+        logo.delete()
+        logos_deleted += 1
+
+    return "Delete {} slides and {} logos.".format(slides_deleted, logos_deleted)
+
+
 def run_check_node(uuid):
     meeting_dict = {}
     parameter_list_int = [
