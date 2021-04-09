@@ -33,7 +33,7 @@ from jinja2 import Template
 #
 # Celery task routines
 #
-def housekeeing():
+def housekeeping():
     slides = list(AssetSlide.objects.all())
     logos = list(AssetLogo.objects.all())
     assets = Asset.objects.all()
