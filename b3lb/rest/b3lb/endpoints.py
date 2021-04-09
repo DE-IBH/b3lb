@@ -159,6 +159,8 @@ async def create(request, endpoint, params, node, secret):
         if asset.logo:
             params["logo"] = "{}/b3lb/t/{}/logo".format(settings.B3LP_API_BASE_DOMAIN, secret.tenant.slug.lower())
 
+    params = lb.check_parameter(params, secret.tenant)
+
     if request.method == "GET":
         if asset.slide:
             body = lb.get_slide_body_for_post(asset, secret)

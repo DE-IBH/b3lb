@@ -17,7 +17,7 @@
 
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist
-from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant
+from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant, Parameter
 from urllib.parse import urlencode
 from random import randint
 import re
@@ -58,6 +58,20 @@ def check_meeting_existence(meeting_id, secret):
             return meeting.node, False
         except ObjectDoesNotExist:
             return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
+
+
+def check_parameter(params, tenant):
+    parameters = Parameter.objects.filter(tenant=tenant)
+    for parameter in parameters:
+        if parameter.parameter in params:
+            if parameter.mode == Parameter.BLOCK:
+                del params[parameter.parameter]
+            elif parameter.mode == Parameter.OVERRIDE:
+                params[parameter.parameter] = parameter.value
+        elif parameter.mode == Parameter.SET:
+            params[parameter.parameter] = parameter.value
+
+    return params
 
 
 def check_tenant(secret, checksum, endpoint, params):
