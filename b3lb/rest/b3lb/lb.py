@@ -16,7 +16,7 @@
 
 
 from asgiref.sync import sync_to_async
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ObjectDoesNotExist
 from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant
 from urllib.parse import urlencode
 from random import randint
@@ -24,7 +24,6 @@ import re
 from django.db import transaction
 from django.db.models import F, Sum
 from django.http import HttpResponse
-import base64
 import hashlib
 from django.conf import settings
 from wsgiref.util import FileWrapper
