@@ -510,4 +510,4 @@ class Parameter(models.Model):
 
 class ParameterAdmin(admin.ModelAdmin):
     model = Parameter
-    list_display = ['parameter', 'tenant', 'value']
+    list_display = ['tenant', 'parameter', 'mode', 'value']
