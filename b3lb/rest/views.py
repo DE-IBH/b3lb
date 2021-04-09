@@ -21,7 +21,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import OperationalError
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
-from rest.models import Cluster, SecretMetricsList
+from rest.models import Cluster, SecretMetricsList, Asset
 import rest.b3lb.lb as lb
 import rest.b3lb.endpoints as ep
 from datetime import datetime
@@ -110,3 +110,21 @@ def metrics(request, slug=None, sub_id=0):
         return HttpResponse(SecretMetricsList.objects.get(secret=secret).metrics, content_type='text/plain')
     else:
         return HttpResponse("Unauthorized", status=401)
+
+
+# Endpoint for getting slides
+@require_http_methods(['GET'])
+def slide(request, slug=None, sub_id=0):
+    try:
+        return lb.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
+    except ObjectDoesNotExist:
+        return HttpResponse("Not Found", status=404)
+
+
+# Endpoint for getting logos
+@require_http_methods(['GET'])
+def logo(request, slug=None, sub_id=0):
+    try:
+        return lb.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
+    except ObjectDoesNotExist:
+        return HttpResponse("Not Found", status=404)

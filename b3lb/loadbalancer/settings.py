@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
+    'db_file_storage',
 
     'django_celery_beat',
     'django_celery_results',
@@ -92,6 +93,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'loadbalancer.urls'
+
+DEFAULT_FILE_STORAGE = 'db_file_storage.storage.DatabaseFileStorage'
 
 TEMPLATES = [
     {
@@ -186,7 +189,6 @@ CACHEOPS_DEGRADE_ON_FAILURE = env.bool('CACHEOPS_DEGRADE_ON_FAILURE', True)
 ######
 
 B3LP_API_BASE_DOMAIN = env.str('B3LP_API_BASE_DOMAIN')
-B3LB_ASSETS_URL = env.str('B3LB_ASSETS_URL', default='https://{}/logos'.format(B3LP_API_BASE_DOMAIN))
 
 B3LB_NODE_PROTOCOL = env.str('B3LB_NODE_PROTOCOL', default='https://')
 B3LB_NODE_DEFAULT_DOMAIN = env.str('B3LB_NODE_DEFAULT_DOMAIN', default='bbbconf.de')

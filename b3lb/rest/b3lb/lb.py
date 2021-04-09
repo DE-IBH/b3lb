@@ -23,10 +23,14 @@ from random import randint
 import re
 from django.db import transaction
 from django.db.models import F, Sum
+from django.http import HttpResponse
 import base64
 import hashlib
 from django.conf import settings
+from wsgiref.util import FileWrapper
+from db_file_storage.storage import DatabaseFileStorage
 
+storage = DatabaseFileStorage()
 
 ##
 # CONSTANTS
@@ -130,18 +134,19 @@ def get_node_params_by_lowest_workload(cluster_group):
         return None
 
 
-def get_slide_body_for_post(slide):
-    slide_path = "rest/slides/{}".format(slide)
-    try:
-        slide_file = open(slide_path, "rb")
-        body = '<modules><module name="presentation"><document name="{}">{}</document></module></modules>'.format(slide, base64.b64encode(slide_file.read()).decode())
-        slide_file.close()
-    except FileNotFoundError:
-        body = None
+def get_slide_body_for_post(asset, secret):
+    if asset.slide_filename:
+        file_name = asset.slide_filename
+    else:
+        file_name = "{}.{}".format(secret.tenant.slug.lower(), asset.slide.filename.split(".")[-1])
+
+    file_url = "{}/b3lb/t/{}/slide".format(settings.B3LP_API_BASE_DOMAIN, secret.tenant.slug.lower())
+
+    body = '<modules><module name="presentation"><document url="{}" filename="{}"></module></modules>'.format(file_url, file_name)
     return body
 
 
-def incr_metric(name, secret, node, incr=1):
+def incr_metric(name, secret, node=None, incr=1):
     if Metric.objects.filter(name=name, secret=secret, node=node).update(value=(F("value") + incr) % METRIC_BIGINT_MODULO) == 0:
         metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
         metric.value = (F("value") + incr) % METRIC_BIGINT_MODULO
@@ -151,9 +156,11 @@ def incr_metric(name, secret, node, incr=1):
 @sync_to_async
 def limit_check(secret):
     if secret.tenant.meeting_limit > 0 and not Meeting.objects.filter(secret__tenant=secret.tenant).count() < secret.tenant.meeting_limit:
+        incr_metric(Metric.MEETING_LIMIT_HITS, Secret.objects.get(tenant=secret.tenant, sub_id=0))
         return False
 
     if secret.meeting_limit > 0 and not Meeting.objects.filter(secret=secret).count() < secret.meeting_limit:
+        incr_metric(Metric.MEETING_LIMIT_HITS, secret)
         return False
 
     if secret.tenant.attendee_limit > 0:
@@ -161,14 +168,28 @@ def limit_check(secret):
         # Aggregation sum can return None or [0, inf).
         # Only check for limit if aggregation sum is an integer.
         if isinstance(attendee_sum, int) and not attendee_sum < secret.tenant.attendee_limit:
+            incr_metric(Metric.ATTENDEE_LIMIT_HITS, Secret.objects.get(tenant=secret.tenant, sub_id=0))
             return False
 
     if secret.attendee_limit > 0:
         attendee_sum = Meeting.objects.filter(secret=secret).aggregate(Sum('attendees'))["attendees__sum"]
         # Same as above
         if isinstance(attendee_sum, int) and not attendee_sum < secret.attendee_limit:
+            incr_metric(Metric.ATTENDEE_LIMIT_HITS, secret)
             return False
     return True
+
+
+def get_file_from_storage(file_name):
+    try:
+        stored_file = storage.open(file_name)
+    except Exception:
+        return HttpResponse("Not Found", status=404)
+
+    response = HttpResponse(FileWrapper(stored_file), content_type=stored_file.mimetype)
+    response['Content-Length'] = stored_file.tell()
+
+    return response
 
 
 def get_slug(request, slug, sub_id):
@@ -178,11 +199,11 @@ def get_slug(request, slug, sub_id):
 
         regex_search = slug_regex.search(host)
         if regex_search:
-            return (regex_search.group(1).upper(), int(regex_search.group(3) or 0))
+            return regex_search.group(1).upper(), int(regex_search.group(3) or 0)
         else:
-            return (None, None)
+            return None, None
     else:
-        return (slug, int(sub_id))
+        return slug, int(sub_id)
 
 
 def get_request_tenant(request, slug, sub_id):
