@@ -20,8 +20,9 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
-from django.core.files.storage import FileSystemStorage
+from django.core.exceptions import ValidationError
 import uuid as uid
+import re
 from math import pow
 from django.conf import settings
 
@@ -397,3 +398,116 @@ class Metric(models.Model):
 class MetricAdmin(admin.ModelAdmin):
     model = Metric
     list_display = ['name', 'secret', 'node', 'value']
+
+
+class Parameter(models.Model):
+    # Parameters
+    MAX_PARTICIPANTS = "maxParticipants"
+    LOGOUT_URL = "logoutURL"
+    DURATION = "duration"
+    WEBCAMS_ONLY_FOR_MODERATOR = "webcamsOnlyForModerator"
+    BANNER_TEXT = "bannerText"
+    BANNER_COLOR = "bannerColor"
+    COPYRIGHT = "copyright"
+    MUTE_ON_START = "muteOnStart"
+    ALLOW_MODS_TO_UNMUTE_USERS = "allowModsToUnmuteUsers"
+    LOCK_SETTINGS_DISABLE_CAM = "lockSettingsDisableCam"
+    LOCK_SETTINGS_DISABLE_MIC = "lockSettingsDisableMic"
+    LOCK_SETTINGS_DISABLE_PRIVATE_CHAT = "lockSettingsDisablePrivateChat"
+    LOCK_SETTINGS_DISABLE_PUBLIC_CHAT = "lockSettingsDisablePublicChat"
+    LOCK_SETTINGS_DISABLE_NOTE = "lockSettingsDisableNote"
+    LOCK_SETTINGS_LOCKED_LAYOUT = "lockSettingsLockedLayout"
+    LOCK_SETTINGS_HIDE_USER_LIST = "lockSettingsHideUserList"
+    LOCK_SETTINGS_LOCK_ON_JOIN = "lockSettingsLockOnJoin"
+    LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE = "lockSettingsLockOnJoinConfigurable"
+    GUEST_POLICY = "guestPolicy"
+    MEETING_KEEP_EVENT = "meetingKeepEvents"
+
+    # Modes
+    BLOCK = "BLOCK"
+    SET = "SET"
+    OVERRIDE = "OVERRIDE"
+    
+    PARAMETER_CHOICES = (
+        (MAX_PARTICIPANTS, "{} - Maximum number of users allowed to joined the conference at the same time.".format(MAX_PARTICIPANTS)),
+        (LOGOUT_URL, "{} - The URL that the BigBlueButton client will go to after users click the OK button on the ‘You have been logged out message’.".format(LOGOUT_URL)),
+        (DURATION, "{} - The maximum length (in minutes) for the meeting.".format(DURATION)),
+        (WEBCAMS_ONLY_FOR_MODERATOR, "{} - Setting to 'true' will cause all webcams shared by viewers during this meeting to only appear for moderators.".format(WEBCAMS_ONLY_FOR_MODERATOR)),
+        (BANNER_TEXT, "{} - Will set the banner text in the client.".format(BANNER_TEXT)),
+        (BANNER_COLOR, "{} - Will set the banner background color in the client. Format is color hex '#FFFFFF'.".format(BANNER_COLOR)),
+        (COPYRIGHT, "{} - Setting will replace the default copyright on the footer of the Flash client.".format(COPYRIGHT)),
+        (MUTE_ON_START, "{} - Setting to 'true' will mute all users when the meeting starts.".format(MUTE_ON_START)),
+        (ALLOW_MODS_TO_UNMUTE_USERS, "{} - Setting to 'true' will allow moderators to unmute other users in the meeting.".format(ALLOW_MODS_TO_UNMUTE_USERS)),
+        (LOCK_SETTINGS_DISABLE_CAM, "{} - Setting to 'true' will prevent users from sharing their camera in the meeting.".format(LOCK_SETTINGS_DISABLE_CAM)),
+        (LOCK_SETTINGS_DISABLE_MIC, "{} - Setting to 'true' will only allow user to join listen only.".format(LOCK_SETTINGS_DISABLE_MIC)),
+        (LOCK_SETTINGS_DISABLE_PRIVATE_CHAT, "{} - Setting to 'true' will disable private chats in the meeting.".format(LOCK_SETTINGS_DISABLE_PRIVATE_CHAT)),
+        (LOCK_SETTINGS_DISABLE_PUBLIC_CHAT, "{} - Setting to 'true' will disable public chat in the meeting.".format(LOCK_SETTINGS_DISABLE_PUBLIC_CHAT)),
+        (LOCK_SETTINGS_DISABLE_NOTE, "{} - Setting to 'true' will disable notes in the meeting.".format(LOCK_SETTINGS_DISABLE_NOTE)),
+        (LOCK_SETTINGS_LOCKED_LAYOUT, "{} - Setting to 'true' will lock the layout in the meeting.".format(LOCK_SETTINGS_LOCKED_LAYOUT)),
+        (LOCK_SETTINGS_HIDE_USER_LIST, "{} - Setting to 'true' will lock the user list in the meeting.".format(LOCK_SETTINGS_HIDE_USER_LIST)),
+        (LOCK_SETTINGS_LOCK_ON_JOIN, "{} - Setting to 'false' will not apply lock setting to users when they join.".format(LOCK_SETTINGS_LOCK_ON_JOIN)),
+        (LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE, "{} - Setting to 'true' will allow applying of lockSettingsLockOnJoin param.".format(LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE)),
+        (GUEST_POLICY, "{} - Will set the guest policy for the meeting. Possible values are ALWAYS_ACCEPT, ALWAYS_DENY, and ASK_MODERATOR.".format(GUEST_POLICY)),
+        (MEETING_KEEP_EVENT, "{} - If set to 'true' BigBlueButton saves meeting events even if the meeting is not recorded.".format(MEETING_KEEP_EVENT))
+    )
+
+    MODE_CHOICES = [
+        (BLOCK, BLOCK),
+        (SET, SET),
+        (OVERRIDE, OVERRIDE)
+    ]
+
+    BOOLEAN_REGEX = r'^(true|false)$'
+    BOOLEAN_PARAMETER = [
+        WEBCAMS_ONLY_FOR_MODERATOR,
+        MUTE_ON_START,
+        ALLOW_MODS_TO_UNMUTE_USERS,
+        LOCK_SETTINGS_DISABLE_CAM,
+        LOCK_SETTINGS_DISABLE_MIC,
+        LOCK_SETTINGS_DISABLE_PRIVATE_CHAT,
+        LOCK_SETTINGS_DISABLE_PUBLIC_CHAT,
+        LOCK_SETTINGS_DISABLE_NOTE,
+        LOCK_SETTINGS_LOCKED_LAYOUT,
+        LOCK_SETTINGS_HIDE_USER_LIST,
+        LOCK_SETTINGS_LOCK_ON_JOIN,
+        LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE,
+        MEETING_KEEP_EVENT
+    ]
+
+    NUMBER_REGEX = r'^[\d]+$'
+    NUMBER_PARAMETERS = [MAX_PARTICIPANTS, DURATION]
+
+    POLICY_REGEX = r'^(ALWAYS_ACCEPT|ALWAYS_DENY|ASK_MODERATOR)$'
+    POLICY_PARAMETERS = [GUEST_POLICY]
+
+    COLOR_REGEX = r'^#[A-F0-9]{6}$'
+    COLOR_PARAMETER = [BANNER_COLOR]
+
+    mode = models.CharField(max_length=10, choices=MODE_CHOICES)
+    parameter = models.CharField(max_length=64, choices=PARAMETER_CHOICES)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    value = models.CharField(max_length=250, blank=True, null=True)
+
+    def clean_fields(self, exclude=None):
+        if self.parameter in self.BOOLEAN_PARAMETER:
+            if not re.match(self.BOOLEAN_REGEX, self.value):
+                raise ValidationError('Value is not "true" or "false"!', params={'value': self.value})
+        elif self.parameter in self.NUMBER_PARAMETERS:
+            if not re.match(self.NUMBER_REGEX, self.value):
+                raise ValidationError('Value is not a number!', params={'value': self.value})
+        elif self.parameter in self.POLICY_PARAMETERS:
+            if not re.match(self.POLICY_REGEX, self.value):
+                raise ValidationError('Value is not "ALWAYS_ACCEPT", "ALWAYS_DENY" or "ASK_MODERATOR"!', params={'value': self.value})
+        elif self.parameter in self.COLOR_PARAMETER:
+            if not re.match(self.COLOR_REGEX, self.value):
+                raise ValidationError('Value has not the format "#FFFFFF"!', params={'value': self.value})
+
+    class Meta(object):
+        constraints = [
+            models.UniqueConstraint(fields=['parameter', 'tenant'], name="unique_parameter")
+        ]
+
+
+class ParameterAdmin(admin.ModelAdmin):
+    model = Parameter
+    list_display = ['parameter', 'tenant', 'value']

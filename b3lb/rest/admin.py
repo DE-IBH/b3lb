@@ -19,6 +19,9 @@ from django.contrib import admin
 from rest.models import *
 
 
+admin.site.register(Asset, AssetAdmin)
+admin.site.register(AssetLogo, AssetLogoAdmin)
+admin.site.register(AssetSlide, AssetSlideAdmin)
 admin.site.register(Cluster, ClusterAdmin)
 admin.site.register(ClusterGroup, ClusterGroupAdmin)
 admin.site.register(ClusterGroupRelation, ClusterGroupRelationAdmin)
@@ -26,9 +29,7 @@ admin.site.register(Meeting, MeetingAdmin)
 admin.site.register(Metric, MetricAdmin)
 admin.site.register(Node, NodeAdmin)
 admin.site.register(NodeMeetingList, NodeMeetingListAdmin)
-admin.site.register(Asset, AssetAdmin)
-admin.site.register(AssetLogo, AssetLogoAdmin)
-admin.site.register(AssetSlide, AssetSlideAdmin)
+admin.site.register(Parameter, ParameterAdmin)
 admin.site.register(Secret, SecretAdmin)
 admin.site.register(SecretMeetingList, SecretMeetingListAdmin)
 admin.site.register(SecretMetricsList, SecretMetricsListAdmin)

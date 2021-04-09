@@ -23,7 +23,6 @@ from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadReque
 from django.core.exceptions import ObjectDoesNotExist
 import rest.b3lb.lb as lb
 import rest.b3lb.constants as constants
-import os
 from django.conf import settings
 import json
 
