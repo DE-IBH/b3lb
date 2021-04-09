@@ -20,6 +20,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+from django.core.files.storage import FileSystemStorage
 import uuid as uid
 from math import pow
 from django.conf import settings
@@ -52,7 +53,7 @@ def get_b3lb_node_default_domain():
 class Node(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     slug = models.CharField(max_length=100, help_text="node hostname setting")
-    domain = models.CharField(max_length=50, default=get_b3lb_node_default_domain, help_text="node domainname setting")
+    domain = models.CharField(max_length=50, default=get_b3lb_node_default_domain, help_text="node domain name setting")
     secret = models.CharField(max_length=50, help_text="BBB API secret setting")
     cluster = models.ForeignKey(Cluster, on_delete=models.PROTECT, null=False)
     attendees = models.IntegerField(default=0, help_text="number of attendees metric")
@@ -225,13 +226,38 @@ class Secret(models.Model):
             return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LP_API_BASE_DOMAIN)
 
 
+class SecretAdmin(admin.ModelAdmin):
+    model = Secret
+    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit']
+
+
+class AssetSlide(models.Model):
+    blob = models.BinaryField()
+    filename = models.CharField(max_length=255)
+    mimetype = models.CharField(max_length=50)
+
+
+class AssetSlideAdmin(admin.ModelAdmin):
+    model = AssetSlide
+    list_display = ['filename', 'mimetype']
+
+
+class AssetLogo(models.Model):
+    blob = models.BinaryField()
+    filename = models.CharField(max_length=255)
+    mimetype = models.CharField(max_length=50)
+
+
+class AssetLogoAdmin(admin.ModelAdmin):
+    model = AssetLogo
+    list_display = ['filename', 'mimetype']
+
+
 class Asset(models.Model):
     tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
-    slide = models.BinaryField(editable=True, null=True)
-    slide_filename = models.CharField(max_length=250, null=True)
-    slide_mime_type = models.CharField(max_length=50, editable=False, null=True)
-    logo = models.BinaryField(editable=True, null=True)
-    logo_mime_type = models.CharField(max_length=50, editable=False, null=True)
+    slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
+    slide_filename = models.CharField(max_length=250, blank=True, null=True)
+    logo = models.ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
 
     class Meta(object):
         ordering = ['tenant__slug']
@@ -243,11 +269,6 @@ class Asset(models.Model):
 class AssetAdmin(admin.ModelAdmin):
     model = Asset
     list_display = ['__str__']
-
-
-class SecretAdmin(admin.ModelAdmin):
-    model = Secret
-    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit']
 
 
 class SecretMeetingList(models.Model):
@@ -337,6 +358,8 @@ class Metric(models.Model):
     CREATED = "meetings_total"
     DURATION_COUNT = "meeting_duration_seconds_count"
     DURATION_SUM = "meeting_duration_seconds_sum"
+    ATTENDEE_LIMIT_HITS = "attendee_limit_hits"
+    MEETING_LIMIT_HITS = "meeting_limit_hits"
 
     GAUGES = [
         ATTENDEES,
@@ -356,11 +379,13 @@ class Metric(models.Model):
         (CREATED, "Number of meetings that have been created"),
         (DURATION_COUNT, "Total number of meeting durations"),
         (DURATION_SUM, "Sum of meeting durations"),
+        (ATTENDEE_LIMIT_HITS, "Number of attendee limit hits"),
+        (MEETING_LIMIT_HITS, "Number of meeting limit hits")
     ]
 
     name = models.CharField(max_length=64, choices=NAME_CHOICES)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
-    node = models.ForeignKey(Node, on_delete=models.CASCADE)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, null=True)
     value = models.BigIntegerField(default=0)
 
     class Meta(object):
