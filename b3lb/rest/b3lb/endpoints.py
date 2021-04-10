@@ -154,7 +154,7 @@ async def create(request, endpoint, params, node, secret):
         if secret.tenant.asset and secret.tenant.asset.logo:
             params["logo"] = "{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, secret.tenant.slug.lower())
 
-    params = lb.check_parameter(params, secret.tenant)
+    params = await sync_to_async(lb.check_parameter)(params, secret.tenant)
 
     if request.method == "GET":
         if secret.tenant.asset and secret.tenant.asset.slide:
