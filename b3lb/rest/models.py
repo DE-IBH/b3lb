@@ -195,7 +195,7 @@ class Tenant(models.Model):
 
     @property
     def hostname(self):
-        return "{}.{}".format(str(self.slug).lower(), settings.B3LP_API_BASE_DOMAIN)
+        return "{}.{}".format(str(self.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
 
 
 class TenantAdmin(admin.ModelAdmin):
@@ -223,9 +223,9 @@ class Secret(models.Model):
     @property
     def endpoint(self):
         if self.sub_id == 0:
-            return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LP_API_BASE_DOMAIN)
+            return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
         else:
-            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LP_API_BASE_DOMAIN)
+            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
 
 
 class SecretAdmin(admin.ModelAdmin):
@@ -272,11 +272,11 @@ class Asset(models.Model):
 
     @property
     def logo_url(self):
-        return "{}/b3lb/t/{}/logo".format(settings.B3LP_API_BASE_DOMAIN, self.tenant.slug.lower())
+        return "{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     @property
     def slide_url(self):
-        return "{}/b3lb/t/{}/slide".format(settings.B3LP_API_BASE_DOMAIN, self.tenant.slug.lower())
+        return "{}/b3lb/t/{}/slide".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     class Meta(object):
         ordering = ['tenant__slug']

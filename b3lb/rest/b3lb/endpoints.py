@@ -154,7 +154,7 @@ async def create(request, endpoint, params, node, secret):
     # check for custom logo
     if "logo" not in params:
         if asset.logo:
-            params["logo"] = "{}/b3lb/t/{}/logo".format(settings.B3LP_API_BASE_DOMAIN, secret.tenant.slug.lower())
+            params["logo"] = "{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, secret.tenant.slug.lower())
 
     params = lb.check_parameter(params, secret.tenant)
 
