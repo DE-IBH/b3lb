@@ -45,9 +45,6 @@ case "$CMD" in
         /usr/bin/env python3 ./manage.py migrate --no-input --force-color
         exec uvicorn $@ loadbalancer.asgi:application
         ;;
-    slide)
-        exec /usr/bin/env python3 ./manage.py checkslides
-        ;;
     meetingstats)
         exec /usr/bin/env python3 ./manage.py meetingstats
         ;;
