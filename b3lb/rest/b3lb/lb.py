@@ -203,7 +203,7 @@ def get_request_secret(request, slug, sub_id):
         return None
 
     try:
-        return Secret.objects.select_related("tenant", "tenant__slide").get(tenant__slug=slug, sub_id=sub_id)
+        return Secret.objects.select_related("tenant", "tenant__asset").get(tenant__slug=slug, sub_id=sub_id)
     except ObjectDoesNotExist:
         return None
 
