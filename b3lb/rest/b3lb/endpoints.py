@@ -160,7 +160,7 @@ async def create(request, endpoint, params, node, secret):
 
     if request.method == "GET":
         if asset.slide:
-            body = '<modules><module name="presentation"><document url="{}" filename="{}"></module></modules>'.format(asset.slide_url, asset.get_slide_filename)
+            body = '<modules><module name="presentation"><document url="{}" filename="{}"></module></modules>'.format(asset.slide_url, asset.s_filename)
             request.method = "POST"
 
     response = await pass_through(request, endpoint, params, node, body=body)
