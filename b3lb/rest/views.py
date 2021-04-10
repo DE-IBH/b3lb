@@ -16,7 +16,7 @@
 
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import OperationalError
 from django.conf import settings
@@ -115,11 +115,11 @@ def metrics(request, slug=None, sub_id=0):
 
 # Endpoint for getting slides
 @require_http_methods(['GET'])
-def slide(request, slug=None, sub_id=0):
+def slide(request, slug=None):
     try:
         return utils.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
     except ObjectDoesNotExist:
-        return HttpResponse("Not Found", status=404)
+        return HttpResponseNotFound()
 
 
 # Endpoint for getting logos
@@ -128,4 +128,4 @@ def logo(request, slug=None):
     try:
         return utils.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
     except ObjectDoesNotExist:
-        return HttpResponse("Not Found", status=404)
+        return HttpResponseNotFound()
