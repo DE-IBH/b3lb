@@ -47,7 +47,7 @@ def cleanup_assets():
             if asset.logo.name == logos[logo_index].filename:
                 del logos[logo_index]
 
-    del asset
+    del assets
 
     slides_deleted = 0
     for slide in slides:
