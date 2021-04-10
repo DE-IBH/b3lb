@@ -25,7 +25,7 @@ ENV PYTHONPATH /usr/local/lib/python3.8/site-packages
 WORKDIR /usr/src/app
 
 COPY b3lb/requirements.txt ./
-RUN pip3 install --prefix=/usr/local -r requirements.txt
+RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 
 FROM alpine:3.13
