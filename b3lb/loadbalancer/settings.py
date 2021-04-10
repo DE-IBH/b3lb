@@ -30,6 +30,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 import sys
 import environ
+import urllib.parse
 
 # reading .env file
 env = environ.Env()
@@ -149,7 +150,7 @@ CELERY_SINGLETON_LOCK_EXPIRY = 300
 
 # Celery Broker
 
-CELERY_BROKER_URL = env.url('CELERY_BROKER_URL')
+CELERY_BROKER_URL = urllib.parse.urlunparse(env.url('CELERY_BROKER_URL'))
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
