@@ -479,7 +479,7 @@ class Parameter(models.Model):
     NUMBER_REGEX = r'^\d+$'
     POLICY_REGEX = r'^(ALWAYS_ACCEPT|ALWAYS_DENY|ASK_MODERATOR)$'
     COLOR_REGEX = r'^#[a-fA-F0-9]{6}$'
-    URL_REGEX = r'^(http(s)?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}(\.[a-z]{2,6})?\b([-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)$'
+    URL_REGEX = r"^https?://[\w.-]+(?:\.[\w.-]+)+[\w._~:/?#[\]@!\$&'()*+,;=.%-]+$"
     ANY_REGEX = r'.'
 
     PARAMETER_REGEXES = {
