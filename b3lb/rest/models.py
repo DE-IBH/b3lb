@@ -25,7 +25,7 @@ from django.conf import settings
 import uuid as uid
 import re
 from math import pow
-from rest.b3lb.help_functions import xml_escape
+from rest.b3lb.utils import xml_escape
 
 
 class Cluster(models.Model):
@@ -262,7 +262,7 @@ class Asset(models.Model):
     logo = models.ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
 
     @property
-    def get_slide_filename(self):
+    def s_filename(self):
         if self.slide_filename:
             return xml_escape(self.slide_filename)
         elif self.slide:
@@ -480,7 +480,7 @@ class Parameter(models.Model):
     POLICY_REGEX = r'^(ALWAYS_ACCEPT|ALWAYS_DENY|ASK_MODERATOR)$'
     COLOR_REGEX = r'^#[a-fA-F0-9]{6}$'
     URL_REGEX = r'^(http(s)?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}(\.[a-z]{2,6})?\b([-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)$'
-    ANY_STING_REGEX = r'^.+$'
+    ANY_REGEX = r'.'
 
     PARAMETER_REGEXES = {
         MAX_PARTICIPANTS: NUMBER_REGEX,
@@ -489,7 +489,7 @@ class Parameter(models.Model):
         WEBCAMS_ONLY_FOR_MODERATOR: BOOLEAN_REGEX,
         BANNER_TEXT: BANNER_TEXT,
         BANNER_COLOR: COLOR_REGEX,
-        COPYRIGHT: ANY_STING_REGEX,
+        COPYRIGHT: ANY_REGEX,
         MUTE_ON_START: BOOLEAN_REGEX,
         ALLOW_MODS_TO_UNMUTE_USERS: BOOLEAN_REGEX,
         LOCK_SETTINGS_DISABLE_CAM: BOOLEAN_REGEX,
