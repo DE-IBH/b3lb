@@ -31,7 +31,7 @@ COPY b3lb/requirements.txt \
 COPY b3lb/loadbalancer ./loadbalancer
 COPY b3lb/rest ./rest
 
-RUN pip3 install --prefix=/usr/local -r requirements.txt
+RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 RUN ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
 
 
