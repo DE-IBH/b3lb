@@ -18,7 +18,7 @@
 import aiohttp
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
-from rest.models import Meeting, Metric, Stats, SecretMeetingList, Asset
+from rest.models import Meeting, Metric, Stats, SecretMeetingList
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.core.exceptions import ObjectDoesNotExist
 import rest.b3lb.lb as lb
@@ -149,18 +149,16 @@ async def create(request, endpoint, params, node, secret):
     except KeyError:
         return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
 
-    asset, created = Asset.objects.get_or_create(tenant=secret.tenant)
-
     # check for custom logo
     if "logo" not in params:
-        if asset.logo:
+        if secret.tenant.asset and secret.tenant.asset.logo:
             params["logo"] = "{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, secret.tenant.slug.lower())
 
     params = lb.check_parameter(params, secret.tenant)
 
     if request.method == "GET":
-        if asset.slide:
-            body = '<modules><module name="presentation"><document url="{}" filename="{}"></module></modules>'.format(asset.slide_url, asset.s_filename)
+        if secret.tenant.asset and secret.tenant.asset.slide:
+            body = '<modules><module name="presentation"><document url="{}" filename="{}"></module></modules>'.format(secret.tenant.asset.slide_url, secret.tenant.asset.s_filename)
             request.method = "POST"
 
     response = await pass_through(request, endpoint, params, node, body=body)
