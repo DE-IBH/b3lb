@@ -36,7 +36,7 @@
       "expire_seconds": null,
       "one_off": false,
       "start_time": null,
-      "enabled": false,
+      "enabled": true,
       "last_run_at": "2021-02-24T16:12:14.829Z",
       "total_run_count": 1,
       "date_changed": "2021-02-24T16:13:39.807Z",
