@@ -266,7 +266,7 @@ class Asset(models.Model):
         if self.slide_filename:
             return xml_escape(self.slide_filename)
         elif self.slide:
-            return "{}.{}".format(self.tenant.slug.lower(), self.slide.filename.split(".")[-1])
+            return "{}.{}".format(self.tenant.slug.lower(), self.slide.name.split(".")[-1])
         else:
             return ""
 
