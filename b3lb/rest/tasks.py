@@ -56,7 +56,7 @@ def check_status():
 
 
 @app.task(ignore_result=True, base=Singleton)
-def cleanup_slides():
+def cleanup_assets():
     return b3lbtasks.cleanup_assets()
 
 
