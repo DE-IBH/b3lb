@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import F, Sum
 import hashlib
 from django.conf import settings
+import rest.b3lb.utils as utils
 
 
 ##
@@ -174,7 +175,7 @@ def limit_check(secret):
 def get_slug(request, slug, sub_id):
     if slug is None:
         host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
-        host = forwarded_host_regex.sub(r'\1', host)
+        host = utils.forwarded_host_regex.sub(r'\1', host)
 
         regex_search = slug_regex.search(host)
         if regex_search:
