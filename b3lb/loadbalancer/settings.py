@@ -149,7 +149,7 @@ CELERY_SINGLETON_LOCK_EXPIRY = 300
 
 # Celery Broker
 
-CELERY_BROKER_URL = env.url
+CELERY_BROKER_URL = env.url('CELERY_BROKER_URL')
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
