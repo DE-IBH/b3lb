@@ -105,7 +105,7 @@ def metrics(request, slug=None, sub_id=0):
     auth_token = request.headers.get('Authorization')
     secret = lb.get_request_secret(request, slug, sub_id)
 
-    if forwarded_host == settings.B3LP_API_BASE_DOMAIN and slug is None:
+    if forwarded_host == settings.B3LB_API_BASE_DOMAIN and slug is None:
         return HttpResponse(SecretMetricsList.objects.get(secret=None).metrics, content_type='text/plain')
     elif auth_token and secret and auth_token == secret.tenant.stats_token:
         return HttpResponse(SecretMetricsList.objects.get(secret=secret).metrics, content_type='text/plain')
