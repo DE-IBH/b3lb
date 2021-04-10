@@ -30,7 +30,7 @@ from django.conf import settings
 ##
 # CONSTANTS
 ##
-slug_regex = re.compile(r'([a-z]{2,10})(-(\d{3}))?\.' + re.escape(settings.B3LP_API_BASE_DOMAIN) + '$')
+slug_regex = re.compile(r'([a-z]{2,10})(-(\d{3}))?\.' + re.escape(settings.B3LB_API_BASE_DOMAIN) + '$')
 
 # symbols not to be encoded to match bbb's checksum calculation
 SAFE_QUOTE_SYMBOLS = '*'
