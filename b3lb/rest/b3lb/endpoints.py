@@ -149,10 +149,7 @@ async def create(request, endpoint, params, node, secret):
     except KeyError:
         return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
 
-    try:
-        asset = Asset.objects.get(tenant=secret.tenant)
-    except:
-        asset = None
+    asset, created = Asset.objects.get_or_create(tenant=secret.tenant)
 
     # check for custom logo
     if "logo" not in params:
@@ -163,7 +160,7 @@ async def create(request, endpoint, params, node, secret):
 
     if request.method == "GET":
         if asset.slide:
-            body = lb.get_slide_body_for_post(asset, secret)
+            body = '<modules><module name="presentation"><document url="{}" filename="{}"></module></modules>'.format(asset.slide_url, asset.get_slide_filename)
             request.method = "POST"
 
     response = await pass_through(request, endpoint, params, node, body=body)

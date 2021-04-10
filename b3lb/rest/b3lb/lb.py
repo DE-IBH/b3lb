@@ -27,22 +27,18 @@ from django.http import HttpResponse
 import hashlib
 from django.conf import settings
 from wsgiref.util import FileWrapper
-from db_file_storage.storage import DatabaseFileStorage
 
-storage = DatabaseFileStorage()
 
 ##
 # CONSTANTS
 ##
 slug_regex = re.compile(r'([a-z]{2,10})(-(\d{3}))?\.' + re.escape(settings.B3LP_API_BASE_DOMAIN) + '$')
-forwarded_host_regex = re.compile(r'([^:]+)(:\d+)?$')
 
 # symbols not to be encoded to match bbb's checksum calculation
 SAFE_QUOTE_SYMBOLS = '*'
 
 # wrap metric counters
 METRIC_BIGINT_MODULO = 9223372036854775808
-
 
 ##
 # Routines
@@ -62,13 +58,14 @@ def check_meeting_existence(meeting_id, secret):
 
 def check_parameter(params, tenant):
     parameters = Parameter.objects.filter(tenant=tenant)
+
     for parameter in parameters:
         if parameter.parameter in params:
             if parameter.mode == Parameter.BLOCK:
                 del params[parameter.parameter]
             elif parameter.mode == Parameter.OVERRIDE:
                 params[parameter.parameter] = parameter.value
-        elif parameter.mode == Parameter.SET:
+        elif parameter.mode in [Parameter.SET, Parameter.OVERRIDE]:
             params[parameter.parameter] = parameter.value
 
     return params
@@ -109,11 +106,6 @@ def get_endpoint_str(endpoint, params, secret):
         return "{}?checksum={}".format(endpoint, sha_1.hexdigest())
 
 
-def get_forwarded_host(request):
-    forwarded_host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
-    return forwarded_host_regex.sub(r'\1', forwarded_host)
-
-
 @sync_to_async
 def get_node_by_meeting_id(meeting_id, secret):
     if meeting_id is None:
@@ -145,18 +137,6 @@ def get_node_params_by_lowest_workload(cluster_group):
         return lowest_node_list[randint(0, len(lowest_node_list) - 1)]
     else:
         return None
-
-
-def get_slide_body_for_post(asset, secret):
-    if asset.slide_filename:
-        file_name = asset.slide_filename
-    else:
-        file_name = "{}.{}".format(secret.tenant.slug.lower(), asset.slide.filename.split(".")[-1])
-
-    file_url = "{}/b3lb/t/{}/slide".format(settings.B3LP_API_BASE_DOMAIN, secret.tenant.slug.lower())
-
-    body = '<modules><module name="presentation"><document url="{}" filename="{}"></module></modules>'.format(file_url, file_name)
-    return body
 
 
 def incr_metric(name, secret, node=None, incr=1):
@@ -191,18 +171,6 @@ def limit_check(secret):
             incr_metric(Metric.ATTENDEE_LIMIT_HITS, secret)
             return False
     return True
-
-
-def get_file_from_storage(file_name):
-    try:
-        stored_file = storage.open(file_name)
-    except Exception:
-        return HttpResponse("Not Found", status=404)
-
-    response = HttpResponse(FileWrapper(stored_file), content_type=stored_file.mimetype)
-    response['Content-Length'] = stored_file.tell()
-
-    return response
 
 
 def get_slug(request, slug, sub_id):
@@ -258,19 +226,3 @@ def update_create_metrics(secret, node):
 
     # update metric stats
     incr_metric(Metric.CREATED, secret, node)
-
-
-def xml_escape(string):
-    if isinstance(string, str):
-        escape_symbols = [
-            ("&", "&amp;"),
-            ("<", "&lt;"),
-            (">", "&gt;"),
-            ("'", "&apos;"),
-            ('"', "&quot;")
-        ]
-        for symbol, escape in escape_symbols:
-            string = string.replace(symbol, escape)
-        return string
-    else:
-        return ""
