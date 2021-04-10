@@ -22,6 +22,7 @@ from django.db import transaction
 from django.conf import settings
 from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList, AssetLogo, AssetSlide
 import rest.b3lb.lb as lb
+import rest.b3lb.help_functions as hf
 import rest.b3lb.constants as constants
 import os
 import xml.etree.ElementTree as ElementTree
@@ -381,14 +382,14 @@ def update_get_meetings_xml(secret_uuid):
                                         if ssub_cat.tag == "attendee":
                                             element_json = {}
                                             for element in ssub_cat:
-                                                element_json[element.tag] = lb.xml_escape(element.text)
+                                                element_json[element.tag] = hf.xml_escape(element.text)
                                             meeting_json["attendees"].append(element_json)
                                 elif sub_cat.tag == "metadata":
                                     meeting_json["metadata"] = {}
                                     for ssub_cat in sub_cat:
-                                        meeting_json["metadata"][ssub_cat.tag] = lb.xml_escape(ssub_cat.text)
+                                        meeting_json["metadata"][ssub_cat.tag] = hf.xml_escape(ssub_cat.text)
                                 else:
-                                    meeting_json[sub_cat.tag] = lb.xml_escape(sub_cat.text)
+                                    meeting_json[sub_cat.tag] = hf.xml_escape(sub_cat.text)
 
                                 if sub_cat.tag == "meetingID":
                                     if sub_cat.text not in meeting_ids:

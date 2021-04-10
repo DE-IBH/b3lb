@@ -23,6 +23,7 @@ from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from rest.models import Cluster, SecretMetricsList, Asset
 import rest.b3lb.lb as lb
+import rest.b3lb.help_functions as hf
 import rest.b3lb.endpoints as ep
 from datetime import datetime
 
@@ -100,7 +101,7 @@ def stats(request, slug=None, sub_id=0):
 # secured via auth token
 @require_http_methods(["GET"])
 def metrics(request, slug=None, sub_id=0):
-    forwarded_host = lb.get_forwarded_host(request)
+    forwarded_host = hf.get_forwarded_host(request)
     auth_token = request.headers.get('Authorization')
     secret = lb.get_request_secret(request, slug, sub_id)
 
@@ -116,15 +117,15 @@ def metrics(request, slug=None, sub_id=0):
 @require_http_methods(['GET'])
 def slide(request, slug=None, sub_id=0):
     try:
-        return lb.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
+        return hf.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
     except ObjectDoesNotExist:
         return HttpResponse("Not Found", status=404)
 
 
 # Endpoint for getting logos
 @require_http_methods(['GET'])
-def logo(request, slug=None, sub_id=0):
+def logo(request, slug=None):
     try:
-        return lb.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
+        return hf.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
     except ObjectDoesNotExist:
         return HttpResponse("Not Found", status=404)
