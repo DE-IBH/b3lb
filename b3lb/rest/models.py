@@ -272,11 +272,11 @@ class Asset(models.Model):
 
     @property
     def logo_url(self):
-        return "{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+        return "https://{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     @property
     def slide_url(self):
-        return "{}/b3lb/t/{}/slide".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+        return "https://{}/b3lb/t/{}/slide".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     class Meta(object):
         ordering = ['tenant__slug']
