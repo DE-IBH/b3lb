@@ -175,6 +175,11 @@ CACHEOPS = {
     # cache all models up to 15s
     'rest.*': {'ops': 'all', 'timeout': 15},
 
+    # cache assets up to 60s
+    'rest.asset': {'ops': 'all', 'timeout': 60},
+    'rest.assetlogo': {'ops': 'all', 'timeout': 60},
+    'rest.assetslide': {'ops': 'all', 'timeout': 60},
+
     # we shall not cache any Meeting instances
     'rest.meeting': None,
 }
