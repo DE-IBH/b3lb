@@ -11,12 +11,13 @@ on:
     branches:
       - main
 
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-
   release:
     types:
       - created
+      - edited
+      - prereleased
+      - published
+      - released
 
 jobs:
   build-django:
@@ -130,7 +131,7 @@ jobs:
   push-release:
     needs: ["build-django", "build-pypy", "build-dev", "build-caddy"]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'created'
+    if: github.event_name == 'release'
 
     steps:
       - name: Log into registry
