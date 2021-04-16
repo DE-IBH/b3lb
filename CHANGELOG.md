@@ -1,12 +1,12 @@
 # ChangeLog
 
-## 2.0.0 - 2021-04-XX
+## 2.0.0 - 2021-04-16
 
 This is a new major release with breaking changes:
-- custom *settings.py* should be replaced by environment settings
-  (lookout for changed names)
+- custom *settings.py* should be replaced by environment settings or
+  an `.env` settings file (check for changed settings names)
 - assets are now served from the database using blobs, you need to upload
-  your file based assets manually
+  your file based logo and slide assets manually
 - fixtures have been updated to replace the `checkslides` task by `cleanup_assets`
 
 Changes:
@@ -14,7 +14,7 @@ Changes:
 - api: add support for single domain name usage #23
 - docker: use explicit tagged base images and disable pip's caching #29
 - parameters: allow to block, set or override most parameters of BBB API create
-- pypy: provide **experimental** docker image variant based on pypy,
+- pypy: provide **highly experimental** docker image variant based on pypy,
         switch from *psycopq2* to *psycopq2cffi* to be pypy compatible
         (increases worker performance) #22
 - settings: allow configuration via environment using django-environ #12
