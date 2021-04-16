@@ -20,9 +20,12 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
-import uuid as uid
-from math import pow
+from django.core.exceptions import ValidationError
 from django.conf import settings
+import uuid as uid
+import re
+from math import pow
+from rest.b3lb.utils import xml_escape
 
 
 class Cluster(models.Model):
@@ -52,7 +55,7 @@ def get_b3lb_node_default_domain():
 class Node(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     slug = models.CharField(max_length=100, help_text="node hostname setting")
-    domain = models.CharField(max_length=50, default=get_b3lb_node_default_domain, help_text="node domainname setting")
+    domain = models.CharField(max_length=50, default=get_b3lb_node_default_domain, help_text="node domain name setting")
     secret = models.CharField(max_length=50, help_text="BBB API secret setting")
     cluster = models.ForeignKey(Cluster, on_delete=models.PROTECT, null=False)
     attendees = models.IntegerField(default=0, help_text="number of attendees metric")
@@ -137,21 +140,6 @@ class NodeMeetingListAdmin(admin.ModelAdmin):
     list_display = ['node']
 
 
-class Slide(models.Model):
-    name = models.CharField(max_length=256, primary_key=True)
-
-    class Meta(object):
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
-
-
-class SlideAdmin(admin.ModelAdmin):
-    model = Slide
-    list_display = ['name']
-
-
 def get_random_secret():
     return get_random_string(42, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
@@ -193,7 +181,6 @@ class ClusterGroupRelationAdmin(admin.ModelAdmin):
 class Tenant(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     slug = models.CharField(max_length=10, validators=[RegexValidator('[A-Z]{2,10}')])
-    slide = models.ForeignKey(Slide, default=None, on_delete=models.SET_NULL, null=True)
     description = models.CharField(max_length=256, blank=True, default="")
     stats_token = models.UUIDField(default=uid.uuid4)
     cluster_group = models.ForeignKey(ClusterGroup, on_delete=models.PROTECT)
@@ -208,12 +195,12 @@ class Tenant(models.Model):
 
     @property
     def hostname(self):
-        return "{}.{}".format(str(self.slug).lower(), settings.B3LP_API_BASE_DOMAIN)
+        return "{}.{}".format(str(self.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
 
 
 class TenantAdmin(admin.ModelAdmin):
     model = Tenant
-    list_display = ['slug', 'description', 'hostname', 'slide', 'cluster_group', 'attendee_limit', 'meeting_limit']
+    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'attendee_limit', 'meeting_limit']
 
 
 class Secret(models.Model):
@@ -236,14 +223,71 @@ class Secret(models.Model):
     @property
     def endpoint(self):
         if self.sub_id == 0:
-            return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LP_API_BASE_DOMAIN)
+            return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
         else:
-            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LP_API_BASE_DOMAIN)
+            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
 
 
 class SecretAdmin(admin.ModelAdmin):
     model = Secret
     list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit']
+
+
+class AssetSlide(models.Model):
+    blob = models.BinaryField()
+    filename = models.CharField(max_length=255)
+    mimetype = models.CharField(max_length=50)
+
+
+class AssetSlideAdmin(admin.ModelAdmin):
+    model = AssetSlide
+    list_display = ['filename', 'mimetype']
+
+
+class AssetLogo(models.Model):
+    blob = models.BinaryField()
+    filename = models.CharField(max_length=255)
+    mimetype = models.CharField(max_length=50)
+
+
+class AssetLogoAdmin(admin.ModelAdmin):
+    model = AssetLogo
+    list_display = ['filename', 'mimetype']
+
+
+class Asset(models.Model):
+    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
+    slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
+    slide_filename = models.CharField(max_length=250, blank=True, null=True)
+    logo = models.ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
+
+    @property
+    def s_filename(self):
+        if self.slide_filename:
+            return xml_escape(self.slide_filename)
+        elif self.slide:
+            return "{}.{}".format(self.tenant.slug.lower(), self.slide.name.split(".")[-1])
+        else:
+            return ""
+
+    @property
+    def logo_url(self):
+        return "https://{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+
+    @property
+    def slide_url(self):
+        return "https://{}/b3lb/t/{}/slide".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+
+    class Meta(object):
+        ordering = ['tenant__slug']
+
+    def __str__(self):
+        return self.tenant.slug
+
+
+class AssetAdmin(admin.ModelAdmin):
+    model = Asset
+    list_display = ['__str__']
 
 
 class SecretMeetingList(models.Model):
@@ -333,6 +377,8 @@ class Metric(models.Model):
     CREATED = "meetings_total"
     DURATION_COUNT = "meeting_duration_seconds_count"
     DURATION_SUM = "meeting_duration_seconds_sum"
+    ATTENDEE_LIMIT_HITS = "attendee_limit_hits"
+    MEETING_LIMIT_HITS = "meeting_limit_hits"
 
     GAUGES = [
         ATTENDEES,
@@ -352,11 +398,13 @@ class Metric(models.Model):
         (CREATED, "Number of meetings that have been created"),
         (DURATION_COUNT, "Total number of meeting durations"),
         (DURATION_SUM, "Sum of meeting durations"),
+        (ATTENDEE_LIMIT_HITS, "Number of attendee limit hits"),
+        (MEETING_LIMIT_HITS, "Number of meeting limit hits")
     ]
 
     name = models.CharField(max_length=64, choices=NAME_CHOICES)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
-    node = models.ForeignKey(Node, on_delete=models.CASCADE)
+    node = models.ForeignKey(Node, on_delete=models.CASCADE, null=True)
     value = models.BigIntegerField(default=0)
 
     class Meta(object):
@@ -368,3 +416,111 @@ class Metric(models.Model):
 class MetricAdmin(admin.ModelAdmin):
     model = Metric
     list_display = ['name', 'secret', 'node', 'value']
+
+
+class Parameter(models.Model):
+    # Parameters
+    MAX_PARTICIPANTS = "maxParticipants"
+    LOGOUT_URL = "logoutURL"
+    DURATION = "duration"
+    WEBCAMS_ONLY_FOR_MODERATOR = "webcamsOnlyForModerator"
+    BANNER_TEXT = "bannerText"
+    BANNER_COLOR = "bannerColor"
+    COPYRIGHT = "copyright"
+    MUTE_ON_START = "muteOnStart"
+    ALLOW_MODS_TO_UNMUTE_USERS = "allowModsToUnmuteUsers"
+    LOCK_SETTINGS_DISABLE_CAM = "lockSettingsDisableCam"
+    LOCK_SETTINGS_DISABLE_MIC = "lockSettingsDisableMic"
+    LOCK_SETTINGS_DISABLE_PRIVATE_CHAT = "lockSettingsDisablePrivateChat"
+    LOCK_SETTINGS_DISABLE_PUBLIC_CHAT = "lockSettingsDisablePublicChat"
+    LOCK_SETTINGS_DISABLE_NOTE = "lockSettingsDisableNote"
+    LOCK_SETTINGS_LOCKED_LAYOUT = "lockSettingsLockedLayout"
+    LOCK_SETTINGS_HIDE_USER_LIST = "lockSettingsHideUserList"
+    LOCK_SETTINGS_LOCK_ON_JOIN = "lockSettingsLockOnJoin"
+    LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE = "lockSettingsLockOnJoinConfigurable"
+    GUEST_POLICY = "guestPolicy"
+    MEETING_KEEP_EVENT = "meetingKeepEvents"
+
+    # Modes
+    BLOCK = "BLOCK"
+    SET = "SET"
+    OVERRIDE = "OVERRIDE"
+    
+    PARAMETER_CHOICES = (
+        (ALLOW_MODS_TO_UNMUTE_USERS, ALLOW_MODS_TO_UNMUTE_USERS),
+        (BANNER_COLOR, BANNER_COLOR),
+        (BANNER_TEXT, BANNER_TEXT),
+        (COPYRIGHT, COPYRIGHT),
+        (DURATION, DURATION),
+        (GUEST_POLICY, GUEST_POLICY),
+        (LOCK_SETTINGS_DISABLE_CAM, LOCK_SETTINGS_DISABLE_CAM),
+        (LOCK_SETTINGS_DISABLE_MIC, LOCK_SETTINGS_DISABLE_MIC),
+        (LOCK_SETTINGS_DISABLE_PRIVATE_CHAT, LOCK_SETTINGS_DISABLE_PRIVATE_CHAT),
+        (LOCK_SETTINGS_DISABLE_PUBLIC_CHAT, LOCK_SETTINGS_DISABLE_PUBLIC_CHAT),
+        (LOCK_SETTINGS_DISABLE_NOTE, LOCK_SETTINGS_DISABLE_NOTE),
+        (LOCK_SETTINGS_HIDE_USER_LIST, LOCK_SETTINGS_HIDE_USER_LIST),
+        (LOCK_SETTINGS_LOCK_ON_JOIN, LOCK_SETTINGS_LOCK_ON_JOIN),
+        (LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE, LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE),
+        (LOCK_SETTINGS_LOCKED_LAYOUT, LOCK_SETTINGS_LOCKED_LAYOUT),
+        (LOGOUT_URL, LOGOUT_URL),
+        (MAX_PARTICIPANTS, MAX_PARTICIPANTS),
+        (MEETING_KEEP_EVENT, MEETING_KEEP_EVENT),
+        (MUTE_ON_START, MUTE_ON_START),
+        (WEBCAMS_ONLY_FOR_MODERATOR, WEBCAMS_ONLY_FOR_MODERATOR),
+    )
+
+    MODE_CHOICES = [
+        (BLOCK, BLOCK),
+        (SET, SET),
+        (OVERRIDE, OVERRIDE)
+    ]
+
+    BOOLEAN_REGEX = r'^(true|false)$'
+    NUMBER_REGEX = r'^\d+$'
+    POLICY_REGEX = r'^(ALWAYS_ACCEPT|ALWAYS_DENY|ASK_MODERATOR)$'
+    COLOR_REGEX = r'^#[a-fA-F0-9]{6}$'
+    URL_REGEX = r"^https?://[\w.-]+(?:\.[\w.-]+)+[\w._~:/?#[\]@!\$&'()*+,;=.%-]+$"
+    ANY_REGEX = r'.'
+
+    PARAMETER_REGEXES = {
+        MAX_PARTICIPANTS: NUMBER_REGEX,
+        LOGOUT_URL: URL_REGEX,
+        DURATION: NUMBER_REGEX,
+        WEBCAMS_ONLY_FOR_MODERATOR: BOOLEAN_REGEX,
+        BANNER_TEXT: ANY_REGEX,
+        BANNER_COLOR: COLOR_REGEX,
+        COPYRIGHT: ANY_REGEX,
+        MUTE_ON_START: BOOLEAN_REGEX,
+        ALLOW_MODS_TO_UNMUTE_USERS: BOOLEAN_REGEX,
+        LOCK_SETTINGS_DISABLE_CAM: BOOLEAN_REGEX,
+        LOCK_SETTINGS_DISABLE_MIC: BOOLEAN_REGEX,
+        LOCK_SETTINGS_DISABLE_PRIVATE_CHAT: BOOLEAN_REGEX,
+        LOCK_SETTINGS_DISABLE_PUBLIC_CHAT: BOOLEAN_REGEX,
+        LOCK_SETTINGS_DISABLE_NOTE: BOOLEAN_REGEX,
+        LOCK_SETTINGS_LOCKED_LAYOUT: BOOLEAN_REGEX,
+        LOCK_SETTINGS_HIDE_USER_LIST: BOOLEAN_REGEX,
+        LOCK_SETTINGS_LOCK_ON_JOIN: BOOLEAN_REGEX,
+        LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE: BOOLEAN_REGEX,
+        GUEST_POLICY: POLICY_REGEX,
+        MEETING_KEEP_EVENT: BOOLEAN_REGEX
+    }
+
+    mode = models.CharField(max_length=10, choices=MODE_CHOICES)
+    parameter = models.CharField(max_length=64, choices=PARAMETER_CHOICES)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
+    value = models.CharField(max_length=250, blank=True, null=True)
+
+    def clean_fields(self, exclude=None):
+        if self.mode in [self.SET, self.OVERRIDE]:
+            if not re.match(self.PARAMETER_REGEXES[self.parameter], self.value):
+                raise ValidationError('Value must have the format "{}"!'.format(self.PARAMETER_REGEXES[self.parameter]), params={'value': self.value})
+
+    class Meta(object):
+        constraints = [
+            models.UniqueConstraint(fields=['parameter', 'tenant'], name="unique_parameter")
+        ]
+
+
+class ParameterAdmin(admin.ModelAdmin):
+    model = Parameter
+    list_display = ['tenant', 'parameter', 'mode', 'value']

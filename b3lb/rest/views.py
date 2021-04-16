@@ -16,14 +16,16 @@
 
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.utils import OperationalError
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
-from rest.models import Cluster, SecretMetricsList
+from rest.models import Cluster, SecretMetricsList, Asset
 import rest.b3lb.lb as lb
+import rest.b3lb.utils as utils
 import rest.b3lb.endpoints as ep
+import rest.b3lb.constants as ct
 from datetime import datetime
 
 
@@ -58,9 +60,9 @@ async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
             response = HttpResponse()
 
             if endpoint == "getRecordingTextTracks":
-                response.write(settings.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON)
+                response.write(ct.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON)
             elif endpoint == "getRecordings":
-                response.write(settings.RETURN_STRING_GET_RECORDING_NO_RECORDINGS)
+                response.write(ct.RETURN_STRING_GET_RECORDING_NO_RECORDINGS)
             else:
                 response.status_code = 403
 
@@ -100,13 +102,31 @@ def stats(request, slug=None, sub_id=0):
 # secured via auth token
 @require_http_methods(["GET"])
 def metrics(request, slug=None, sub_id=0):
-    forwarded_host = lb.get_forwarded_host(request)
+    forwarded_host = utils.get_forwarded_host(request)
     auth_token = request.headers.get('Authorization')
     secret = lb.get_request_secret(request, slug, sub_id)
 
-    if forwarded_host == settings.B3LP_API_BASE_DOMAIN and slug is None:
+    if forwarded_host == settings.B3LB_API_BASE_DOMAIN and slug is None:
         return HttpResponse(SecretMetricsList.objects.get(secret=None).metrics, content_type='text/plain')
     elif auth_token and secret and auth_token == secret.tenant.stats_token:
         return HttpResponse(SecretMetricsList.objects.get(secret=secret).metrics, content_type='text/plain')
     else:
         return HttpResponse("Unauthorized", status=401)
+
+
+# Endpoint for getting slides
+@require_http_methods(['GET'])
+def slide(request, slug=None):
+    try:
+        return utils.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+
+
+# Endpoint for getting logos
+@require_http_methods(['GET'])
+def logo(request, slug=None):
+    try:
+        return utils.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()

@@ -18,12 +18,11 @@
 import aiohttp
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
-from rest.models import Meeting, Metric, Stats, SecretMeetingList
+from rest.models import Meeting, Metric, Stats, SecretMeetingList, Asset
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.core.exceptions import ObjectDoesNotExist
 import rest.b3lb.lb as lb
 import rest.b3lb.constants as constants
-import os
 from django.conf import settings
 import json
 
@@ -152,13 +151,21 @@ async def create(request, endpoint, params, node, secret):
 
     # check for custom logo
     if "logo" not in params:
-        if os.path.isfile("rest/logos/{}.png".format(secret.tenant.slug.lower())):
-            params["logo"] = "{}/{}.png".format(settings.B3LB_ASSETS_URL, secret.tenant.slug.lower())
+        try:
+            if secret.tenant.asset and secret.tenant.asset.logo:
+                params["logo"] = secret.tenant.asset.logo_url
+        except Asset.DoesNotExist:
+            pass
 
-    if request.method == "GET" and secret.tenant.slide and secret.tenant.slide.name != settings.B3LB_NO_SLIDES_TEXT:
-        body = lb.get_slide_body_for_post(secret.tenant.slide.name)
-        if body:
-            request.method = "POST"
+    params = await sync_to_async(lb.check_parameter)(params, secret.tenant)
+
+    if request.method == "GET":
+        try:
+            if secret.tenant.asset and secret.tenant.asset.slide:
+                body = '<modules><module name="presentation"><document url="{}" filename="{}"></document></module></modules>'.format(secret.tenant.asset.slide_url, secret.tenant.asset.s_filename)
+                request.method = "POST"
+        except Asset.DoesNotExist:
+            pass
 
     response = await pass_through(request, endpoint, params, node, body=body)
 

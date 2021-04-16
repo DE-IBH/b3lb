@@ -30,6 +30,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 import sys
 import environ
+import urllib.parse
 
 # reading .env file
 env = environ.Env()
@@ -72,6 +73,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
+    'db_file_storage',
 
     'django_celery_beat',
     'django_celery_results',
@@ -92,6 +94,8 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'loadbalancer.urls'
+
+DEFAULT_FILE_STORAGE = 'db_file_storage.storage.DatabaseFileStorage'
 
 TEMPLATES = [
     {
@@ -130,6 +134,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configure Celery to use the django-celery-results backend.
 
@@ -145,7 +150,7 @@ CELERY_SINGLETON_LOCK_EXPIRY = 300
 
 # Celery Broker
 
-CELERY_BROKER_URL = env.url
+CELERY_BROKER_URL = urllib.parse.urlunparse(env.url('CELERY_BROKER_URL'))
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.1/topics/i18n/
@@ -170,6 +175,11 @@ CACHEOPS = {
     # cache all models up to 15s
     'rest.*': {'ops': 'all', 'timeout': 15},
 
+    # cache assets up to 60s
+    'rest.asset': {'ops': 'all', 'timeout': 60},
+    'rest.assetlogo': {'ops': 'all', 'timeout': 60},
+    'rest.assetslide': {'ops': 'all', 'timeout': 60},
+
     # we shall not cache any Meeting instances
     'rest.meeting': None,
 }
@@ -185,8 +195,7 @@ CACHEOPS_DEGRADE_ON_FAILURE = env.bool('CACHEOPS_DEGRADE_ON_FAILURE', True)
 # B3LB Base Settings
 ######
 
-B3LP_API_BASE_DOMAIN = env.str('B3LP_API_BASE_DOMAIN')
-B3LB_ASSETS_URL = env.str('B3LB_ASSETS_URL', default='https://{}/logos'.format(B3LP_API_BASE_DOMAIN))
+B3LB_API_BASE_DOMAIN = env.str('B3LB_API_BASE_DOMAIN')
 
 B3LB_NODE_PROTOCOL = env.str('B3LB_NODE_PROTOCOL', default='https://')
 B3LB_NODE_DEFAULT_DOMAIN = env.str('B3LB_NODE_DEFAULT_DOMAIN', default='bbbconf.de')

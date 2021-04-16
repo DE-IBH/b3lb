@@ -11,7 +11,7 @@
     "model": "django_celery_beat.intervalschedule",
     "pk": 2,
     "fields": {
-      "every": 1,
+      "every": 24,
       "period": "hours"
     }
   },
@@ -19,8 +19,8 @@
     "model": "django_celery_beat.periodictask",
     "pk": 2,
     "fields": {
-      "name": "Check Slides",
-      "task": "rest.tasks.check_slides",
+      "name": "Cleanup Assets",
+      "task": "rest.tasks.cleanup_assets",
       "interval": 2,
       "crontab": null,
       "solar": null,
@@ -36,7 +36,7 @@
       "expire_seconds": null,
       "one_off": false,
       "start_time": null,
-      "enabled": false,
+      "enabled": true,
       "last_run_at": "2021-02-24T16:12:14.829Z",
       "total_run_count": 1,
       "date_changed": "2021-02-24T16:13:39.807Z",

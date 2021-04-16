@@ -20,8 +20,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
-from rest.models import Metric, Node, Meeting, Slide, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList
+from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList, AssetLogo, AssetSlide
 import rest.b3lb.lb as lb
+import rest.b3lb.utils as utils
 import rest.b3lb.constants as constants
 import os
 import xml.etree.ElementTree as ElementTree
@@ -33,6 +34,33 @@ from jinja2 import Template
 #
 # Celery task routines
 #
+def cleanup_assets():
+    slides = list(AssetSlide.objects.all())
+    logos = list(AssetLogo.objects.all())
+    assets = Asset.objects.all()
+
+    for asset in assets:
+        for slide_index in range(len(slides)-1, -1, -1):
+            if asset.slide.name == slides[slide_index].filename:
+                del slides[slide_index]
+        for logo_index in range(len(logos)-1, -1, -1):
+            if asset.logo.name == logos[logo_index].filename:
+                del logos[logo_index]
+
+    del assets
+
+    slides_deleted = 0
+    for slide in slides:
+        slide.delete()
+        slides_deleted += 1
+    logos_deleted = 0
+    for logo in logos:
+        logo.delete()
+        logos_deleted += 1
+
+    return "Delete {} slides and {} logos.".format(slides_deleted, logos_deleted)
+
+
 def run_check_node(uuid):
     meeting_dict = {}
     parameter_list_int = [
@@ -198,14 +226,14 @@ def run_check_slides():
     # check for new slide files
     for slide_file in slide_files:
         try:
-            Slide.objects.get(name=slide_file)
+            Asset.objects.get(name=slide_file)
         except ObjectDoesNotExist:
-            slide = Slide(name=slide_file)
+            slide = Asset(name=slide_file)
             slide.save()
             slides[slide_file] = "added"
 
     # check for deleted slide files
-    for slide in Slide.objects.all():
+    for slide in Asset.objects.all():
         if slide.name not in slide_files:
             slide.delete()
             slides[slide.name] = "deleted"
@@ -354,14 +382,14 @@ def update_get_meetings_xml(secret_uuid):
                                         if ssub_cat.tag == "attendee":
                                             element_json = {}
                                             for element in ssub_cat:
-                                                element_json[element.tag] = lb.xml_escape(element.text)
+                                                element_json[element.tag] = utils.xml_escape(element.text)
                                             meeting_json["attendees"].append(element_json)
                                 elif sub_cat.tag == "metadata":
                                     meeting_json["metadata"] = {}
                                     for ssub_cat in sub_cat:
-                                        meeting_json["metadata"][ssub_cat.tag] = lb.xml_escape(ssub_cat.text)
+                                        meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
                                 else:
-                                    meeting_json[sub_cat.tag] = lb.xml_escape(sub_cat.text)
+                                    meeting_json[sub_cat.tag] = utils.xml_escape(sub_cat.text)
 
                                 if sub_cat.tag == "meetingID":
                                     if sub_cat.text not in meeting_ids:

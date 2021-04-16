@@ -16,30 +16,28 @@
 
 
 from asgiref.sync import sync_to_async
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant
+from django.core.exceptions import ObjectDoesNotExist
+from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant, Parameter
 from urllib.parse import urlencode
 from random import randint
 import re
 from django.db import transaction
 from django.db.models import F, Sum
-import base64
 import hashlib
 from django.conf import settings
+import rest.b3lb.utils as utils
 
 
 ##
 # CONSTANTS
 ##
-slug_regex = re.compile(r'([a-z]{2,10})(-(\d{3}))?\.' + re.escape(settings.B3LP_API_BASE_DOMAIN) + '$')
-forwarded_host_regex = re.compile(r'([^:]+)(:\d+)?$')
+slug_regex = re.compile(r'([a-z]{2,10})(-(\d{3}))?\.' + re.escape(settings.B3LB_API_BASE_DOMAIN) + '$')
 
 # symbols not to be encoded to match bbb's checksum calculation
 SAFE_QUOTE_SYMBOLS = '*'
 
 # wrap metric counters
 METRIC_BIGINT_MODULO = 9223372036854775808
-
 
 ##
 # Routines
@@ -57,13 +55,28 @@ def check_meeting_existence(meeting_id, secret):
             return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
 
 
+def check_parameter(params, tenant):
+    parameters = Parameter.objects.filter(tenant=tenant)
+
+    for parameter in parameters:
+        if parameter.parameter in params:
+            if parameter.mode == Parameter.BLOCK:
+                del params[parameter.parameter]
+            elif parameter.mode == Parameter.OVERRIDE:
+                params[parameter.parameter] = parameter.value
+        elif parameter.mode in [Parameter.SET, Parameter.OVERRIDE]:
+            params[parameter.parameter] = parameter.value
+
+    return params
+
+
 def check_tenant(secret, checksum, endpoint, params):
     if secret:
         sha_1 = hashlib.sha1()
         parameter_str = ""
 
         if params:
-            parameter_str += "{}".format(urlencode(params, safe=SAFE_QUOTE_SYMBOLS))
+            parameter_str = urlencode(params, safe=SAFE_QUOTE_SYMBOLS)
 
         sha_1.update("{}{}{}".format(endpoint, parameter_str, secret).encode())
         if sha_1.hexdigest() == checksum:
@@ -81,7 +94,7 @@ def get_endpoint_str(endpoint, params, secret):
     parameter_str = ""
 
     if params:
-        parameter_str += "{}".format(urlencode(params, safe=SAFE_QUOTE_SYMBOLS))
+        parameter_str = urlencode(params, safe=SAFE_QUOTE_SYMBOLS)
 
     sha_1 = hashlib.sha1()
     sha_1.update("{}{}{}".format(endpoint, parameter_str, secret).encode())
@@ -90,11 +103,6 @@ def get_endpoint_str(endpoint, params, secret):
         return "{}?{}&checksum={}".format(endpoint, parameter_str, sha_1.hexdigest())
     else:
         return "{}?checksum={}".format(endpoint, sha_1.hexdigest())
-
-
-def get_forwarded_host(request):
-    forwarded_host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
-    return forwarded_host_regex.sub(r'\1', forwarded_host)
 
 
 @sync_to_async
@@ -130,18 +138,7 @@ def get_node_params_by_lowest_workload(cluster_group):
         return None
 
 
-def get_slide_body_for_post(slide):
-    slide_path = "rest/slides/{}".format(slide)
-    try:
-        slide_file = open(slide_path, "rb")
-        body = '<modules><module name="presentation"><document name="{}">{}</document></module></modules>'.format(slide, base64.b64encode(slide_file.read()).decode())
-        slide_file.close()
-    except FileNotFoundError:
-        body = None
-    return body
-
-
-def incr_metric(name, secret, node, incr=1):
+def incr_metric(name, secret, node=None, incr=1):
     if Metric.objects.filter(name=name, secret=secret, node=node).update(value=(F("value") + incr) % METRIC_BIGINT_MODULO) == 0:
         metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
         metric.value = (F("value") + incr) % METRIC_BIGINT_MODULO
@@ -151,9 +148,11 @@ def incr_metric(name, secret, node, incr=1):
 @sync_to_async
 def limit_check(secret):
     if secret.tenant.meeting_limit > 0 and not Meeting.objects.filter(secret__tenant=secret.tenant).count() < secret.tenant.meeting_limit:
+        incr_metric(Metric.MEETING_LIMIT_HITS, Secret.objects.get(tenant=secret.tenant, sub_id=0))
         return False
 
     if secret.meeting_limit > 0 and not Meeting.objects.filter(secret=secret).count() < secret.meeting_limit:
+        incr_metric(Metric.MEETING_LIMIT_HITS, secret)
         return False
 
     if secret.tenant.attendee_limit > 0:
@@ -161,12 +160,14 @@ def limit_check(secret):
         # Aggregation sum can return None or [0, inf).
         # Only check for limit if aggregation sum is an integer.
         if isinstance(attendee_sum, int) and not attendee_sum < secret.tenant.attendee_limit:
+            incr_metric(Metric.ATTENDEE_LIMIT_HITS, Secret.objects.get(tenant=secret.tenant, sub_id=0))
             return False
 
     if secret.attendee_limit > 0:
         attendee_sum = Meeting.objects.filter(secret=secret).aggregate(Sum('attendees'))["attendees__sum"]
         # Same as above
         if isinstance(attendee_sum, int) and not attendee_sum < secret.attendee_limit:
+            incr_metric(Metric.ATTENDEE_LIMIT_HITS, secret)
             return False
     return True
 
@@ -174,15 +175,15 @@ def limit_check(secret):
 def get_slug(request, slug, sub_id):
     if slug is None:
         host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
-        host = forwarded_host_regex.sub(r'\1', host)
+        host = utils.forwarded_host_regex.sub(r'\1', host)
 
         regex_search = slug_regex.search(host)
         if regex_search:
-            return (regex_search.group(1).upper(), int(regex_search.group(3) or 0))
+            return regex_search.group(1).upper(), int(regex_search.group(3) or 0)
         else:
-            return (None, None)
+            return None, None
     else:
-        return (slug, int(sub_id))
+        return slug, int(sub_id)
 
 
 def get_request_tenant(request, slug, sub_id):
@@ -202,7 +203,7 @@ def get_request_secret(request, slug, sub_id):
         return None
 
     try:
-        return Secret.objects.select_related("tenant", "tenant__slide").get(tenant__slug=slug, sub_id=sub_id)
+        return Secret.objects.select_related("tenant", "tenant__asset").get(tenant__slug=slug, sub_id=sub_id)
     except ObjectDoesNotExist:
         return None
 
@@ -224,19 +225,3 @@ def update_create_metrics(secret, node):
 
     # update metric stats
     incr_metric(Metric.CREATED, secret, node)
-
-
-def xml_escape(string):
-    if isinstance(string, str):
-        escape_symbols = [
-            ("&", "&amp;"),
-            ("<", "&lt;"),
-            (">", "&gt;"),
-            ("'", "&apos;"),
-            ('"', "&quot;")
-        ]
-        for symbol, escape in escape_symbols:
-            string = string.replace(symbol, escape)
-        return string
-    else:
-        return ""
