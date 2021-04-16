@@ -26,6 +26,7 @@ from django.db.models import F, Sum
 import hashlib
 from django.conf import settings
 import rest.b3lb.utils as utils
+from rest.b3lb.constants import MAX_BASE64_SLIDE_SIZE_IN_POST
 
 
 ##
@@ -206,6 +207,16 @@ def get_request_secret(request, slug, sub_id):
         return Secret.objects.select_related("tenant", "tenant__asset").get(tenant__slug=slug, sub_id=sub_id)
     except ObjectDoesNotExist:
         return None
+
+
+def get_slide_body(secret):
+    slide_base64 = secret.tenant.asset.slide_base64
+    if len(slide_base64) <= MAX_BASE64_SLIDE_SIZE_IN_POST and len(slide_base64) != 0:
+        return '<modules><module name="presentation">{}<document name="{}"></document></module></modules>'.format(slide_base64, secret.tenant.asset.s_filename)
+    elif len(slide_base64) == 0:
+        return ''
+    else:
+        return '<modules><module name="presentation"><document url="{}" filename="{}"></document></module></modules>'.format(secret.tenant.asset.slide_url, secret.tenant.asset.s_filename)
 
 
 def set_metric(name, secret, node, value):

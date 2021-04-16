@@ -24,8 +24,9 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 import uuid as uid
 import re
+import base64
 from math import pow
-from rest.b3lb.utils import xml_escape
+from rest.b3lb.utils import xml_escape, get_file_from_storage
 
 
 class Cluster(models.Model):
@@ -277,6 +278,13 @@ class Asset(models.Model):
     @property
     def slide_url(self):
         return "https://{}/b3lb/t/{}/slide".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+
+    @property
+    def slide_base64(self):
+        if self.slide:
+            return base64.b64encode(bytes(get_file_from_storage(self.slide.name)))
+        else:
+            return base64.b64encode(b"")
 
     class Meta(object):
         ordering = ['tenant__slug']
