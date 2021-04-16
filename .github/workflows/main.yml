@@ -58,7 +58,7 @@ jobs:
           path: /tmp/b3lb-pypy.tar
 
 
-  build-caddy:
+  build-static:
     runs-on: ubuntu-latest
 
     steps:
@@ -129,7 +129,7 @@ jobs:
 
 
   push-release:
-    needs: ["build-django", "build-pypy", "build-dev", "build-caddy"]
+    needs: ["build-django", "build-pypy", "build-dev", "build-static"]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
 
@@ -155,10 +155,10 @@ jobs:
           name: b3lb-dev
           path: /tmp
 
-      - name: Download caddy artifact
+      - name: Download static artifact
         uses: actions/download-artifact@v2
         with:
-          name: b3lb-caddy
+          name: b3lb-static
           path: /tmp
 
       - name: Push images
@@ -166,7 +166,7 @@ jobs:
           docker load < /tmp/b3lb.tar
           docker load < /tmp/b3lb-pypy.tar
           docker load < /tmp/b3lb-dev.tar
-          docker load < /tmp/b3lb-caddy.tar
+          docker load < /tmp/b3lb-static.tar
 
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}
 
