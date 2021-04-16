@@ -24,7 +24,7 @@ storage = DatabaseFileStorage()
 forwarded_host_regex = re.compile(r'([^:]+)(:\d+)?$')
 
 
-def get_file_from_storage(file_name):
+def get_file_response_from_storage(file_name):
     try:
         stored_file = storage.open(file_name)
     except Exception:
@@ -34,6 +34,13 @@ def get_file_from_storage(file_name):
     response['Content-Length'] = stored_file.tell()
 
     return response
+
+
+def get_file_from_storage(file_name):
+    try:
+        return storage.open(file_name).file.read()
+    except Exception:
+        return None
 
 
 def get_forwarded_host(request):

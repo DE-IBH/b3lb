@@ -118,7 +118,7 @@ def metrics(request, slug=None, sub_id=0):
 @require_http_methods(['GET'])
 def slide(request, slug=None):
     try:
-        return utils.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
+        return utils.get_file_response_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
@@ -127,6 +127,6 @@ def slide(request, slug=None):
 @require_http_methods(['GET'])
 def logo(request, slug=None):
     try:
-        return utils.get_file_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
+        return utils.get_file_response_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
