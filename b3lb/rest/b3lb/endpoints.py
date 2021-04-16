@@ -162,7 +162,7 @@ async def create(request, endpoint, params, node, secret):
     if request.method == "GET":
         try:
             if secret.tenant.asset and secret.tenant.asset.slide:
-                body = '<modules><module name="presentation"><document url="{}" filename="{}"></document></module></modules>'.format(secret.tenant.asset.slide_url, secret.tenant.asset.s_filename)
+                body = await sync_to_async(lb.get_slide_body_for_post)(secret)
                 request.method = "POST"
         except Asset.DoesNotExist:
             pass
