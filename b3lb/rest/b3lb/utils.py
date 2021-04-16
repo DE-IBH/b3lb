@@ -17,6 +17,7 @@
 # This function file contains functions without import of b3lb files to prevent circular imports
 from db_file_storage.storage import DatabaseFileStorage
 from django.http import HttpResponse
+from django.db import models
 from wsgiref.util import FileWrapper
 import re
 
@@ -27,7 +28,7 @@ forwarded_host_regex = re.compile(r'([^:]+)(:\d+)?$')
 def get_file_response_from_storage(file_name):
     try:
         stored_file = storage.open(file_name)
-    except Exception:
+    except models.Model.DoesNotExist:
         return HttpResponse("Not Found", status=404)
 
     response = HttpResponse(FileWrapper(stored_file), content_type=stored_file.mimetype)
@@ -39,7 +40,7 @@ def get_file_response_from_storage(file_name):
 def get_file_from_storage(file_name):
     try:
         return storage.open(file_name).file.read()
-    except Exception:
+    except models.Model.DoesNotExist:
         return None
 
 
