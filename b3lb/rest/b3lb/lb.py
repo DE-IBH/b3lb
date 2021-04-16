@@ -212,7 +212,7 @@ def get_request_secret(request, slug, sub_id):
 def get_slide_body_for_post(secret):
     slide_base64 = secret.tenant.asset.slide_base64
     if slide_base64:
-        return '<modules><module name="presentation"><document name="{}">{}</document></module></modules>'.format(slide_base64, secret.tenant.asset.s_filename)
+        return '<modules><module name="presentation"><document name="{}">{}</document></module></modules>'.format(secret.tenant.asset.s_filename, slide_base64)
     else:
         return '<modules><module name="presentation"><document url="{}" filename="{}"></document></module></modules>'.format(secret.tenant.asset.slide_url, secret.tenant.asset.s_filename)
 
