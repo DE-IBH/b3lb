@@ -1,5 +1,18 @@
 # ChangeLog
 
+## 2.0.1 - 2021-05-09
+
+Changes:
+- bump python dependencies for Python 3.9 compatibility and fix
+  [CVE-2021-32052](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-32052) on Python 3.9.5+:
+  - Django `3.2` => `3.2.2`
+  - django-extensions `3.1.2` => `3.1.3`
+  - django-cacheops `5.1` => `6.0`
+
+The published docker images were shipped with Python 3.8
+from Alpine Linux 3.13 and should not be affected by
+[CVE-2021-32052](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-32052).
+
 ## 2.0.0 - 2021-04-16
 
 This is a new major release with breaking changes:
