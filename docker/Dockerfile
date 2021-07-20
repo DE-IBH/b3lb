@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM alpine:3.13.5 AS build
+FROM alpine:3.14.0 AS build
 
 RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev freetype-dev openjpeg-dev libimagequant-dev libwebp-dev tiff-dev libpng-dev lcms2-dev libjpeg-turbo-dev libxcb-dev zlib-dev py3-pip py3-asgiref py3-sqlparse py3-tz py3-redis py3-requests py3-aiohttp py3-dateutil py3-dotenv py3-wheel py3-websockets py3-yaml
 
@@ -28,7 +28,7 @@ COPY b3lb/requirements.txt ./
 RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 
-FROM alpine:3.13.5
+FROM alpine:3.14.0
 
 RUN apk --no-cache add python3 postgresql-libs libffi freetype openjpeg libimagequant libwebp tiff lcms2 libjpeg-turbo libxcb zlib py3-pip py3-asgiref py3-sqlparse py3-tz py3-redis py3-requests py3-aiohttp py3-dateutil py3-dotenv py3-wheel py3-websockets py3-yaml
 
