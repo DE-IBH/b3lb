@@ -30,6 +30,20 @@ from rest.b3lb.utils import xml_escape, get_file_from_storage
 import rest.b3lb.constants as ct
 
 
+@admin.action(description="Set nodes of cluster to active")
+def set_cluster_nodes_to_active(modeladmin, request, queryset):
+    for cluster in queryset:
+        nodes = Node.objects.filter(cluster=cluster)
+        nodes.update(maintenance=False)
+
+
+@admin.action(description="Set nodes of cluster to maintenance")
+def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
+    for cluster in queryset:
+        nodes = Node.objects.filter(cluster=cluster)
+        nodes.update(maintenance=True)
+
+
 class Cluster(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     name = models.CharField(max_length=100, help_text="cluster name", unique=True)
@@ -48,6 +62,7 @@ class Cluster(models.Model):
 class ClusterAdmin(admin.ModelAdmin):
     model = Cluster
     list_display = ['name', 'load_a_factor', 'load_m_factor', 'load_cpu_iterations', 'load_cpu_max']
+    actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
 
 
 def get_b3lb_node_default_domain():
@@ -107,18 +122,14 @@ class Node(models.Model):
         return int(work_attendees + work_meetings + work_cpu)
 
 
+@admin.action(description="Set Node to maintenance")
 def maintenance_on(modeladmin, request, queryset):
     queryset.update(maintenance=True)
 
 
-maintenance_on.short_description = "Set Node to maintenance"
-
-
+@admin.action(description="Set Node to active")
 def maintenance_off(modeladmin, request, queryset):
     queryset.update(maintenance=False)
-
-
-maintenance_off.short_description = "Set Node to active"
 
 
 class NodeAdmin(admin.ModelAdmin):
@@ -431,7 +442,7 @@ class MetricAdmin(admin.ModelAdmin):
 
 
 class Parameter(models.Model):
-    # Parameters
+    # Create Parameters
     MAX_PARTICIPANTS = "maxParticipants"
     LOGOUT_URL = "logoutURL"
     DURATION = "duration"
@@ -452,6 +463,63 @@ class Parameter(models.Model):
     LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE = "lockSettingsLockOnJoinConfigurable"
     GUEST_POLICY = "guestPolicy"
     MEETING_KEEP_EVENT = "meetingKeepEvents"
+    END_WHEN_NO_MODERATOR = "endWhenNoModerator"
+    END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES = "endWhenNoModeratorDelayInMinutes"
+
+    # Join Paramters
+    # see https://docs.bigbluebutton.org/admin/customize.html#passing-custom-parameters-to-the-client-on-join for documentation
+    #
+    # some join parameters needs settings.yml defined inputs, see
+    # https://github.com/bigbluebutton/bigbluebutton/blob/develop/bigbluebutton-html5/private/config/settings.yml
+    # for possible options
+
+    # Join Parameters - Application
+    USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT = "userdata-bbb_ask_for_feedback_on_logout"
+    USERDATA_BBB_AUTO_JOIN_AUDIO = "userdata-bbb_auto_join_audio"
+    USERDATA_BBB_CLIENT_TITLE = "userdata-bbb_client_title"
+    USERDATA_BBB_FORCE_LISTEN_ONLY = "userdata-bbb_force_listen_only"
+    USERDATA_BBB_LISTEN_ONLY_MODE = "userdata-bbb_listen_only_mode"
+    USERDATA_BBB_SKIP_CHECK_AUDIO = "userdata-bbb_skip_check_audio"
+    USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN = "userdata-bbb_skip_check_audio_on_first_join"
+    USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE = "userdata-bbb_override_default_locale"
+    
+    # Join Parameters - Branding
+    USERDATA_BBB_DISPLAY_BRANDING_AREA = "userdata-bbb_display_branding_area"
+
+    # Join Parameters - Shortcut
+    USERDATA_BBB_SHORTCUTS = "userdata-bbb_shortcuts"
+
+    # Join Parameters - Kurento
+    USERDATA_BBB_AUTO_SHARE_WEBCAM = "userdata-bbb_auto_share_webcam"
+    USERDATA_BBB_PREFFERED_CAMERA_PROFILE = "userdata-bbb_preferred_camera_profile"
+    USERDATA_BBB_ENABLE_SCREEN_SHARING = "userdata-bbb_enable_screen_sharing"
+    USERDATA_BBB_ENABLE_VIDEO = "userdata-bbb_enable_video"
+    USERDATA_BBB_RECORD_VIDEO = "userdata-bbb_record_video"  # currently useless, because record is forbidden in b3lb
+    USERDATA_BBB_SKIP_VIDEO_PREVIEW = "userdata-bbb_skip_video_preview"
+    USERDATA_BBB_SKIP_VIDEO_PREVIEW_ON_FIRST_JOIN = "userdata-bbb_skip_video_preview_on_first_join"
+    USERDATA_BBB_MIRROR_OWN_WEBCAM = "userdata-bbb_mirror_own_webcam"
+
+    # Join Parameter - Presentation
+    USERDATA_BBB_FORCE_RESTORE_PRESENTATION_ON_NEW_EVENTS = "userdata-bbb_force_restore_presentation_on_new_events"
+
+    # Join Parameter - Whiteboard
+    USERDATA_BBB_MULTI_USER_PEN_ONLY = "userdata-bbb_multi_user_pen_only"
+    USERDATA_BBB_PRESENTER_TOOLS = "userdata-bbb_presenter_tools"
+    USERDATA_BBB_MULTI_USER_TOOLS = "userdata-bbb_multi_user_tools"
+
+    # Join Parameter - Styling
+    USERDATA_BBB_CUSTOM_STYLE = "userdata-bbb_custom_style"
+    USERDATA_BBB_CUSTOM_STYLE_URL = "userdata-bbb_custom_style_url"
+
+    # Join Parameter - Layout
+    USERDATA_BBB_AUTO_SWAP_LAYOUT = "userdata-bbb_auto_swap_layout"
+    USERDATA_BBB_HIDE_PRESENTATION = "userdata-bbb_hide_presentation"
+    USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN = "userdata-bbb_show_participants_on_login"
+    USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN = "userdata-bbb_show_public_chat_on_login"
+
+    # Join Parameter - External
+    USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE = "userdata-bbb_outside_toggle_self_voice"
+    USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING = "userdata-bbb_outside_toggle_recording"  # currently useless, because of forbidden recording
 
     # Modes
     BLOCK = "BLOCK"
@@ -459,6 +527,7 @@ class Parameter(models.Model):
     OVERRIDE = "OVERRIDE"
     
     PARAMETER_CHOICES = (
+        # Create
         (ALLOW_MODS_TO_UNMUTE_USERS, ALLOW_MODS_TO_UNMUTE_USERS),
         (BANNER_COLOR, BANNER_COLOR),
         (BANNER_TEXT, BANNER_TEXT),
@@ -479,6 +548,56 @@ class Parameter(models.Model):
         (MEETING_KEEP_EVENT, MEETING_KEEP_EVENT),
         (MUTE_ON_START, MUTE_ON_START),
         (WEBCAMS_ONLY_FOR_MODERATOR, WEBCAMS_ONLY_FOR_MODERATOR),
+        (END_WHEN_NO_MODERATOR, END_WHEN_NO_MODERATOR),
+        (END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES, END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES),
+
+        # Join - Application
+        (USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT, USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT),
+        (USERDATA_BBB_AUTO_JOIN_AUDIO, USERDATA_BBB_AUTO_JOIN_AUDIO),
+        (USERDATA_BBB_CLIENT_TITLE, USERDATA_BBB_CLIENT_TITLE),
+        (USERDATA_BBB_FORCE_LISTEN_ONLY, USERDATA_BBB_FORCE_LISTEN_ONLY),
+        (USERDATA_BBB_LISTEN_ONLY_MODE, USERDATA_BBB_LISTEN_ONLY_MODE),
+        (USERDATA_BBB_SKIP_CHECK_AUDIO, USERDATA_BBB_SKIP_CHECK_AUDIO),
+        (USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN, USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN),
+        (USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE, USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE),
+
+        # Join - Branding
+        (USERDATA_BBB_DISPLAY_BRANDING_AREA, USERDATA_BBB_DISPLAY_BRANDING_AREA),
+
+        # Join - Shortcut
+        (USERDATA_BBB_SHORTCUTS, USERDATA_BBB_SHORTCUTS),
+
+        # Join - Kurento
+        (USERDATA_BBB_AUTO_SHARE_WEBCAM, USERDATA_BBB_AUTO_SHARE_WEBCAM),
+        (USERDATA_BBB_PREFFERED_CAMERA_PROFILE, USERDATA_BBB_PREFFERED_CAMERA_PROFILE),
+        (USERDATA_BBB_ENABLE_SCREEN_SHARING, USERDATA_BBB_ENABLE_SCREEN_SHARING),
+        (USERDATA_BBB_ENABLE_VIDEO, USERDATA_BBB_ENABLE_VIDEO),
+        (USERDATA_BBB_RECORD_VIDEO, USERDATA_BBB_RECORD_VIDEO),
+        (USERDATA_BBB_SKIP_VIDEO_PREVIEW, USERDATA_BBB_SKIP_VIDEO_PREVIEW),
+        (USERDATA_BBB_SKIP_VIDEO_PREVIEW_ON_FIRST_JOIN, USERDATA_BBB_SKIP_VIDEO_PREVIEW_ON_FIRST_JOIN),
+        (USERDATA_BBB_MIRROR_OWN_WEBCAM, USERDATA_BBB_MIRROR_OWN_WEBCAM),
+
+        # Join - Presentation
+        (USERDATA_BBB_FORCE_RESTORE_PRESENTATION_ON_NEW_EVENTS, USERDATA_BBB_FORCE_RESTORE_PRESENTATION_ON_NEW_EVENTS),
+
+        # Join - Whiteboard
+        (USERDATA_BBB_MULTI_USER_PEN_ONLY, USERDATA_BBB_MULTI_USER_PEN_ONLY),
+        (USERDATA_BBB_PRESENTER_TOOLS, USERDATA_BBB_PRESENTER_TOOLS),
+        (USERDATA_BBB_MULTI_USER_TOOLS, USERDATA_BBB_MULTI_USER_TOOLS),
+
+        # Join - Styling
+        (USERDATA_BBB_CUSTOM_STYLE, USERDATA_BBB_CUSTOM_STYLE),
+        (USERDATA_BBB_CUSTOM_STYLE_URL, USERDATA_BBB_CUSTOM_STYLE_URL),
+
+        # Join - Layout
+        (USERDATA_BBB_AUTO_SWAP_LAYOUT, USERDATA_BBB_AUTO_SWAP_LAYOUT),
+        (USERDATA_BBB_HIDE_PRESENTATION, USERDATA_BBB_HIDE_PRESENTATION),
+        (USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN, USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN),
+        (USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN, USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN),
+
+        # Join - External
+        (USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE, USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE),
+        (USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING, USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING),
     )
 
     MODE_CHOICES = [
@@ -491,10 +610,13 @@ class Parameter(models.Model):
     NUMBER_REGEX = r'^\d+$'
     POLICY_REGEX = r'^(ALWAYS_ACCEPT|ALWAYS_DENY|ASK_MODERATOR)$'
     COLOR_REGEX = r'^#[a-fA-F0-9]{6}$'
+    LOCALE_REGEX = r'^[a-z]{2}$'
+    CAMERA_REGEX = r'^(low-u30|low-u25|low-u20|low-u15|low-u12|low-u8|low|medium|high|hd)$'
     URL_REGEX = r"^https?://[\w.-]+(?:\.[\w.-]+)+[\w._~:/?#[\]@!\$&'()*+,;=.%-]+$"
     ANY_REGEX = r'.'
 
     PARAMETER_REGEXES = {
+        # Create
         MAX_PARTICIPANTS: NUMBER_REGEX,
         LOGOUT_URL: URL_REGEX,
         DURATION: NUMBER_REGEX,
@@ -514,8 +636,75 @@ class Parameter(models.Model):
         LOCK_SETTINGS_LOCK_ON_JOIN: BOOLEAN_REGEX,
         LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE: BOOLEAN_REGEX,
         GUEST_POLICY: POLICY_REGEX,
-        MEETING_KEEP_EVENT: BOOLEAN_REGEX
+        MEETING_KEEP_EVENT: BOOLEAN_REGEX,
+        END_WHEN_NO_MODERATOR: BOOLEAN_REGEX,
+        END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES: NUMBER_REGEX,
+
+        # Join - Application
+        USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT: BOOLEAN_REGEX,
+        USERDATA_BBB_AUTO_JOIN_AUDIO: BOOLEAN_REGEX,
+        USERDATA_BBB_CLIENT_TITLE: ANY_REGEX,
+        USERDATA_BBB_FORCE_LISTEN_ONLY: BOOLEAN_REGEX,
+        USERDATA_BBB_LISTEN_ONLY_MODE: BOOLEAN_REGEX,
+        USERDATA_BBB_SKIP_CHECK_AUDIO: BOOLEAN_REGEX,
+        USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN: BOOLEAN_REGEX,
+        USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE: LOCALE_REGEX,
+
+        # Join - Branding
+        USERDATA_BBB_DISPLAY_BRANDING_AREA: BOOLEAN_REGEX,
+
+        # Join - Shortcut
+        USERDATA_BBB_SHORTCUTS: ANY_REGEX,
+
+        # Join - Kurento
+        USERDATA_BBB_AUTO_SHARE_WEBCAM: BOOLEAN_REGEX,
+        USERDATA_BBB_PREFFERED_CAMERA_PROFILE: CAMERA_REGEX,
+        USERDATA_BBB_ENABLE_SCREEN_SHARING: BOOLEAN_REGEX,
+        USERDATA_BBB_ENABLE_VIDEO: BOOLEAN_REGEX,
+        USERDATA_BBB_RECORD_VIDEO: BOOLEAN_REGEX,
+        USERDATA_BBB_SKIP_VIDEO_PREVIEW: BOOLEAN_REGEX,
+        USERDATA_BBB_SKIP_VIDEO_PREVIEW_ON_FIRST_JOIN: BOOLEAN_REGEX,
+        USERDATA_BBB_MIRROR_OWN_WEBCAM: BOOLEAN_REGEX,
+
+        # Join - Presentation
+        USERDATA_BBB_FORCE_RESTORE_PRESENTATION_ON_NEW_EVENTS: BOOLEAN_REGEX,
+
+        # Join - Whiteboard
+        USERDATA_BBB_MULTI_USER_PEN_ONLY: BOOLEAN_REGEX,
+        USERDATA_BBB_PRESENTER_TOOLS: ANY_REGEX,
+        USERDATA_BBB_MULTI_USER_TOOLS: ANY_REGEX,
+
+        # Join - Styling
+        USERDATA_BBB_CUSTOM_STYLE: ANY_REGEX,
+        USERDATA_BBB_CUSTOM_STYLE_URL: URL_REGEX,
+
+        # Join - Layout
+        USERDATA_BBB_AUTO_SWAP_LAYOUT: BOOLEAN_REGEX,
+        USERDATA_BBB_HIDE_PRESENTATION: BOOLEAN_REGEX,
+        USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN: BOOLEAN_REGEX,
+        USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN: BOOLEAN_REGEX,
+
+        # Join - External
+        USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE: BOOLEAN_REGEX,
+        USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING: BOOLEAN_REGEX
+
     }
+
+    PARAMETERS_CREATE = [ALLOW_MODS_TO_UNMUTE_USERS, BANNER_COLOR, BANNER_TEXT, COPYRIGHT, DURATION, GUEST_POLICY, LOCK_SETTINGS_DISABLE_CAM,
+                         LOCK_SETTINGS_DISABLE_MIC, LOCK_SETTINGS_DISABLE_PRIVATE_CHAT, LOCK_SETTINGS_DISABLE_PUBLIC_CHAT, LOCK_SETTINGS_DISABLE_NOTE,
+                         LOCK_SETTINGS_HIDE_USER_LIST, LOCK_SETTINGS_LOCK_ON_JOIN, LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE, LOCK_SETTINGS_LOCKED_LAYOUT,
+                         LOGOUT_URL, MAX_PARTICIPANTS, MEETING_KEEP_EVENT, MUTE_ON_START, WEBCAMS_ONLY_FOR_MODERATOR, END_WHEN_NO_MODERATOR,
+                         END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES]
+
+    PARAMETERS_JOIN = [USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT, USERDATA_BBB_AUTO_JOIN_AUDIO, USERDATA_BBB_CLIENT_TITLE, USERDATA_BBB_FORCE_LISTEN_ONLY,
+                       USERDATA_BBB_LISTEN_ONLY_MODE, USERDATA_BBB_SKIP_CHECK_AUDIO, USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN,
+                       USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE, USERDATA_BBB_DISPLAY_BRANDING_AREA, USERDATA_BBB_SHORTCUTS, USERDATA_BBB_AUTO_SHARE_WEBCAM,
+                       USERDATA_BBB_PREFFERED_CAMERA_PROFILE, USERDATA_BBB_ENABLE_SCREEN_SHARING, USERDATA_BBB_ENABLE_VIDEO, USERDATA_BBB_RECORD_VIDEO,
+                       USERDATA_BBB_SKIP_VIDEO_PREVIEW, USERDATA_BBB_SKIP_VIDEO_PREVIEW_ON_FIRST_JOIN, USERDATA_BBB_MIRROR_OWN_WEBCAM,
+                       USERDATA_BBB_FORCE_RESTORE_PRESENTATION_ON_NEW_EVENTS, USERDATA_BBB_MULTI_USER_PEN_ONLY, USERDATA_BBB_PRESENTER_TOOLS,
+                       USERDATA_BBB_MULTI_USER_TOOLS, USERDATA_BBB_CUSTOM_STYLE, USERDATA_BBB_CUSTOM_STYLE_URL, USERDATA_BBB_AUTO_SWAP_LAYOUT,
+                       USERDATA_BBB_HIDE_PRESENTATION, USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN, USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN,
+                       USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE, USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING]
 
     mode = models.CharField(max_length=10, choices=MODE_CHOICES)
     parameter = models.CharField(max_length=64, choices=PARAMETER_CHOICES)

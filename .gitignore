@@ -136,3 +136,4 @@ nginx
 db
 *.img
 .run
+static

@@ -23,7 +23,6 @@ from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadReque
 from django.core.exceptions import ObjectDoesNotExist
 import rest.b3lb.lb as lb
 import rest.b3lb.constants as constants
-from django.conf import settings
 import json
 
 
@@ -130,6 +129,7 @@ def get_meetings(secret):
 
 
 async def join(params, node, secret):
+    params = await sync_to_async(lb.check_parameter)(params, secret.tenant, join=True)
     url = "{}{}".format(node.api_base_url, lb.get_endpoint_str("join", params, node.secret))
 
     # update metric stats

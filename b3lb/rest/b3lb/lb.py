@@ -56,17 +56,23 @@ def check_meeting_existence(meeting_id, secret):
             return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
 
 
-def check_parameter(params, tenant):
+def check_parameter(params, tenant, join=False):
     parameters = Parameter.objects.filter(tenant=tenant)
 
+    if join:
+        endpoint_parameters = Parameter.PARAMETERS_JOIN
+    else:
+        endpoint_parameters = Parameter.PARAMETERS_CREATE
+
     for parameter in parameters:
-        if parameter.parameter in params:
-            if parameter.mode == Parameter.BLOCK:
-                del params[parameter.parameter]
-            elif parameter.mode == Parameter.OVERRIDE:
+        if parameter.parameter in endpoint_parameters:
+            if parameter.parameter in params:
+                if parameter.mode == Parameter.BLOCK:
+                    del params[parameter.parameter]
+                elif parameter.mode == Parameter.OVERRIDE:
+                    params[parameter.parameter] = parameter.value
+            elif parameter.mode in [Parameter.SET, Parameter.OVERRIDE]:
                 params[parameter.parameter] = parameter.value
-        elif parameter.mode in [Parameter.SET, Parameter.OVERRIDE]:
-            params[parameter.parameter] = parameter.value
 
     return params
 
