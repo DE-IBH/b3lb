@@ -132,7 +132,7 @@ def logo(request, slug=None):
         return HttpResponseNotFound()
 
 
-# Endpoint for getting slides
+# Endpoint for getting custom CSS file
 @require_http_methods(['GET'])
 def custom_css(request, slug=None):
     try:
