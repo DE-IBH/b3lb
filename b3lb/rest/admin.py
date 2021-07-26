@@ -20,6 +20,7 @@ from rest.models import *
 
 
 admin.site.register(Asset, AssetAdmin)
+admin.site.register(AssetCustomCSS, AssetCustomCSSAdmin)
 admin.site.register(AssetLogo, AssetLogoAdmin)
 admin.site.register(AssetSlide, AssetSlideAdmin)
 admin.site.register(Cluster, ClusterAdmin)
