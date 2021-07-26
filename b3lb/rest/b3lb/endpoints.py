@@ -18,7 +18,7 @@
 import aiohttp
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
-from rest.models import Meeting, Metric, Stats, SecretMeetingList, Asset
+from rest.models import Meeting, Metric, Stats, SecretMeetingList, Asset, Parameter
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.core.exceptions import ObjectDoesNotExist
 import rest.b3lb.lb as lb
@@ -130,6 +130,15 @@ def get_meetings(secret):
 
 async def join(params, node, secret):
     params = await sync_to_async(lb.check_parameter)(params, secret.tenant, join=True)
+
+    # check custom style css
+    if Asset.custom_css_mode != Asset.OFF:
+        if Asset.custom_css_mode == Asset.OVERRIDE:
+            params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
+        else:
+            if Parameter.USERDATA_BBB_CUSTOM_STYLE_URL not in params:
+                params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
+
     url = "{}{}".format(node.api_base_url, lb.get_endpoint_str("join", params, node.secret))
 
     # update metric stats
