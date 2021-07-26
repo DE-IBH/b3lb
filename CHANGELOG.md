@@ -1,5 +1,18 @@
 # ChangeLog
 
+## 2.1.0 - 2021-07-26
+
+Changes:
+- admin: add admin command for cluster maintenance
+- api: add [html5 custom parameters](https://docs.bigbluebutton.org/admin/customize.html#passing-custom-parameters-to-the-client-on-join) support
+- api: add custom css asset
+- bump python dependencies:
+  - Django `3.2.2` => `3.2.5`
+  - celery `5.0.5` => `5.1.2`
+  - django-redis `4.12.1` => `5.0.0`
+  - uvicorn `0.13.4`=>  `0.14.0`  
+- docker: bump to alpine 3.14, python3.9, pypy 3.7-7.3.5
+
 ## 2.0.1 - 2021-05-09
 
 Changes:
