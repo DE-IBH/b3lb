@@ -130,3 +130,12 @@ def logo(request, slug=None):
         return utils.get_file_response_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
+
+
+# Endpoint for getting slides
+@require_http_methods(['GET'])
+def custom_css(request, slug=None):
+    try:
+        return utils.get_file_response_from_storage(Asset.objects.get(tenant__slug=slug.upper()).custom_css.name)
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()

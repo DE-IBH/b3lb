@@ -268,11 +268,35 @@ class AssetLogoAdmin(admin.ModelAdmin):
     list_display = ['filename', 'mimetype']
 
 
+class AssetCustomCSS(models.Model):
+    blob = models.BinaryField()
+    filename = models.CharField(max_length=255)
+    mimetype = models.CharField(max_length=50)
+
+
+class AssetCustomCSSAdmin(admin.ModelAdmin):
+    model = AssetCustomCSS
+    list_display = ['filename', 'mimetype']
+
+
 class Asset(models.Model):
+    # Modes
+    OFF = "Not using custom css"
+    SET = "Set if 'userdata-bbb_custom_style_url' parameter is unset"
+    OVERRIDE = "Overwrite the 'userdata-bbb_custom_style_url' parameter"
+
+    MODE_CHOICES = [
+        (OFF, OFF),
+        (SET, SET),
+        (OVERRIDE, OVERRIDE)
+    ]
+
     tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
     slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
     slide_filename = models.CharField(max_length=250, blank=True, null=True)
     logo = models.ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
+    custom_css = models.FileField(upload_to='rest.AssetCustomCSS/blob/filename/mimetype', blank=True, null=True)
+    custom_css_mode = models.CharField(max_length=60, choices=MODE_CHOICES, default=MODE_CHOICES[0])
 
     @property
     def s_filename(self):
@@ -282,6 +306,10 @@ class Asset(models.Model):
             return "{}.{}".format(self.tenant.slug.lower(), self.slide.name.split(".")[-1])
         else:
             return ""
+
+    @property
+    def custom_css_url(self):
+        return "https://{}/b3lb/t/{}/css".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     @property
     def logo_url(self):
