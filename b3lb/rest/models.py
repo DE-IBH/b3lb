@@ -280,23 +280,11 @@ class AssetCustomCSSAdmin(admin.ModelAdmin):
 
 
 class Asset(models.Model):
-    # Modes
-    OFF = "Not using custom css"
-    SET = "Set if 'userdata-bbb_custom_style_url' parameter is unset"
-    OVERRIDE = "Overwrite the 'userdata-bbb_custom_style_url' parameter"
-
-    MODE_CHOICES = [
-        (OFF, OFF),
-        (SET, SET),
-        (OVERRIDE, OVERRIDE)
-    ]
-
     tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
     slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
     slide_filename = models.CharField(max_length=250, blank=True, null=True)
     logo = models.ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
     custom_css = models.FileField(upload_to='rest.AssetCustomCSS/blob/filename/mimetype', blank=True, null=True)
-    custom_css_mode = models.CharField(max_length=60, choices=MODE_CHOICES, default=MODE_CHOICES[0])
 
     @property
     def s_filename(self):
@@ -475,6 +463,7 @@ class Parameter(models.Model):
     LOGOUT_URL = "logoutURL"
     DURATION = "duration"
     WEBCAMS_ONLY_FOR_MODERATOR = "webcamsOnlyForModerator"
+    LOGO = "logo"
     BANNER_TEXT = "bannerText"
     BANNER_COLOR = "bannerColor"
     COPYRIGHT = "copyright"
@@ -571,6 +560,7 @@ class Parameter(models.Model):
         (LOCK_SETTINGS_LOCK_ON_JOIN, LOCK_SETTINGS_LOCK_ON_JOIN),
         (LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE, LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE),
         (LOCK_SETTINGS_LOCKED_LAYOUT, LOCK_SETTINGS_LOCKED_LAYOUT),
+        (LOGO, LOGO),
         (LOGOUT_URL, LOGOUT_URL),
         (MAX_PARTICIPANTS, MAX_PARTICIPANTS),
         (MEETING_KEEP_EVENT, MEETING_KEEP_EVENT),
@@ -663,6 +653,7 @@ class Parameter(models.Model):
         LOCK_SETTINGS_HIDE_USER_LIST: BOOLEAN_REGEX,
         LOCK_SETTINGS_LOCK_ON_JOIN: BOOLEAN_REGEX,
         LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE: BOOLEAN_REGEX,
+        LOGO: URL_REGEX,
         GUEST_POLICY: POLICY_REGEX,
         MEETING_KEEP_EVENT: BOOLEAN_REGEX,
         END_WHEN_NO_MODERATOR: BOOLEAN_REGEX,
@@ -721,7 +712,7 @@ class Parameter(models.Model):
     PARAMETERS_CREATE = [ALLOW_MODS_TO_UNMUTE_USERS, BANNER_COLOR, BANNER_TEXT, COPYRIGHT, DURATION, GUEST_POLICY, LOCK_SETTINGS_DISABLE_CAM,
                          LOCK_SETTINGS_DISABLE_MIC, LOCK_SETTINGS_DISABLE_PRIVATE_CHAT, LOCK_SETTINGS_DISABLE_PUBLIC_CHAT, LOCK_SETTINGS_DISABLE_NOTE,
                          LOCK_SETTINGS_HIDE_USER_LIST, LOCK_SETTINGS_LOCK_ON_JOIN, LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE, LOCK_SETTINGS_LOCKED_LAYOUT,
-                         LOGOUT_URL, MAX_PARTICIPANTS, MEETING_KEEP_EVENT, MUTE_ON_START, WEBCAMS_ONLY_FOR_MODERATOR, END_WHEN_NO_MODERATOR,
+                         LOGO, LOGOUT_URL, MAX_PARTICIPANTS, MEETING_KEEP_EVENT, MUTE_ON_START, WEBCAMS_ONLY_FOR_MODERATOR, END_WHEN_NO_MODERATOR,
                          END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES]
 
     PARAMETERS_JOIN = [USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT, USERDATA_BBB_AUTO_JOIN_AUDIO, USERDATA_BBB_CLIENT_TITLE, USERDATA_BBB_FORCE_LISTEN_ONLY,

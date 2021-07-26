@@ -132,12 +132,8 @@ async def join(params, node, secret):
     params = await sync_to_async(lb.check_parameter)(params, secret.tenant, join=True)
 
     # check custom style css
-    if Asset.custom_css_mode != Asset.OFF:
-        if Asset.custom_css_mode == Asset.OVERRIDE:
-            params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
-        else:
-            if Parameter.USERDATA_BBB_CUSTOM_STYLE_URL not in params:
-                params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
+    if Parameter.USERDATA_BBB_CUSTOM_STYLE_URL not in params:
+        params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
 
     url = "{}{}".format(node.api_base_url, lb.get_endpoint_str("join", params, node.secret))
 
@@ -158,16 +154,17 @@ async def create(request, endpoint, params, node, secret):
     except KeyError:
         return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
 
+    params = await sync_to_async(lb.check_parameter)(params, secret.tenant)
+
     # check for custom logo
-    if "logo" not in params:
+    if Parameter.LOGO not in params:
         try:
             if secret.tenant.asset and secret.tenant.asset.logo:
                 params["logo"] = secret.tenant.asset.logo_url
         except Asset.DoesNotExist:
             pass
 
-    params = await sync_to_async(lb.check_parameter)(params, secret.tenant)
-
+    # check for custom slide
     if request.method == "GET":
         try:
             if secret.tenant.asset and secret.tenant.asset.slide:
