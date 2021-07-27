@@ -133,7 +133,11 @@ async def join(params, node, secret):
 
     # check custom style css
     if Parameter.USERDATA_BBB_CUSTOM_STYLE_URL not in params:
-        params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
+        try:
+            if secret.tenant.asset and secret.tenant.asset.custom_css:
+                params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
+        except Asset.DoesNotExist:
+            pass
 
     url = "{}{}".format(node.api_base_url, lb.get_endpoint_str("join", params, node.secret))
 
