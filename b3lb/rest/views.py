@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
 from asgiref.sync import sync_to_async
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
 from django.core.exceptions import ObjectDoesNotExist
@@ -118,8 +117,13 @@ def metrics(request, slug=None, sub_id=0):
 @require_http_methods(['GET'])
 def slide(request, slug=None):
     try:
-        return utils.get_file_response_from_storage(Asset.objects.get(tenant__slug=slug.upper()).slide.name)
+        asset = Asset.objects.get(tenant__slug=slug.upper())
     except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+
+    if asset.custom_css:
+        return utils.get_file_response_from_storage(asset.slide.name)
+    else:
         return HttpResponseNotFound()
 
 
@@ -127,8 +131,13 @@ def slide(request, slug=None):
 @require_http_methods(['GET'])
 def logo(request, slug=None):
     try:
-        return utils.get_file_response_from_storage(Asset.objects.get(tenant__slug=slug.upper()).logo.name)
+        asset = Asset.objects.get(tenant__slug=slug.upper())
     except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+
+    if asset.custom_css:
+        return utils.get_file_response_from_storage(asset.logo.name)
+    else:
         return HttpResponseNotFound()
 
 
@@ -136,6 +145,11 @@ def logo(request, slug=None):
 @require_http_methods(['GET'])
 def custom_css(request, slug=None):
     try:
-        return utils.get_file_response_from_storage(Asset.objects.get(tenant__slug=slug.upper()).custom_css.name)
+        asset = Asset.objects.get(tenant__slug=slug.upper())
     except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+
+    if asset.custom_css:
+        return utils.get_file_response_from_storage(asset.custom_css.name)
+    else:
         return HttpResponseNotFound()
