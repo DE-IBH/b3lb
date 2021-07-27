@@ -1,5 +1,14 @@
 # ChangeLog
 
+## 2.2.0 - 2021-07-27
+
+Fixes:
+- api: failed to join meetings for tenants without Asset object #45
+- api: do not add custom_style_url parameters if no AssetCss is set #46
+
+Changes:
+- django: add settings for email based error notification
+
 ## 2.1.0 - 2021-07-26
 
 Changes:
