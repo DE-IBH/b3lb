@@ -121,7 +121,7 @@ def slide(request, slug=None):
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
-    if asset.custom_css:
+    if asset.slide:
         return utils.get_file_response_from_storage(asset.slide.name)
     else:
         return HttpResponseNotFound()
@@ -135,7 +135,7 @@ def logo(request, slug=None):
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
-    if asset.custom_css:
+    if asset.logo:
         return utils.get_file_response_from_storage(asset.logo.name)
     else:
         return HttpResponseNotFound()
