@@ -18,7 +18,7 @@
 import aiohttp
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
-from rest.models import Meeting, Metric, Stats, SecretMeetingList, Asset, Parameter
+from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.core.exceptions import ObjectDoesNotExist
 import rest.b3lb.lb as lb
@@ -132,7 +132,7 @@ async def join(params, node, secret):
     params = await sync_to_async(lb.check_parameter)(params, secret.tenant, join=True)
 
     # check custom style css
-    if Parameter.USERDATA_BBB_CUSTOM_STYLE_URL not in params:
+    if Parameter.USERDATA_BBB_CUSTOM_STYLE_URL not in params and hasattr(secret.tenant, 'asset') and secret.tenant.asset.custom_css:
         params[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = secret.tenant.asset.custom_css_url
 
     url = "{}{}".format(node.api_base_url, lb.get_endpoint_str("join", params, node.secret))
@@ -157,21 +157,13 @@ async def create(request, endpoint, params, node, secret):
     params = await sync_to_async(lb.check_parameter)(params, secret.tenant)
 
     # check for custom logo
-    if Parameter.LOGO not in params:
-        try:
-            if secret.tenant.asset and secret.tenant.asset.logo:
-                params["logo"] = secret.tenant.asset.logo_url
-        except Asset.DoesNotExist:
-            pass
+    if Parameter.LOGO not in params and hasattr(secret.tenant, 'asset') and secret.tenant.asset.logo:
+        params["logo"] = secret.tenant.asset.logo_url
 
     # check for custom slide
-    if request.method == "GET":
-        try:
-            if secret.tenant.asset and secret.tenant.asset.slide:
-                body = await sync_to_async(lb.get_slide_body_for_post)(secret)
-                request.method = "POST"
-        except Asset.DoesNotExist:
-            pass
+    if request.method == "GET" and hasattr(secret.tenant, 'asset') and secret.tenant.asset.slide:
+        body = await sync_to_async(lb.get_slide_body_for_post)(secret)
+        request.method = "POST"
 
     response = await pass_through(request, endpoint, params, node, body=body)
 

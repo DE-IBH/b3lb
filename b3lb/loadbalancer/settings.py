@@ -30,6 +30,7 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import os
 import sys
 import environ
+import email.utils
 import urllib.parse
 
 # reading .env file
@@ -189,6 +190,17 @@ CACHEOPS_REDIS = env.str('CACHEOPS_REDIS', default='redis://redis/2')
 
 # fail gracefully if redis breaks
 CACHEOPS_DEGRADE_ON_FAILURE = env.bool('CACHEOPS_DEGRADE_ON_FAILURE', True)
+
+
+# Email settings
+SERVER_EMAIL = env.str('SERVER_EMAIL', default='root@localhost')
+
+EMAIL_CONFIG = env.email_url('EMAIL_URL', default='dummymail://')
+vars().update(EMAIL_CONFIG)
+
+
+# set Django admins for error notification
+ADMINS = email.utils.getaddresses([env.str('DJANGO_ADMINS', '')])
 
 
 ######
