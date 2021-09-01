@@ -85,8 +85,7 @@ async def requested_endpoint(secret, endpoint, request, params):
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
-            node = await sync_to_async(lb.get_node_params_by_lowest_workload)(secret.tenant.cluster_group)
-            return await pass_through(request, endpoint, params, node)
+            return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
     if endpoint == "isMeetingRunning":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
@@ -104,7 +103,7 @@ async def requested_endpoint(secret, endpoint, request, params):
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
-            return HttpResponse(constants.RETURN_STRING_GET_MEETING_INFO_NOT_FOUND, content_type='text/html')
+            return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
     if endpoint == "setConfigXML":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
