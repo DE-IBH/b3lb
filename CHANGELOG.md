@@ -1,5 +1,18 @@
 # ChangeLog
 
+## 2.2.1 - 2021-09-01
+
+Fixes:
+- api: fix internal server error if end meeting is called for a non-existing meeting
+
+Changes:
+- bump python dependencies:
+  - Django `3.2.5` => `3.2.7`
+  - django-environ `0.4.5` => `0.5.0`
+  - django-split-settings `1.0.1`=>  `1.1.0`
+  - uvicorn `0.14.0`=>  `0.15.0`
+- docker: bump to alpine 3.14.2
+
 ## 2.2.0 - 2021-07-27
 
 Fixes:
@@ -19,7 +32,7 @@ Changes:
   - Django `3.2.2` => `3.2.5`
   - celery `5.0.5` => `5.1.2`
   - django-redis `4.12.1` => `5.0.0`
-  - uvicorn `0.13.4`=>  `0.14.0`  
+  - uvicorn `0.13.4`=>  `0.14.0`
 - docker: bump to alpine 3.14, python3.9, pypy 3.7-7.3.5
 
 ## 2.0.1 - 2021-05-09
