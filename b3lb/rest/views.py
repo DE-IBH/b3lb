@@ -49,7 +49,7 @@ async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
     if not secret:
         return HttpResponse("Unauthorized", status=401)
 
-    if not (lb.check_tenant(secret.secret, checksum, endpoint, params) or lb.check_tenant(secret.secret2, checksum, endpoint, params)):
+    if not (lb.check_tenant(secret.secret, checksum, endpoint, request.META.get("QUERY_STRING")) or lb.check_tenant(secret.secret2, checksum, endpoint, request.META.get("QUERY_STRING"))):
         return HttpResponse("Unauthorized", status=401)
 
     if endpoint in ep.LEGAL_ENDPOINTS:
