@@ -77,15 +77,15 @@ def check_parameter(params, tenant, join=False):
     return params
 
 
-def check_tenant(secret, checksum, endpoint, params):
+def check_tenant(secret, checksum, endpoint, query_string):
     if secret:
         sha_1 = hashlib.sha1()
-        parameter_str = ""
 
-        if params:
-            parameter_str = urlencode(params, safe=SAFE_QUOTE_SYMBOLS)
+        query_string = query_string.replace("&checksum=" + checksum, "")
+        query_string = query_string.replace("checksum=" + checksum + "&", "")
+        query_string = query_string.replace("checksum=" + checksum, "")
 
-        sha_1.update("{}{}{}".format(endpoint, parameter_str, secret).encode())
+        sha_1.update("{}{}{}".format(endpoint, query_string, secret).encode())
         if sha_1.hexdigest() == checksum:
             return True
         return False
