@@ -26,7 +26,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         tenant_dict = {}
 
-        for secret in Secret.objects.filter(sub_id=0):
-            tenant_dict[secret.tenant.slug] = {"secret": secret.secret, "hostname": secret.endpoint}
+        for secret in Secret.objects.all():
+            tenant_dict["{}-{}".format(secret.tenant.slug, str(secret.sub_id).zfill(3))] = {"secret": secret.secret, "hostname": secret.endpoint}
 
         self.stdout.write(json.dumps(tenant_dict))
