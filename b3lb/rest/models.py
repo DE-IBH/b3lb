@@ -648,6 +648,7 @@ class Parameter(models.Model):
     CAMERA_REGEX = r'^(low-u30|low-u25|low-u20|low-u15|low-u12|low-u8|low|medium|high|hd)$'
     URL_REGEX = r"^https?://[\w.-]+(?:\.[\w.-]+)+[\w._~:/?#[\]@!\$&'()*+,;=.%-]+$"
     ROLE_REGEX = r'^(VIEWER|MODERATOR)$'
+    MEETING_LAYOUT_REGEX = r'(CUSTOM_LAYOUT|SMART_LAYOUT|PRESENTATION_FOCUS|VIDEO_FOCUS)$'
     ANY_REGEX = r'.'
 
     PARAMETER_REGEXES = {
@@ -676,7 +677,7 @@ class Parameter(models.Model):
         MEETING_KEEP_EVENT: BOOLEAN_REGEX,
         END_WHEN_NO_MODERATOR: BOOLEAN_REGEX,
         END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES: NUMBER_REGEX,
-        MEETING_LAYOUT: ANY_REGEX,
+        MEETING_LAYOUT: MEETING_LAYOUT_REGEX,
         LEARNING_DASHBOARD_ENABLED: BOOLEAN_REGEX,
         LEARNING_DASHBOARD_CLEANUP_DELAY_IN_MINUTES: NUMBER_REGEX,
 
