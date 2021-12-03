@@ -488,8 +488,8 @@ class Parameter(models.Model):
     LEARNING_DASHBOARD_CLEANUP_DELAY_IN_MINUTES = "learningDashboardCleanupDelayInMinutes"
 
     # Join
-    ROLE = "role",
-    EXCLUDE_FROM_DASHBOARD = "excludeFromDashboard",
+    ROLE = "role"
+    EXCLUDE_FROM_DASHBOARD = "excludeFromDashboard"
 
     # Join Parameters
     # see https://docs.bigbluebutton.org/admin/customize.html#passing-custom-parameters-to-the-client-on-join for documentation
