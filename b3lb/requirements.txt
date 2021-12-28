@@ -1,7 +1,7 @@
-Django==3.2.9
+Django==4.0
 django-extensions==3.1.5
 requests==2.26.0
-celery==5.2.1
+celery==5.2.2
 celery-singleton==0.3.1
 django-cacheops==6.0
 django-db-file-storage==0.5.5
@@ -9,10 +9,10 @@ django-celery-admin==0.1
 django-celery-beat==2.2.1
 django-celery-results==2.2.0
 django-environ==0.8.1
-django-redis==5.0.0
+django-redis==5.2.0
 django-split-settings==1.1.0
 psycopg2cffi==2.9.0
-uvicorn[standard]==0.15.0
+uvicorn[standard]==0.16.0
 aiohttp==3.8.1
 jinja2==3.0.3
 Pillow==8.4.0
