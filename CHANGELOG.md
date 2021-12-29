@@ -1,5 +1,28 @@
 # ChangeLog
 
+## 2.2.2 - 2021-12-29
+
+Fix:
+- api: change checksum validation to match upstream implementation (#54)
+
+Changes:
+- api: support overriding more (new) BBB 2.4 [parameters](https://docs.bigbluebutton.org/dev/api.html#api-calls) (#58)
+  - `excludeFromDashboard`
+  - `learningDashboardCleanupDelayInMinutes`
+  - `learningDashboardEnabled`
+  - `meetingLayout`
+  - `moderatorOnlyMessage`
+  - `role`
+  - `welcome`
+- bump python dependencies:
+  - Django `3.2.7` => `3.2.10` (CVE-2021-44420)
+  - django-environ `0.5.0` => `0.8.1`
+  - django-redis `5.0.0`=>  `5.2.0`
+  - uvicorn `0.15.0`=>  `0.16.0`
+  - aiohttp `3.7.4`=>  `3.8.1`
+- docker: bump to alpine 3.15
+
+
 ## 2.2.1 - 2021-09-01
 
 Fixes:
