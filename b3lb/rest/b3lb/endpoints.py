@@ -111,15 +111,15 @@ async def requested_endpoint(secret, endpoint, request, params):
 
     if endpoint == "publishRecordings":
         # Todo: Implement (un)publishing after implementing storage
-        return HttpResponse(constants.RETURN_STRING_GENERAL_FAILED.format("published", "published"), content_type='text/html')
+        return HttpResponse("<response>\n\t<returncode>SUCCESS</returncode>\n\t<published>false</published>\n</response>", content_type='text/html')
 
     if endpoint == "deleteRecordings":
         # Todo: Implement deletion after implementing storage
-        return HttpResponse(constants.RETURN_STRING_GENERAL_FAILED.format("deleted", "deleted"), content_type='text/html')
+        return HttpResponse("<response>\n\t<returncode>SUCCESS</returncode>\n\t<deleted>false</deleted>\n</response>", content_type='text/html')
 
     if endpoint == "updateRecordings":
         # Todo: Implement update Metadata after implementing storage
-        return HttpResponse(constants.RETURN_STRING_GENERAL_FAILED.format("updated", "updated"), content_type='text/html')
+        return HttpResponse("<response>\n\t<returncode>SUCCESS</returncode>\n\t<updated>false</updated>\n</response>", content_type='text/html')
 
     if endpoint == "setConfigXML":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
@@ -130,7 +130,7 @@ async def requested_endpoint(secret, endpoint, request, params):
 
     if endpoint == "getRecordingTextTracks":
         # Todo: Implement getRecordingTextTracks after implementing storage
-        return HttpResponse(constants.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON, content_type='application/json')
+        return HttpResponse('{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}', content_type='application/json')
 
     if endpoint == "putRecordingTextTrack" and request.method == "POST":
         # Todo: Implement after design has been clarified
