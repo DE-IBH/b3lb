@@ -123,7 +123,7 @@ async def requested_endpoint(secret, endpoint, request, params):
 
     if endpoint == "getRecordingTextTracks":
         # Todo: Implement getRecordingTextTracks after implementing storage
-        return HttpResponse('{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}', content_type='application/json')
+        return HttpResponse(constants.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON, content_type='application/json')
 
     if endpoint == "putRecordingTextTrack" and request.method == "POST":
         # Todo: Implement after design has been clarified

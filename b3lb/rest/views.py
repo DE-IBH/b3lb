@@ -24,7 +24,6 @@ from rest.models import Cluster, SecretMetricsList, Asset
 import rest.b3lb.lb as lb
 import rest.b3lb.utils as utils
 import rest.b3lb.endpoints as ep
-import rest.b3lb.constants as ct
 from datetime import datetime
 
 
@@ -57,14 +56,7 @@ async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
             return await ep.requested_endpoint(secret, endpoint, request, params)
         else:
             response = HttpResponse()
-
-            if endpoint == "getRecordingTextTracks":
-                response.write(ct.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON)
-            elif endpoint == "getRecordings":
-                response.write(ct.RETURN_STRING_GET_RECORDING_NO_RECORDINGS)
-            else:
-                response.status_code = 403
-
+            response.status_code = 403
             return response
     else:
         return HttpResponseForbidden()
