@@ -26,7 +26,6 @@ from django.db.models import F, Sum
 import hashlib
 from django.conf import settings
 import rest.b3lb.utils as utils
-from rest.b3lb.constants import MAX_BASE64_SLIDE_SIZE_IN_POST
 
 
 ##
