@@ -24,6 +24,7 @@ RETURN_STRING_GET_MEETING_NOT_FOUND = '<response>\r\n<returncode>FAILED</returnc
 RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
 RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<recordings></recordings>\r\n<messageKey>noRecordings</messageKey>\r\n<message>There are no recordings for the meeting(s).</message>\r\n</response>'
 RETURN_STRING_MISSING_MEETING_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamMeetingID</messageKey>\r\n<message>You must specify a meeting ID for the meeting.</message>\r\n</response>'
+RETURN_STRING_GENERAL_FAILED = "<response>\n\t<returncode>SUCCESS</returncode>\n\t<{}>false</{}>\n</response>"
 MAX_BASE64_SLIDE_SIZE_IN_POST = 1024000
 # 1024000 * 0.75 ~ 768kB -> max file size in post
 MAX_SLIDE_SIZE_IN_POST = MAX_BASE64_SLIDE_SIZE_IN_POST * 0.75
