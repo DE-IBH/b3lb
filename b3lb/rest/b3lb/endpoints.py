@@ -38,15 +38,15 @@ WHITELISTED_ENDPOINTS = [
     "getMeetings",
     "isMeetingRunning",
     "getMeetingInfo",
-]
-
-BLACKLISTED_ENDPOINTS = [
+    "getRecordings",
     "publishRecordings",
     "deleteRecordings",
     "updateRecordings",
     "getRecordingTextTracks",
-    "getRecordings",
     "putRecordingTextTrack",
+]
+
+BLACKLISTED_ENDPOINTS = [
     "getDefaultConfigXML"
 ]
 
@@ -105,12 +105,36 @@ async def requested_endpoint(secret, endpoint, request, params):
         else:
             return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
+    if endpoint == "getRecordings":
+        # Todo: Implement get Records after implementing storage
+        return HttpResponse(constants.RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type='text/html')
+
+    if endpoint == "publishRecordings":
+        # Todo: Implement (un)publishing after implementing storage
+        return HttpResponse("<response>\n\t<returncode>SUCCESS</returncode>\n\t<published>false</published>\n</response>", content_type='text/html')
+
+    if endpoint == "deleteRecordings":
+        # Todo: Implement deletion after implementing storage
+        return HttpResponse("<response>\n\t<returncode>SUCCESS</returncode>\n\t<deleted>false</deleted>\n</response>", content_type='text/html')
+
+    if endpoint == "updateRecordings":
+        # Todo: Implement update Metadata after implementing storage
+        return HttpResponse("<response>\n\t<returncode>SUCCESS</returncode>\n\t<updated>false</updated>\n</response>", content_type='text/html')
+
     if endpoint == "setConfigXML":
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
             return HttpResponseBadRequest()
+
+    if endpoint == "getRecordingTextTracks":
+        # Todo: Implement getRecordingTextTracks after implementing storage
+        return HttpResponse('{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}', content_type='application/json')
+
+    if endpoint == "putRecordingTextTrack" and request.method == "POST":
+        # Todo: Implement after design has been clarified
+        return HttpResponse('{"response": {"messageKey": "upload_text_track_failed","message": "Text track upload failed.","recordId": "","returncode": "SUCCESS"}}', content_type='application/json')
 
     return HttpResponseBadRequest()
 
