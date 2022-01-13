@@ -366,6 +366,13 @@ class Secret(Model):
             return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
 
     @property
+    def is_record_enabled(self):
+        if self.records_enabled and self.tenant.records_enabled:
+            return True
+        else:
+            return False
+
+    @property
     def records_effective_hold_time(self):
         if 0 in [self.records_hold_time, self.tenant.records_hold_time]:
             return max(self.records_hold_time, self.tenant.records_hold_time)
@@ -510,7 +517,7 @@ class Meeting(Model):
     bbb_origin_server_name = CharField(max_length=255, default="")
     is_running = BooleanField(default=True)
     end_callback_url = URLField(default="")
-    end_nonce = CharField(default=get_nonce, editable=False)
+    end_nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
     class Meta(object):
         ordering = ['secret__tenant', 'age']
@@ -533,6 +540,7 @@ class RecordRelation(Model):
     meeting_id = CharField(max_length=MEETING_ID_LENGTH)
     created_at = DateTimeField(default=timezone.now)
     record_available_url = URLField(default="")
+    record_nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
 
 class Record(Model):
@@ -625,9 +633,12 @@ class Parameter(Model):
     WELCOME = "welcome"
     MAX_PARTICIPANTS = "maxParticipants"
     LOGOUT_URL = "logoutURL"
+    RECORD = "record"
     DISABLED_FEATURES = "disabledFeatures"
     DURATION = "duration"
     MODERATOR_ONLY_MESSAGE = "moderatorOnlyMessage"
+    AUTO_START_RECORDING = "autoStartRecording"
+    ALLOW_START_STOP_RECORDING = "allowStartStopRecording"
     WEBCAMS_ONLY_FOR_MODERATOR = "webcamsOnlyForModerator"
     LOGO = "logo"
     BANNER_TEXT = "bannerText"
@@ -724,6 +735,8 @@ class Parameter(Model):
     PARAMETER_CHOICES = (
         # Create
         (ALLOW_MODS_TO_UNMUTE_USERS, ALLOW_MODS_TO_UNMUTE_USERS),
+        (ALLOW_START_STOP_RECORDING, ALLOW_START_STOP_RECORDING),
+        (AUTO_START_RECORDING, AUTO_START_RECORDING),
         (BANNER_COLOR, BANNER_COLOR),
         (BANNER_TEXT, BANNER_TEXT),
         (COPYRIGHT, COPYRIGHT),
@@ -834,6 +847,7 @@ class Parameter(Model):
         WELCOME: ANY_REGEX,
         MAX_PARTICIPANTS: NUMBER_REGEX,
         LOGOUT_URL: URL_REGEX,
+        RECORD: BOOLEAN_REGEX,
         DISABLED_FEATURES: ANY_REGEX,
         DURATION: NUMBER_REGEX,
         MODERATOR_ONLY_MESSAGE: ANY_REGEX,
@@ -852,6 +866,8 @@ class Parameter(Model):
         LOCK_SETTINGS_LOCKED_LAYOUT: BOOLEAN_REGEX,
         LOCK_SETTINGS_LOCK_ON_JOIN: BOOLEAN_REGEX,
         LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE: BOOLEAN_REGEX,
+        AUTO_START_RECORDING: BOOLEAN_REGEX,
+        ALLOW_START_STOP_RECORDING: BOOLEAN_REGEX,
         LOGO: URL_REGEX,
         GUEST_POLICY: POLICY_REGEX,
         GROUPS: ANY_REGEX,
@@ -920,12 +936,14 @@ class Parameter(Model):
 
     }
 
-    PARAMETERS_CREATE = [ALLOW_MODS_TO_UNMUTE_USERS, BANNER_COLOR, BANNER_TEXT, COPYRIGHT, DURATION, END_WHEN_NO_MODERATOR,
+    PARAMETERS_CREATE = [ALLOW_MODS_TO_UNMUTE_USERS, ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING,
+                         BANNER_COLOR, BANNER_TEXT, COPYRIGHT, DURATION, END_WHEN_NO_MODERATOR,
                          END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES, GUEST_POLICY, LOCK_SETTINGS_DISABLE_CAM, LOCK_SETTINGS_DISABLE_MIC,
                          LOCK_SETTINGS_DISABLE_PRIVATE_CHAT, LOCK_SETTINGS_DISABLE_PUBLIC_CHAT, LOCK_SETTINGS_DISABLE_NOTE, LOCK_SETTINGS_HIDE_VIEWER_CURSOR,
                          LOCK_SETTINGS_LOCK_ON_JOIN, LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE, LOCK_SETTINGS_LOCKED_LAYOUT, LOGO, LOGOUT_URL,
                          MAX_PARTICIPANTS, META_FULLAUDIO_BRIDGE, MEETING_CAMERA_CAP, MEETING_EXPIRE_IF_NO_USER_JOINED_IN_MINUTES, MEETING_EXPIRE_WHEN_LAST_USER_LEFT_IN_MINUTES,
-                         MEETING_KEEP_EVENT, MODERATOR_ONLY_MESSAGE, MUTE_ON_START, WEBCAMS_ONLY_FOR_MODERATOR, WELCOME, MEETING_LAYOUT, LEARNING_DASHBOARD_CLEANUP_DELAY_IN_MINUTES,
+                         MEETING_KEEP_EVENT, MODERATOR_ONLY_MESSAGE, MUTE_ON_START, WEBCAMS_ONLY_FOR_MODERATOR, RECORD,
+                         WELCOME, MEETING_LAYOUT, LEARNING_DASHBOARD_CLEANUP_DELAY_IN_MINUTES,
                          PRE_UPLOADED_PRESENTATION_OVERRIDE_DEFAULT]
 
     PARAMETERS_JOIN = [USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT, USERDATA_BBB_AUTO_JOIN_AUDIO, USERDATA_BBB_CLIENT_TITLE, USERDATA_BBB_FORCE_LISTEN_ONLY,

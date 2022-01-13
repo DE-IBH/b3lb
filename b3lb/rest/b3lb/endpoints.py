@@ -18,9 +18,10 @@
 import aiohttp
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
-from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter, RecordRelation
 import rest.b3lb.lb as lb
 import rest.b3lb.constants as constants
 import json
@@ -180,6 +181,18 @@ async def create(request, endpoint, params, node, secret):
     if request.method == "GET" and hasattr(secret.tenant, 'asset') and secret.tenant.asset.slide:
         body = await sync_to_async(lb.get_slide_body_for_post)(secret)
         request.method = "POST"
+
+    # check if records are enabled
+    if secret.is_record_enabled:
+        record_relation = RecordRelation()
+        record_relation.secret = secret
+        record_relation.meeting_id = meeting_id
+        record_relation.record_available_url = "https:://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/record")
+
+    else:
+        # suppress any record related parameter
+        for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
+            params[param] = "false"
 
     response = await pass_through(request, endpoint, params, node, body=body)
 
