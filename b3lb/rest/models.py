@@ -15,17 +15,22 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-from django.db import models
-from django.contrib import admin
-from django.utils import timezone
-from django.utils.crypto import get_random_string
-from django.utils.html import format_html
-from django.utils.http import urlencode
+from django.db.models import (
+    Model, UUIDField, BinaryField, FileField, ImageField, URLField,
+    FloatField, SmallIntegerField, IntegerField, BigIntegerField, DateTimeField,
+    CharField, TextField, BooleanField, ForeignKey, OneToOneField,
+    UniqueConstraint, PROTECT, CASCADE
+)
+from django.contrib.admin import ModelAdmin, action
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.urls import reverse
-import uuid as uid
+from django.utils import timezone
+from django.utils.crypto import get_random_string
+from django.utils.html import format_html
+from django.utils.http import urlencode
+from uuid import uuid4
 import re
 import base64
 from math import pow
@@ -33,27 +38,27 @@ from rest.b3lb.utils import xml_escape, get_file_from_storage
 import rest.b3lb.constants as ct
 
 
-@admin.action(description="Set nodes of cluster to active")
+@action(description="Set nodes of cluster to active")
 def set_cluster_nodes_to_active(modeladmin, request, queryset):
     for cluster in queryset:
         nodes = Node.objects.filter(cluster=cluster)
         nodes.update(maintenance=False)
 
 
-@admin.action(description="Set nodes of cluster to maintenance")
+@action(description="Set nodes of cluster to maintenance")
 def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
     for cluster in queryset:
         nodes = Node.objects.filter(cluster=cluster)
         nodes.update(maintenance=True)
 
 
-class Cluster(models.Model):
-    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    name = models.CharField(max_length=100, help_text="cluster name", unique=True)
-    load_a_factor = models.FloatField(default=1.0, help_text="per attendee load factor")
-    load_m_factor = models.FloatField(default=30.0, help_text="per meeting load factor")
-    load_cpu_iterations = models.IntegerField(default=6, help_text="max sum iteration")
-    load_cpu_max = models.IntegerField(default=5000, help_text="max cpu load")
+class Cluster(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    name = CharField(max_length=100, help_text="cluster name", unique=True)
+    load_a_factor = FloatField(default=1.0, help_text="per attendee load factor")
+    load_m_factor = FloatField(default=30.0, help_text="per meeting load factor")
+    load_cpu_iterations = IntegerField(default=6, help_text="max sum iteration")
+    load_cpu_max = IntegerField(default=5000, help_text="max cpu load")
 
     def __str__(self):
         return self.name
@@ -62,7 +67,7 @@ class Cluster(models.Model):
         ordering = ['name']
 
 
-class ClusterAdmin(admin.ModelAdmin):
+class ClusterAdmin(ModelAdmin):
     model = Cluster
     list_display = ['name', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes', 'a_factor', 'm_factor', 'cpu_iterations', 'cpu_max']
     actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
@@ -120,17 +125,17 @@ def get_b3lb_node_default_domain():
     return settings.B3LB_NODE_DEFAULT_DOMAIN
 
 
-class Node(models.Model):
-    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    slug = models.CharField(max_length=100, help_text="node hostname setting")
-    domain = models.CharField(max_length=50, default=get_b3lb_node_default_domain, help_text="node domain name setting")
-    secret = models.CharField(max_length=50, help_text="BBB API secret setting")
-    cluster = models.ForeignKey(Cluster, on_delete=models.PROTECT, null=False)
-    attendees = models.IntegerField(default=0, help_text="number of attendees metric")
-    meetings = models.IntegerField(default=0, help_text="number of meetings metric")
-    cpu_load = models.IntegerField(default=0, help_text="cpu load metric (base 10000)")
-    has_errors = models.BooleanField(default=True, help_text="polling has detected a failure")
-    maintenance = models.BooleanField(default=False, help_text="in maintenance setting")
+class Node(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    slug = CharField(max_length=100, help_text="node hostname setting")
+    domain = CharField(max_length=50, default=get_b3lb_node_default_domain, help_text="node domain name setting")
+    secret = CharField(max_length=50, help_text="BBB API secret setting")
+    cluster = ForeignKey(Cluster, on_delete=PROTECT, null=False)
+    attendees = IntegerField(default=0, help_text="number of attendees metric")
+    meetings = IntegerField(default=0, help_text="number of meetings metric")
+    cpu_load = IntegerField(default=0, help_text="cpu load metric (base 10000)")
+    has_errors = BooleanField(default=True, help_text="polling has detected a failure")
+    maintenance = BooleanField(default=False, help_text="in maintenance setting")
 
     class Meta(object):
         ordering = ['slug']
@@ -173,17 +178,17 @@ class Node(models.Model):
         return int(work_attendees + work_meetings + work_cpu)
 
 
-@admin.action(description="Set Node to maintenance")
+@action(description="Set Node to maintenance")
 def maintenance_on(modeladmin, request, queryset):
     queryset.update(maintenance=True)
 
 
-@admin.action(description="Set Node to active")
+@action(description="Set Node to active")
 def maintenance_off(modeladmin, request, queryset):
     queryset.update(maintenance=False)
 
 
-class NodeAdmin(admin.ModelAdmin):
+class NodeAdmin(ModelAdmin):
     model = Node
     list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance']
     list_filter = [('cluster', admin.RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
@@ -196,12 +201,12 @@ class NodeAdmin(admin.ModelAdmin):
     show_cpu_load.short_description = "CPU Load"
 
 
-class NodeMeetingList(models.Model):
-    node = models.OneToOneField(Node, on_delete=models.CASCADE, primary_key=True)
-    xml = models.TextField(default="")
+class NodeMeetingList(Model):
+    node = OneToOneField(Node, on_delete=CASCADE, primary_key=True)
+    xml = TextField(default="")
 
 
-class NodeMeetingListAdmin(admin.ModelAdmin):
+class NodeMeetingListAdmin(ModelAdmin):
     model = NodeMeetingList
     list_display = ['node']
 
@@ -210,10 +215,10 @@ def get_random_secret():
     return get_random_string(42, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
 
-class ClusterGroup(models.Model):
-    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    name = models.CharField(max_length=100, help_text="Cluster name", unique=True)
-    description = models.CharField(max_length=255, help_text="Cluster description", null=True)
+class ClusterGroup(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    name = CharField(max_length=100, help_text="Cluster name", unique=True)
+    description = CharField(max_length=255, help_text="Cluster description", null=True)
 
     class Meta(object):
         ordering = ['name']
@@ -222,7 +227,7 @@ class ClusterGroup(models.Model):
         return self.name
 
 
-class ClusterGroupAdmin(admin.ModelAdmin):
+class ClusterGroupAdmin(ModelAdmin):
     model = ClusterGroup
     list_display = ['name', 'description', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
 
@@ -262,10 +267,10 @@ class ClusterGroupAdmin(admin.ModelAdmin):
     error_nodes.short_description = "# Errors"
 
 
-class ClusterGroupRelation(models.Model):
-    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    cluster_group = models.ForeignKey(ClusterGroup, on_delete=models.PROTECT)
-    cluster = models.ForeignKey(Cluster, on_delete=models.PROTECT)
+class ClusterGroupRelation(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    cluster_group = ForeignKey(ClusterGroup, on_delete=PROTECT)
+    cluster = ForeignKey(Cluster, on_delete=PROTECT)
 
     class Meta(object):
         ordering = ['cluster_group']
@@ -274,19 +279,31 @@ class ClusterGroupRelation(models.Model):
         return "{}|{}".format(self.cluster_group.name, self.cluster.name)
 
 
-class ClusterGroupRelationAdmin(admin.ModelAdmin):
+class ClusterGroupRelationAdmin(ModelAdmin):
     model = ClusterGroupRelation
     list_display = ['cluster_group', 'cluster']
 
 
-class Tenant(models.Model):
-    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    slug = models.CharField(max_length=10, validators=[RegexValidator('^[A-Z]{2,10}$')])
-    description = models.CharField(max_length=256, blank=True, default="")
-    stats_token = models.UUIDField(default=uid.uuid4)
-    cluster_group = models.ForeignKey(ClusterGroup, on_delete=models.PROTECT)
-    attendee_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
-    meeting_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
+@action(description="Enable records")
+def records_on(modeladmin, request, queryset):
+    queryset.update(records_enabled=True)
+
+
+@action(description="Disable records")
+def records_off(modeladmin, request, queryset):
+    queryset.update(records_enabled=False)
+
+
+class Tenant(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    slug = CharField(max_length=10, validators=[RegexValidator('[A-Z]{2,10}')])
+    description = CharField(max_length=256, blank=True, default="")
+    stats_token = UUIDField(default=uuid4)
+    cluster_group = ForeignKey(ClusterGroup, on_delete=PROTECT)
+    attendee_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
+    meeting_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
+    records_enabled = BooleanField(default=False)
+    records_hold_time = IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
         ordering = ['slug']
@@ -299,26 +316,28 @@ class Tenant(models.Model):
         return "{}.{}".format(str(self.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
 
 
-class TenantAdmin(admin.ModelAdmin):
+class TenantAdmin(ModelAdmin):
     model = Tenant
-    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'attendee_limit', 'meeting_limit']
     list_filter = [('cluster_group', admin.RelatedOnlyFieldListFilter)]
-    search_fields = ['cluster_group', 'slug', 'description']
+    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'records_enabled', 'attendee_limit', 'meeting_limit']
+    actions = [records_on, records_off]
 
 
-class Secret(models.Model):
-    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT)
-    description = models.CharField(max_length=256, blank=True, default="")
-    sub_id = models.SmallIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(999)])
-    secret = models.CharField(max_length=42, default=get_random_secret, validators=[RegexValidator(r'^[a-zA-Z0-9]{42}$')])
-    secret2 = models.CharField(max_length=42, default="", blank=True, validators=[RegexValidator(r'^($|[a-zA-Z0-9]{42})$')])
-    attendee_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
-    meeting_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
+class Secret(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    tenant = ForeignKey(Tenant, on_delete=PROTECT)
+    description = CharField(max_length=256, blank=True, default="")
+    sub_id = SmallIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(999)])
+    secret = CharField(max_length=42, default=get_random_secret, validators=[RegexValidator(r'^[a-zA-Z0-9]{42}$')])
+    secret2 = CharField(max_length=42, default="", blank=True, validators=[RegexValidator(r'^($|[a-zA-Z0-9]{42})$')])
+    attendee_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
+    meeting_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
+    records_enabled = BooleanField(default=True)
+    records_hold_time = IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
         ordering = ['tenant__slug', 'sub_id']
-        constraints = [models.UniqueConstraint(fields=['tenant', 'sub_id'], name='unique_tenant_id_combination')]
+        constraints = [UniqueConstraint(fields=['tenant', 'sub_id'], name='unique_tenant_id_combination')]
 
     def __str__(self):
         return "{}-{}".format(self.tenant.slug, str(self.sub_id).zfill(3))
@@ -330,53 +349,61 @@ class Secret(models.Model):
         else:
             return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
 
+    @property
+    def records_effective_hold_time(self):
+        if 0 in [self.records_hold_time, self.tenant.records_hold_time]:
+            return max(self.records_hold_time, self.tenant.records_hold_time)
+        else:
+            return min(self.records_hold_time, self.tenant.records_hold_time)
 
-class SecretAdmin(admin.ModelAdmin):
+
+class SecretAdmin(ModelAdmin):
     model = Secret
-    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit']
     list_filter = [('tenant', admin.RelatedOnlyFieldListFilter)]
+    list_display = ['__str__', 'description', 'endpoint', 'records_enabled', 'attendee_limit', 'meeting_limit']
+    actions = [records_on, records_off]
 
 
-class AssetSlide(models.Model):
-    blob = models.BinaryField()
-    filename = models.CharField(max_length=255)
-    mimetype = models.CharField(max_length=50)
+class AssetSlide(Model):
+    blob = BinaryField()
+    filename = CharField(max_length=255)
+    mimetype = CharField(max_length=50)
 
 
-class AssetSlideAdmin(admin.ModelAdmin):
+class AssetSlideAdmin(ModelAdmin):
     model = AssetSlide
     list_display = ['filename', 'mimetype']
 
 
-class AssetLogo(models.Model):
-    blob = models.BinaryField()
-    filename = models.CharField(max_length=255)
-    mimetype = models.CharField(max_length=50)
+class AssetLogo(Model):
+    blob = BinaryField()
+    filename = CharField(max_length=255)
+    mimetype = CharField(max_length=50)
 
 
-class AssetLogoAdmin(admin.ModelAdmin):
+class AssetLogoAdmin(ModelAdmin):
     model = AssetLogo
     list_display = ['filename', 'mimetype']
 
 
-class AssetCustomCSS(models.Model):
-    blob = models.BinaryField()
-    filename = models.CharField(max_length=255)
-    mimetype = models.CharField(max_length=50)
+class AssetCustomCSS(Model):
+    blob = BinaryField()
+    filename = CharField(max_length=255)
+    mimetype = CharField(max_length=50)
 
 
-class AssetCustomCSSAdmin(admin.ModelAdmin):
+class AssetCustomCSSAdmin(ModelAdmin):
     model = AssetCustomCSS
     list_display = ['filename', 'mimetype']
 
 
-class Asset(models.Model):
-    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
-    slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
-    slide_filename = models.CharField(max_length=250, blank=True, null=True)
+class Asset(Model):
+    tenant = OneToOneField(Tenant, on_delete=CASCADE, primary_key=True)
+    slide = FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
+    slide_filename = CharField(max_length=250, blank=True, null=True)
     # ToDo: v3.0 - change to FileField, drop Pillow dependency
-    logo = models.ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
-    custom_css = models.FileField(upload_to='rest.AssetCustomCSS/blob/filename/mimetype', blank=True, null=True)
+    logo = ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
+    custom_css = FileField(upload_to='rest.AssetCustomCSS/blob/filename/mimetype', blank=True, null=True)
 
     @property
     def s_filename(self):
@@ -416,24 +443,24 @@ class Asset(models.Model):
         return self.tenant.slug
 
 
-class AssetAdmin(admin.ModelAdmin):
+class AssetAdmin(ModelAdmin):
     model = Asset
     list_display = ['__str__']
 
 
-class SecretMeetingList(models.Model):
-    secret = models.OneToOneField(Secret, on_delete=models.CASCADE, primary_key=True)
-    xml = models.TextField(default="")
+class SecretMeetingList(Model):
+    secret = OneToOneField(Secret, on_delete=CASCADE, primary_key=True)
+    xml = TextField(default="")
 
 
-class SecretMeetingListAdmin(admin.ModelAdmin):
+class SecretMeetingListAdmin(ModelAdmin):
     model = SecretMeetingList
     list_display = ['secret']
 
 
-class SecretMetricsList(models.Model):
-    secret = models.OneToOneField(Secret, on_delete=models.CASCADE, unique=True, null=True)
-    metrics = models.TextField(default="")
+class SecretMetricsList(Model):
+    secret = OneToOneField(Secret, on_delete=CASCADE, unique=True, null=True)
+    metrics = TextField(default="")
 
     def __str__(self):
         if self.secret:
@@ -442,25 +469,35 @@ class SecretMetricsList(models.Model):
             return "<<total>>"
 
 
-class SecretMetricsListAdmin(admin.ModelAdmin):
+class SecretMetricsListAdmin(ModelAdmin):
     model = SecretMetricsList
     list_display = ['__str__']
 
 
+MEETING_ID_LENGTH = 100
+
+
+def get_nonce():
+    return get_random_string(64, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+
+
 # meeting - tenant - node relation class
-class Meeting(models.Model):
-    id = models.CharField(max_length=100, primary_key=True)
-    secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
-    node = models.ForeignKey(Node, on_delete=models.CASCADE)
-    room_name = models.CharField(max_length=500)
-    age = models.DateTimeField(default=timezone.now)
-    attendees = models.SmallIntegerField(default=0)
-    listenerCount = models.SmallIntegerField(default=0)
-    voiceParticipantCount = models.SmallIntegerField(default=0)
-    moderatorCount = models.SmallIntegerField(default=0)
-    videoCount = models.SmallIntegerField(default=0)
-    bbb_origin = models.CharField(max_length=255, default="")
-    bbb_origin_server_name = models.CharField(max_length=255, default="")
+class Meeting(Model):
+    id = CharField(max_length=MEETING_ID_LENGTH, primary_key=True)
+    secret = ForeignKey(Secret, on_delete=CASCADE)
+    node = ForeignKey(Node, on_delete=CASCADE)
+    room_name = CharField(max_length=500)
+    age = DateTimeField(default=timezone.now)
+    attendees = SmallIntegerField(default=0)
+    listenerCount = SmallIntegerField(default=0)
+    voiceParticipantCount = SmallIntegerField(default=0)
+    moderatorCount = SmallIntegerField(default=0)
+    videoCount = SmallIntegerField(default=0)
+    bbb_origin = CharField(max_length=255, default="")
+    bbb_origin_server_name = CharField(max_length=255, default="")
+    is_running = BooleanField(default=True)
+    end_callback_url = URLField(default="")
+    end_nonce = CharField(default=get_nonce, editable=False)
 
     class Meta(object):
         ordering = ['secret__tenant', 'age']
@@ -469,24 +506,42 @@ class Meeting(models.Model):
         return "{} {}".format(self.secret.tenant.slug, self.room_name)
 
 
-class MeetingAdmin(admin.ModelAdmin):
+class MeetingAdmin(ModelAdmin):
     model = Meeting
     list_display = ['__str__', 'bbb_origin_server_name', 'node', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount', 'age', 'id']
     list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'node']
     search_fields = ['room_name']
 
 
-class Stats(models.Model):
-    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    tenant = models.ForeignKey(Tenant, null=True, on_delete=models.CASCADE)
-    attendees = models.IntegerField(default=0)
-    meetings = models.IntegerField(default=0)
-    listenerCount = models.IntegerField(default=0)
-    voiceParticipantCount = models.IntegerField(default=0)
-    moderatorCount = models.IntegerField(default=0)
-    videoCount = models.IntegerField(default=0)
-    bbb_origin = models.CharField(max_length=255, default="")
-    bbb_origin_server_name = models.CharField(max_length=255, default="")
+# Meeting - Secret - Recording relation class
+class RecordRelation(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    secret = ForeignKey(Secret, on_delete=CASCADE)
+    meeting_id = CharField(max_length=MEETING_ID_LENGTH)
+    created_at = DateTimeField(default=timezone.now)
+    record_available_url = URLField(default="")
+
+
+class Record(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    id = CharField(max_length=MEETING_ID_LENGTH)
+    relation = ForeignKey(RecordRelation, on_delete=CASCADE)
+    storage_id = CharField(max_length=100, default="")
+    duration = IntegerField(default=0)
+    started_at = DateTimeField(default=timezone.now)
+
+
+class Stats(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    tenant = ForeignKey(Tenant, null=True, on_delete=CASCADE)
+    attendees = IntegerField(default=0)
+    meetings = IntegerField(default=0)
+    listenerCount = IntegerField(default=0)
+    voiceParticipantCount = IntegerField(default=0)
+    moderatorCount = IntegerField(default=0)
+    videoCount = IntegerField(default=0)
+    bbb_origin = CharField(max_length=255, default="")
+    bbb_origin_server_name = CharField(max_length=255, default="")
 
     class Meta(object):
         ordering = ['tenant']
@@ -495,13 +550,13 @@ class Stats(models.Model):
         return "{}: {} ({})".format(self.tenant.slug, self.bbb_origin_server_name, self.bbb_origin)
 
 
-class StatsAdmin(admin.ModelAdmin):
+class StatsAdmin(ModelAdmin):
     model = Stats
     list_display = ['tenant', 'meetings', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount']
     list_filter = ['tenant']
 
 
-class Metric(models.Model):
+class Metric(Model):
     ATTENDEES = "attendees"
     LISTENERS = "listeners"
     VOICES = "voices"
@@ -536,23 +591,23 @@ class Metric(models.Model):
         (MEETING_LIMIT_HITS, "Number of meeting limit hits")
     ]
 
-    name = models.CharField(max_length=64, choices=NAME_CHOICES)
-    secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
-    node = models.ForeignKey(Node, on_delete=models.CASCADE, null=True)
-    value = models.BigIntegerField(default=0)
+    name = CharField(max_length=64, choices=NAME_CHOICES)
+    secret = ForeignKey(Secret, on_delete=CASCADE)
+    node = ForeignKey(Node, on_delete=CASCADE, null=True)
+    value = BigIntegerField(default=0)
 
     class Meta(object):
         constraints = [
-            models.UniqueConstraint(fields=['name', 'secret', 'node'], name="unique_metric")
+            UniqueConstraint(fields=['name', 'secret', 'node'], name="unique_metric")
         ]
 
 
-class MetricAdmin(admin.ModelAdmin):
+class MetricAdmin(ModelAdmin):
     model = Metric
     list_display = ['name', 'secret', 'node', 'value']
 
 
-class Parameter(models.Model):
+class Parameter(Model):
     # Create Parameters
     WELCOME = "welcome"
     MAX_PARTICIPANTS = "maxParticipants"
@@ -870,10 +925,10 @@ class Parameter(models.Model):
                        USERDATA_BBB_HIDE_PRESENTATION, USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN, USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN,
                        USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE, USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING, ROLE, EXCLUDE_FROM_DASHBOARD]
 
-    mode = models.CharField(max_length=10, choices=MODE_CHOICES)
-    parameter = models.CharField(max_length=64, choices=PARAMETER_CHOICES)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    value = models.CharField(max_length=250, blank=True, null=True)
+    mode = CharField(max_length=10, choices=MODE_CHOICES)
+    parameter = CharField(max_length=64, choices=PARAMETER_CHOICES)
+    tenant = ForeignKey(Tenant, on_delete=CASCADE)
+    value = CharField(max_length=250, blank=True, null=True)
 
     def clean_fields(self, exclude=None):
         if self.mode in [self.SET, self.OVERRIDE]:
@@ -882,11 +937,11 @@ class Parameter(models.Model):
 
     class Meta(object):
         constraints = [
-            models.UniqueConstraint(fields=['parameter', 'tenant'], name="unique_parameter")
+            UniqueConstraint(fields=['parameter', 'tenant'], name="unique_parameter")
         ]
 
 
-class ParameterAdmin(admin.ModelAdmin):
+class ParameterAdmin(ModelAdmin):
     model = Parameter
     list_display = ['tenant', 'parameter', 'mode', 'value']
     list_filter = [('tenant', admin.RelatedOnlyFieldListFilter), 'mode']
