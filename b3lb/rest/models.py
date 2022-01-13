@@ -35,6 +35,27 @@ from rest.b3lb.utils import xml_escape, get_file_from_storage
 import rest.b3lb.constants as ct
 
 
+#
+# CONSTANTS
+#
+SECRET_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+MEETING_ID_LENGTH = 100
+
+
+#
+# DEFAULT FUNCTIONS
+#
+def get_b3lb_node_default_domain():
+    return settings.B3LB_NODE_DEFAULT_DOMAIN
+
+
+def get_random_secret():
+    return get_random_string(42, SECRET_CHAR_POOL)
+
+
+#
+# ADMIN ACTIONS
+#
 @action(description="Set nodes of cluster to active")
 def set_cluster_nodes_to_active(modeladmin, request, queryset):
     for cluster in queryset:
@@ -49,6 +70,29 @@ def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
         nodes.update(maintenance=True)
 
 
+@action(description="Set Node to maintenance")
+def maintenance_on(modeladmin, request, queryset):
+    queryset.update(maintenance=True)
+
+
+@action(description="Set Node to active")
+def maintenance_off(modeladmin, request, queryset):
+    queryset.update(maintenance=False)
+
+
+@action(description="Enable records")
+def records_on(modeladmin, request, queryset):
+    queryset.update(records_enabled=True)
+
+
+@action(description="Disable records")
+def records_off(modeladmin, request, queryset):
+    queryset.update(records_enabled=False)
+
+
+#
+# MODELS
+#
 class Cluster(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     name = CharField(max_length=100, help_text="cluster name", unique=True)
@@ -68,10 +112,6 @@ class ClusterAdmin(ModelAdmin):
     model = Cluster
     list_display = ['name', 'load_a_factor', 'load_m_factor', 'load_cpu_iterations', 'load_cpu_max']
     actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
-
-
-def get_b3lb_node_default_domain():
-    return settings.B3LB_NODE_DEFAULT_DOMAIN
 
 
 class Node(Model):
@@ -127,16 +167,6 @@ class Node(Model):
         return int(work_attendees + work_meetings + work_cpu)
 
 
-@action(description="Set Node to maintenance")
-def maintenance_on(modeladmin, request, queryset):
-    queryset.update(maintenance=True)
-
-
-@action(description="Set Node to active")
-def maintenance_off(modeladmin, request, queryset):
-    queryset.update(maintenance=False)
-
-
 class NodeAdmin(ModelAdmin):
     model = Node
     list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance']
@@ -156,10 +186,6 @@ class NodeMeetingList(Model):
 class NodeMeetingListAdmin(ModelAdmin):
     model = NodeMeetingList
     list_display = ['node']
-
-
-def get_random_secret():
-    return get_random_string(42, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
 
 class ClusterGroup(Model):
@@ -194,16 +220,6 @@ class ClusterGroupRelation(Model):
 class ClusterGroupRelationAdmin(ModelAdmin):
     model = ClusterGroupRelation
     list_display = ['cluster_group', 'cluster']
-
-
-@action(description="Enable records")
-def records_on(modeladmin, request, queryset):
-    queryset.update(records_enabled=True)
-
-
-@action(description="Disable records")
-def records_off(modeladmin, request, queryset):
-    queryset.update(records_enabled=False)
 
 
 class Tenant(Model):
@@ -383,11 +399,8 @@ class SecretMetricsListAdmin(ModelAdmin):
     list_display = ['__str__']
 
 
-MEETING_ID_LENGTH = 100
-
-
 def get_nonce():
-    return get_random_string(64, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+    return get_random_string(64, SECRET_CHAR_POOL)
 
 
 # meeting - tenant - node relation class
