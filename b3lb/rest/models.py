@@ -31,8 +31,8 @@ from uuid import uuid4
 import re
 import base64
 from math import pow
-from rest.b3lb.utils import xml_escape, get_file_from_storage
-import rest.b3lb.constants as ct
+from rest.utils import xml_escape, get_file_from_storage
+import rest.endpoints.b3lb.constants as ct
 
 
 #

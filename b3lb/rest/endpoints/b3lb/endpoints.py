@@ -22,8 +22,8 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter, RecordRelation
-import rest.b3lb.lb as lb
-import rest.b3lb.constants as constants
+import rest.endpoints.b3lb.lb as lb
+import rest.endpoints.b3lb.constants as constants
 import json
 
 
