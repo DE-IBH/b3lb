@@ -15,17 +15,19 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
+import hashlib
+import re
+import rest.endpoints.b3lb.endpoints as ep
+import rest.utils as utils
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist
-from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant, Parameter
-from urllib.parse import urlencode
-from random import randint
-import re
 from django.db import transaction
 from django.db.models import F, Sum
-import hashlib
 from django.conf import settings
-import rest.utils as utils
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed
+from random import randint
+from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant, Parameter
+from urllib.parse import urlencode
 
 
 ##
@@ -39,9 +41,51 @@ SAFE_QUOTE_SYMBOLS = '*'
 # wrap metric counters
 METRIC_BIGINT_MODULO = 9223372036854775808
 
+
 ##
 # Routines
 ##
+async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
+    """
+    Entrypoint for BBB APIs
+    """
+    # async: workaround for @require_http_methods decorator
+    if request.method not in ["GET", "POST"]:
+        return HttpResponseNotAllowed(["GET", "POST"])
+
+    parameters = request.GET
+
+    params = {}
+    for param in parameters:
+        params[param] = parameters[param]
+
+    if "checksum" in params:
+        checksum = params["checksum"]
+        del params["checksum"]
+    else:
+        return HttpResponse("Unauthorized", status=401)
+
+    secret = await sync_to_async(get_request_secret)(request, slug, sub_id)
+    if not secret:
+        return HttpResponse("Unauthorized", status=401)
+
+    if not (check_tenant(secret.secret, checksum, endpoint, request.META.get("QUERY_STRING", "")) or check_tenant(secret.secret2, checksum, endpoint, request.META.get("QUERY_STRING", ""))):
+        return HttpResponse("Unauthorized", status=401)
+
+    if endpoint in ep.LEGAL_ENDPOINTS:
+        if endpoint in ep.WHITELISTED_ENDPOINTS:
+            return await ep.requested_endpoint(secret, endpoint, request, params)
+        else:
+            response = HttpResponse()
+            response.status_code = 403
+            return response
+    else:
+        return HttpResponseForbidden()
+
+# async: workaround for @csrf_excempt decorator
+api_pass_through.csrf_exempt = True
+
+
 @sync_to_async
 def check_meeting_existence(meeting_id, secret):
     if meeting_id is None:
