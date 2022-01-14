@@ -21,9 +21,9 @@ from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
 from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList, AssetLogo, AssetSlide
-import rest.b3lb.lb as lb
-import rest.b3lb.utils as utils
-import rest.b3lb.constants as constants
+import rest.endpoints.b3lb.lb as lb
+import rest.utils as utils
+import rest.endpoints.b3lb.constants as constants
 import os
 import xml.etree.ElementTree as ElementTree
 import requests as rq

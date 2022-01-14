@@ -18,21 +18,21 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls import url
-from rest.views import api_pass_through, stats, ping, metrics, slide, logo, custom_css
+from rest import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    url(r'^bigbluebutton/api/(?P<endpoint>[0-9.a-zA-Z]*)$', api_pass_through),
-    path('b3lb/stats', stats),
-    path('b3lb/metrics', metrics),
-    path('b3lb/ping', ping),
-    path('b3lb/r/record', ping),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', api_pass_through),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/stats', stats),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/metrics', metrics),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/logo', logo),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/slide', slide),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/css', custom_css),
+    url(r'^bigbluebutton/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.api_pass_through),
+    path('b3lb/stats', views.stats),
+    path('b3lb/metrics', views.metrics),
+    path('b3lb/ping', views.ping),
+    path('b3lb/r/record', views.ping),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.api_pass_through),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/stats', views.stats),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/metrics', views.metrics),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/logo', views.logo),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/slide', views.slide),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/css', views.custom_css),
     # necessary for db-file-storage extension!
     url(r'^files/', include('db_file_storage.urls'))
 ]

@@ -18,7 +18,7 @@
 from celery.utils.log import get_task_logger
 from celery_singleton import Singleton
 from loadbalancer.celery import app
-import rest.b3lb.tasks as b3lbtasks
+import rest.endpoints.b3lb.tasks as b3lbtasks
 from rest.models import Node, Tenant, Secret
 
 logger = get_task_logger(__name__)
