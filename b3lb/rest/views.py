@@ -16,6 +16,7 @@
 
 
 from rest.endpoints.backend.records import *
+from rest.endpoints.backend.meeting import *
 from rest.endpoints.other.monitoring import *
 from rest.endpoints.tenant.assets import *
 from rest.endpoints.tenant.statistics import *

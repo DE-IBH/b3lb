@@ -18,7 +18,7 @@
 from celery.utils.log import get_task_logger
 from celery_singleton import Singleton
 from loadbalancer.celery import app
-import rest.endpoints.b3lb.tasks as b3lbtasks
+from rest.celery.b3lb import celery_run_check_node, celery_update_get_meetings_xml
 from rest.models import Node, Tenant, Secret
 
 logger = get_task_logger(__name__)
@@ -26,17 +26,17 @@ logger = get_task_logger(__name__)
 
 @app.task(ignore_result=True, base=Singleton)
 def check_node(node_uuid):
-    return b3lbtasks.run_check_node(node_uuid)
+    return b3lb.celery_run_check_node(node_uuid)
 
 
 @app.task(ignore_result=True, base=Singleton)
 def update_secret_meetings_lists(secret_uuid):
-    return b3lbtasks.update_get_meetings_xml(secret_uuid)
+    return b3lb.celery_update_get_meetings_xml(secret_uuid)
 
 
 @app.task(ignore_result=True, base=Singleton)
 def update_secret_metrics_list(secret_uuid):
-    return b3lbtasks.update_metrics(secret_uuid)
+    return b3lb.update_metrics(secret_uuid)
 
 
 @app.task(ignore_result=True, base=Singleton)
@@ -57,12 +57,12 @@ def check_status():
 
 @app.task(ignore_result=True, base=Singleton)
 def cleanup_assets():
-    return b3lbtasks.cleanup_assets()
+    return b3lb.cleanup_assets()
 
 
 @app.task(ignore_result=True, base=Singleton)
 def update_tenant_statistic(tenant_uuid):
-    return b3lbtasks.fill_statistic_by_tenant(tenant_uuid)
+    return b3lb.fill_statistic_by_tenant(tenant_uuid)
 
 
 @app.task(ignore_result=True, base=Singleton)

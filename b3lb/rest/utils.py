@@ -18,6 +18,7 @@
 from db_file_storage.storage import DatabaseFileStorage
 from django.http import HttpResponse
 from django.db import models
+from jinja2 import Template
 from wsgiref.util import FileWrapper
 import re
 
@@ -47,6 +48,11 @@ def get_file_from_storage(file_name):
 def get_forwarded_host(request):
     forwarded_host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
     return forwarded_host_regex.sub(r'\1', forwarded_host)
+
+
+def load_template(file_name):
+    with open("rest/templates/{}".format(file_name)) as template_file:
+        return Template(template_file.read())
 
 
 def xml_escape(string):
