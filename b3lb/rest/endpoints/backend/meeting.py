@@ -21,13 +21,13 @@
 import requests
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
-from rest.models import RecordSet, Record
+from rest.models import Meeting
 
 
 @require_http_methods(["GET"])
-def backend_record_available(request):
+def backend_end_meeting_callback(request):
     """
-    Callback URL for available records on node.
+    Custom callback URL for end meeting.
     """
     parameters = request.GET
     print(parameters)
@@ -35,19 +35,11 @@ def backend_record_available(request):
         return HttpResponse("Unauthorized", status=401)
 
     try:
-        record_set = RecordSet.objects.get(nonce=parameters["nonce"])
-        record_set.send_callback = True
-        record_set.save()
-    except RecordSet.DoesNotExist:
-        HttpResponse("Unauthorized", status=401)
+        meeting = Meeting.objects.get(end_nonce=parameters["nonce"])
+        requests.get(meeting.end_callback_url)
+        meeting.is_running = False
+        meeting.save()
+    except Meeting.DoesNotExist:
+        print("No Meeting found")
 
-    return HttpResponse(status=204)
-
-
-@require_http_methods(["POST"])
-def backend_record_upload(request):
-    """
-    Upload for BBB record files.
-    Does currently nothing.
-    """
     return HttpResponse(status=204)

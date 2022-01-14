@@ -15,24 +15,24 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
+import re
+import base64
+import rest.endpoints.b3lb.constants as ct
+from django.conf import settings
+from django.contrib.admin import ModelAdmin, action
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+from django.core.exceptions import ValidationError
 from django.db.models import (
     Model, UUIDField, BinaryField, FileField, ImageField, URLField,
     FloatField, SmallIntegerField, IntegerField, BigIntegerField, DateTimeField,
     CharField, TextField, BooleanField, ForeignKey, OneToOneField,
     UniqueConstraint, PROTECT, CASCADE
 )
-from django.contrib.admin import ModelAdmin, action
 from django.utils import timezone
 from django.utils.crypto import get_random_string
-from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
-from django.core.exceptions import ValidationError
-from django.conf import settings
-from uuid import uuid4
-import re
-import base64
 from math import pow
 from rest.utils import xml_escape, get_file_from_storage
-import rest.endpoints.b3lb.constants as ct
+from uuid import uuid4
 
 
 #
@@ -441,19 +441,20 @@ class MeetingAdmin(ModelAdmin):
 
 
 # Meeting - Secret - Recording relation class
-class RecordRelation(Model):
+class RecordSet(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     secret = ForeignKey(Secret, on_delete=CASCADE)
     meeting_id = CharField(max_length=MEETING_ID_LENGTH)
     created_at = DateTimeField(default=timezone.now)
+    send_callback = BooleanField(default=False)
     record_available_url = URLField(default="")
-    record_nonce = CharField(max_length=64, default=get_nonce, editable=False)
+    nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
 
 class Record(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     id = CharField(max_length=MEETING_ID_LENGTH)
-    relation = ForeignKey(RecordRelation, on_delete=CASCADE)
+    relation = ForeignKey(RecordSet, on_delete=CASCADE)
     storage_id = CharField(max_length=100, default="")
     duration = IntegerField(default=0)
     started_at = DateTimeField(default=timezone.now)
