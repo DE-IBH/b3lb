@@ -21,7 +21,7 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
-from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter, RecordRelation
+from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter, RecordSet
 import rest.endpoints.b3lb.lb as lb
 import rest.endpoints.b3lb.constants as constants
 import json
@@ -184,7 +184,7 @@ async def create(request, endpoint, params, node, secret):
 
     # check if records are enabled
     if secret.is_record_enabled:
-        record_relation = RecordRelation()
+        record_relation = RecordSet()
         record_relation.secret = secret
         record_relation.meeting_id = meeting_id
         record_relation.record_available_url = "https:://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/record")
