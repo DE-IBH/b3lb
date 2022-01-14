@@ -25,7 +25,7 @@ from django.db import transaction
 from django.db.models import F, Sum
 import hashlib
 from django.conf import settings
-import rest.b3lb.utils as utils
+import rest.utils as utils
 
 
 ##

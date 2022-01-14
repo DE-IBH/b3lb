@@ -21,9 +21,9 @@ from django.db.utils import OperationalError
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from rest.models import Cluster, SecretMetricsList, Asset
-import rest.b3lb.lb as lb
-import rest.b3lb.utils as utils
-import rest.b3lb.endpoints as ep
+import rest.endpoints.b3lb.lb as lb
+import rest.utils as utils
+import rest.endpoints.b3lb.endpoints as ep
 from datetime import datetime
 
 
