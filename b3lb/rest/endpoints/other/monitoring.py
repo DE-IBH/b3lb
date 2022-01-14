@@ -14,9 +14,22 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+from django.http import HttpResponse
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.utils import OperationalError
+from django.views.decorators.http import require_http_methods
+from rest.models import Cluster
+from datetime import datetime
 
-from rest.endpoints.backend.records import *
-from rest.endpoints.other.monitoring import *
-from rest.endpoints.tenant.assets import *
-from rest.endpoints.tenant.statistics import *
-from rest.endpoints.b3lb.lb import api_pass_through
+
+@require_http_methods(["GET"])
+def monitoring_ping(request):
+    """
+    Ping endpoint with DB connectivity test
+    """
+    try:
+        Cluster.objects.get(name="{}".format(datetime.now().strftime("%H%M%S")))
+    except ObjectDoesNotExist:
+        return HttpResponse('OK!', content_type="text/plain")
+    except OperationalError:
+        return HttpResponse('Doh!', content_type="text/plain", status=503)
