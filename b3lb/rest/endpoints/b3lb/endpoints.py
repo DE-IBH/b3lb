@@ -187,7 +187,7 @@ async def create(request, endpoint, params, node, secret):
         record_relation = RecordSet()
         record_relation.secret = secret
         record_relation.meeting_id = meeting_id
-        record_relation.record_available_url = "https:://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/record")
+        record_relation.record_available_url = "https:://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/record/available")
 
     else:
         # suppress any record related parameter
