@@ -191,11 +191,7 @@ async def create(request, endpoint, params, node, secret):
 
     # check if records are enabled
     if secret.is_record_enabled:
-        record_relation = RecordSet()
-        record_relation.secret = secret
-        record_relation.meeting_id = meeting_id
-        record_relation.record_available_url = "https:://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/record/available")
-        record_relation.save()
+        await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_id=meeting_id, record_available_url="https:://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/record/available"))
     else:
         # suppress any record related parameter
         for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
