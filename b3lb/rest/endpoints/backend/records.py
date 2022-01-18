@@ -24,7 +24,7 @@ from django.views.decorators.http import require_http_methods
 from rest.models import RecordSet, Record
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["POST"])
 def backend_record_available(request):
     """
     Callback URL for available records on node.
