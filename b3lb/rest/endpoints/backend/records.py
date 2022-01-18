@@ -36,8 +36,6 @@ def backend_record_available(request):
 
     try:
         record_set = RecordSet.objects.get(nonce=parameters["nonce"])
-        record_set.send_callback = True
-        record_set.save()
     except RecordSet.DoesNotExist:
         HttpResponse("Unauthorized", status=401)
 
