@@ -447,7 +447,8 @@ class RecordSet(Model):
     meeting_id = CharField(max_length=MEETING_ID_LENGTH)
     created_at = DateTimeField(default=timezone.now)
     send_callback = BooleanField(default=False)
-    record_available_url = URLField(default="")
+    record_ready_url = URLField(default="")
+    record_ready_origin_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
 

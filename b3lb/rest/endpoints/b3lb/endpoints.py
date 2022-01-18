@@ -191,7 +191,12 @@ async def create(request, endpoint, params, node, secret):
 
     # check if records are enabled
     if secret.is_record_enabled:
-        await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_id=meeting_id, record_available_url="https://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/record/available"))
+        record_ready_url = "https://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/record/available")
+        if "meta_meta_bbb-recording-ready-url" in params:
+            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_id=meeting_id, record_ready_url=record_ready_url, record_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
+        else:
+            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_id=meeting_id, record_ready_url=record_ready_url)
+        params["meta_meta_bbb-recording-ready-url"] = record_ready_url
     else:
         # suppress any record related parameter
         for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
