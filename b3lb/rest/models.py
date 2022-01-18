@@ -450,13 +450,10 @@ class RecordSet(Model):
     record_available_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
-    def __str__(self):
-        return "{}|{}".format(self.secret.__str__(), self.meeting_id)
-
 
 class RecordSetAdmin(ModelAdmin):
     model = RecordSet
-    list_display = ['__str__', 'secret', 'meeting_id', 'send_callback', 'created_at', 'nonce']
+    list_display = ['uuid', 'secret', 'meeting_id', 'send_callback', 'created_at', 'nonce']
 
 
 class Record(Model):
