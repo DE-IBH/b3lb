@@ -38,8 +38,12 @@ def backend_end_meeting_callback(request):
         if meeting.end_callback_url:
             requests.get(meeting.end_callback_url)
         if parameters["recordingmarks"] == "false":
-            record_set = RecordSet.objects.get(secret=meeting.secret, meeting_id=parameters["meetingID"], nonce=parameters["nonce"])
-            record_set.delete()
+            print("delete RecordSet")
+            try:
+                record_set = RecordSet.objects.get(secret=meeting.secret, meeting_id=parameters["meetingID"], nonce=parameters["nonce"])
+                record_set.delete()
+            except RecordSet.DoesNotExist:
+                pass
         meeting.delete()
     except Meeting.DoesNotExist:
         pass
