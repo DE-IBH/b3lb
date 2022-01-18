@@ -539,6 +539,14 @@ class RecordSet(Model):
     record_available_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
+    def __str__(self):
+        return "{}|{}".format(self.secret.__str__(), self.meeting_id)
+
+
+class RecordSetAdmin(ModelAdmin):
+    model = RecordSet
+    list_display = ['__str__', 'secret', 'meeting_id', 'send_callback', 'created_at', 'nonce']
+
 
 class Record(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
@@ -547,6 +555,11 @@ class Record(Model):
     storage_id = CharField(max_length=100, default="")
     duration = IntegerField(default=0)
     started_at = DateTimeField(default=timezone.now)
+
+
+class RecordAdmin(ModelAdmin):
+    model = Record
+    list_display = ['id', 'storage_id', 'duration', 'started_at']
 
 
 class Stats(Model):
