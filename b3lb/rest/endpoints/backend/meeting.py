@@ -21,7 +21,7 @@
 import requests
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
-from rest.models import Meeting
+from rest.models import Meeting, RecordSet
 
 
 @require_http_methods(["GET"])
@@ -31,15 +31,16 @@ def backend_end_meeting_callback(request):
     """
     parameters = request.GET
     print(parameters)
-    if "nonce" not in parameters:
+    if "end_nonce" not in parameters:
         return HttpResponse("Unauthorized", status=401)
-
     try:
-        meeting = Meeting.objects.get(end_nonce=parameters["nonce"])
-        requests.get(meeting.end_callback_url)
-        meeting.is_running = False
-        meeting.save()
+        meeting = Meeting.objects.get(meeting_id=parameters["meetingID"], end_nonce=parameters["nonce"])
+        if meeting.end_callback_url:
+            requests.get(meeting.end_callback_url)
+        if parameters["recordingmarks"] == "false":
+            record_set = RecordSet.objects.get(secret=meeting.secret, meeting_id=parameters["meetingID"], nonce=parameters["nonce"])
+            record_set.delete()
+        meeting.delete()
     except Meeting.DoesNotExist:
-        print("No Meeting found")
-
+        pass
     return HttpResponse(status=204)

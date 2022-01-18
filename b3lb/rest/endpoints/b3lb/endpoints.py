@@ -199,6 +199,7 @@ async def create(request, endpoint, params, node, secret):
         params["meta_meta_bbb-recording-ready-url"] = "{}?nonce={}".format(record_ready_url, record_set.nonce)
     else:
         # record aren't enabled -> suppress any record related parameter
+        record_set = None
         for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
             params[param] = "false"
 
@@ -217,7 +218,10 @@ async def create(request, endpoint, params, node, secret):
 
     meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
 
-    params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end", meeting.end_nonce)
+    if record_set:
+        params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?nonce={}&end_nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end",  record_set.nonce, meeting.end_nonce)
+    else:
+        params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?end_nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end", meeting.end_nonce)
 
     response = await pass_through(request, endpoint, params, node, body=body)
 
