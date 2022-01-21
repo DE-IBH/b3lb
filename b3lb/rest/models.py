@@ -26,10 +26,10 @@ from django.db.models import (
     Model, UUIDField, BinaryField, FileField, ImageField, URLField,
     FloatField, SmallIntegerField, IntegerField, BigIntegerField, DateTimeField,
     CharField, TextField, BooleanField, ForeignKey, OneToOneField,
-    UniqueConstraint, PROTECT, CASCADE
+    UniqueConstraint, PROTECT, CASCADE, SET_NULL
 )
-from django.utils import timezone
 from django.utils.crypto import get_random_string
+from django.utils.timezone import now
 from math import pow
 from rest.utils import xml_escape, get_file_from_storage
 from uuid import uuid4
@@ -416,7 +416,7 @@ class Meeting(Model):
     secret = ForeignKey(Secret, on_delete=CASCADE)
     node = ForeignKey(Node, on_delete=CASCADE)
     room_name = CharField(max_length=500)
-    age = DateTimeField(default=timezone.now)
+    age = DateTimeField(default=now)
     attendees = SmallIntegerField(default=0)
     listenerCount = SmallIntegerField(default=0)
     voiceParticipantCount = SmallIntegerField(default=0)
@@ -425,7 +425,7 @@ class Meeting(Model):
     bbb_origin = CharField(max_length=255, default="")
     bbb_origin_server_name = CharField(max_length=255, default="")
     end_callback_url = URLField(default="")
-    end_nonce = CharField(max_length=64, default=get_nonce, editable=False)
+    nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
     class Meta(object):
         ordering = ['secret__tenant', 'age']
@@ -443,9 +443,9 @@ class MeetingAdmin(ModelAdmin):
 class RecordSet(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     secret = ForeignKey(Secret, on_delete=CASCADE)
-    meeting_id = CharField(max_length=MEETING_ID_LENGTH)
-    created_at = DateTimeField(default=timezone.now)
-    record_ready_origin_url = URLField(default="")
+    meeting = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
+    created_at = DateTimeField(default=now)
+    recording_ready_origin_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
 
@@ -460,7 +460,7 @@ class Record(Model):
     relation = ForeignKey(RecordSet, on_delete=CASCADE)
     storage_id = CharField(max_length=100, default="")
     duration = IntegerField(default=0)
-    started_at = DateTimeField(default=timezone.now)
+    started_at = DateTimeField(default=now)
 
 
 class RecordAdmin(ModelAdmin):

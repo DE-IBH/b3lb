@@ -191,12 +191,11 @@ async def create(request, endpoint, params, node, secret):
 
     # check if records are enabled
     if secret.is_record_enabled:
-        record_ready_url = "https://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/record/available")
         if "meta_meta_bbb-recording-ready-url" in params:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_id=meeting_id, record_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, record_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
         else:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_id=meeting_id)
-        params["meta_meta_bbb-recording-ready-url"] = "{}?nonce={}".format(record_ready_url, record_set.nonce)
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret)
+        params["meta_meta_bbb-recording-ready-url"] = "https://{}-{}.{}/b3lb/b/record/available".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
     else:
         # record aren't enabled -> suppress any record related parameter
         record_set = None
@@ -217,11 +216,11 @@ async def create(request, endpoint, params, node, secret):
     }
 
     meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
-
     if record_set:
-        params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?nonce={}&end_nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end",  record_set.nonce, meeting.end_nonce)
-    else:
-        params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?end_nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end", meeting.end_nonce)
+        record_set.meeting = meeting
+        record_set.save()
+
+    params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end", meeting.nonce)
 
     response = await pass_through(request, endpoint, params, node, body=body)
 

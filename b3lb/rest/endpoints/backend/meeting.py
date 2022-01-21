@@ -30,24 +30,32 @@ def backend_end_meeting_callback(request):
     Custom callback URL for end meeting.
     """
     parameters = request.GET
-    if "end_nonce" not in parameters:
-        return HttpResponse(status=204)
-    try:
-        meeting = Meeting.objects.get(id=parameters["meetingID"], end_nonce=parameters["end_nonce"])
-        if meeting.end_callback_url:
-            url_postfix = "meetingID={}&recordingmarks={}".format(parameters["meetingID"], parameters["recordingmarks"])
-            if "?" in meeting.end_callback_url:
-                url = "{}&{}".format(meeting.end_callback_url, url_postfix)
+    if "nonce" in parameters and "meetingID" in parameters:
+        try:
+            meeting = Meeting.objects.get(id=parameters["meetingID"], end_nonce=parameters["nonce"])
+
+            if parameters["recordingmarks"] not in ["false", "true"]:
+                recording_marks = "false"
             else:
-                url = "{}?{}".format(meeting.end_callback_url, url_postfix)
-            requests.get(url)
-        if parameters["recordingmarks"] == "false":
-            try:
-                record_set = RecordSet.objects.get(secret=meeting.secret, meeting_id=parameters["meetingID"], nonce=parameters["nonce"])
-                record_set.delete()
-            except RecordSet.DoesNotExist:
-                pass
-        meeting.delete()
-    except Meeting.DoesNotExist:
-        pass
+                recording_marks = parameters["recordingmarks"]
+
+            if meeting.end_callback_url:
+                url_suffix = "meetingID={}&recordingmarks={}".format(parameters["meetingID"], recording_marks)
+                if "?" in meeting.end_callback_url:
+                    url = "{}&{}".format(meeting.end_callback_url, url_suffix)
+                else:
+                    url = "{}?{}".format(meeting.end_callback_url, url_suffix)
+                requests.get(url)
+
+            if recording_marks == "false":
+                try:
+                    RecordSet.objects.get(meeting=meeting).delete()
+                except RecordSet.DoesNotExist:
+                    pass
+
+            meeting.delete()
+        except Meeting.DoesNotExist:
+            return HttpResponse(status=404)
+    else:
+        return HttpResponse(status=400)
     return HttpResponse(status=204)
