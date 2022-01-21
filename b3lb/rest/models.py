@@ -230,7 +230,7 @@ class Tenant(Model):
     cluster_group = ForeignKey(ClusterGroup, on_delete=PROTECT)
     attendee_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
     meeting_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
-    records_enabled = BooleanField(default=False)
+    recording_enabled = BooleanField(default=False)
     records_hold_time = IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
@@ -246,7 +246,7 @@ class Tenant(Model):
 
 class TenantAdmin(ModelAdmin):
     model = Tenant
-    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'records_enabled', 'attendee_limit', 'meeting_limit']
+    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'recording_enabled', 'attendee_limit', 'meeting_limit']
     actions = [records_on, records_off]
 
 
@@ -259,7 +259,7 @@ class Secret(Model):
     secret2 = CharField(max_length=42, default="", blank=True, validators=[RegexValidator(r'^($|[a-zA-Z0-9]{42})$')])
     attendee_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
     meeting_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
-    records_enabled = BooleanField(default=True)
+    recording_enabled = BooleanField(default=True)
     records_hold_time = IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
@@ -278,7 +278,7 @@ class Secret(Model):
 
     @property
     def is_record_enabled(self):
-        if self.records_enabled and self.tenant.records_enabled:
+        if self.recording_enabled and self.tenant.recording_enabled:
             return True
         else:
             return False
@@ -293,7 +293,7 @@ class Secret(Model):
 
 class SecretAdmin(ModelAdmin):
     model = Secret
-    list_display = ['__str__', 'description', 'endpoint', 'records_enabled', 'attendee_limit', 'meeting_limit']
+    list_display = ['__str__', 'description', 'endpoint', 'recording_enabled', 'attendee_limit', 'meeting_limit']
     actions = [records_on, records_off]
 
 
