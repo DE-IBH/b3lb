@@ -51,5 +51,5 @@ def backend_end_meeting_callback(request):
                 pass
         meeting.delete()
     except Meeting.DoesNotExist:
-        pass
+        print("No meeting found")
     return HttpResponse(status=204)
