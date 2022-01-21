@@ -36,7 +36,7 @@ def backend_end_meeting_callback(request):
     if "end_nonce" not in parameters:
         return HttpResponse("Unauthorized", status=401)
     try:
-        meeting = Meeting.objects.get(id=parameters["meetingID"], end_nonce=parameters["nonce"])
+        meeting = Meeting.objects.get(id=parameters["meetingID"], end_nonce=parameters["end_nonce"])
         print("Meeting end url: {}".format(meeting.end_callback_url))
         if meeting.end_callback_url:
             print("send meeting end callback to original url")
