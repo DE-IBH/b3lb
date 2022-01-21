@@ -218,7 +218,7 @@ async def create(request, endpoint, params, node, secret):
     meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
     if record_set:
         record_set.meeting = meeting
-        record_set.save()
+        await sync_to_async(record_set.save)
 
     params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end", meeting.nonce)
 
