@@ -32,7 +32,7 @@ def backend_end_meeting_callback(request):
     parameters = request.GET
     if "nonce" in parameters and "meetingID" in parameters:
         try:
-            meeting = Meeting.objects.get(id=parameters["meetingID"], end_nonce=parameters["nonce"])
+            meeting = Meeting.objects.get(id=parameters["meetingID"], nonce=parameters["nonce"])
 
             if parameters["recordingmarks"] not in ["false", "true"]:
                 recording_marks = "false"
