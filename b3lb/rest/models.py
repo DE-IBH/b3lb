@@ -424,7 +424,6 @@ class Meeting(Model):
     videoCount = SmallIntegerField(default=0)
     bbb_origin = CharField(max_length=255, default="")
     bbb_origin_server_name = CharField(max_length=255, default="")
-    is_running = BooleanField(default=True)
     end_callback_url = URLField(default="")
     end_nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
@@ -446,7 +445,6 @@ class RecordSet(Model):
     secret = ForeignKey(Secret, on_delete=CASCADE)
     meeting_id = CharField(max_length=MEETING_ID_LENGTH)
     created_at = DateTimeField(default=timezone.now)
-    record_ready_url = URLField(default="")
     record_ready_origin_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False)
 

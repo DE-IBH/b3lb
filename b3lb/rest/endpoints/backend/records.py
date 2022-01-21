@@ -25,19 +25,19 @@ from rest.models import RecordSet, Record
 
 
 @require_http_methods(["POST"])
-def backend_record_available(request):
+def backend_record_ready(request):
     """
     Callback URL for available records on node.
     """
     parameters = request.GET
     print(parameters)
     if "nonce" not in parameters:
-        return HttpResponse("Unauthorized", status=401)
+        return HttpResponse(status=204)
 
     try:
         record_set = RecordSet.objects.get(nonce=parameters["nonce"])
     except RecordSet.DoesNotExist:
-        HttpResponse("Unauthorized", status=401)
+        pass
 
     return HttpResponse(status=204)
 
