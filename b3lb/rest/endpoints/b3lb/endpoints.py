@@ -191,11 +191,11 @@ async def create(request, endpoint, params, node, secret):
 
     # check if records are enabled
     if secret.is_record_enabled:
-        if "meta_meta_bbb-recording-ready-url" in params:
+        if "meta_bbb-recording-ready-url" in params:
             record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, record_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
         else:
             record_set = await sync_to_async(RecordSet.objects.create)(secret=secret)
-        params["meta_meta_bbb-recording-ready-url"] = "https://{}-{}.{}/b3lb/b/record/ready".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
+        params["meta_bbb-recording-ready-url"] = "https://{}-{}.{}/b3lb/b/record/ready?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, record_set.nonce)
     else:
         # record aren't enabled -> suppress any record related parameter
         record_set = None
