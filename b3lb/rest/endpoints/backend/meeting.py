@@ -31,20 +31,21 @@ def backend_end_meeting_callback(request):
     """
     parameters = request.GET
     print(parameters)
+    print(parameters["recordingmarks"])
+    print(parameters.get("recordingmarks"))
     if "end_nonce" not in parameters:
         return HttpResponse("Unauthorized", status=401)
     try:
-        print(parameters["meetingID"])
-        print(parameters.get("meetingID"))
         meeting = Meeting.objects.get(id=parameters["meetingID"], end_nonce=parameters["nonce"])
+        print("Meeting end url: {}".format(meeting.end_callback_url))
         if meeting.end_callback_url:
+            print("send meeting end callback to original url")
             requests.get(meeting.end_callback_url)
-        print(parameters["recordingmarks"])
-        print(parameters.get("recordingmarks"))
+        print("check recordingmarks")
         if parameters["recordingmarks"] == "false":
-            print("delete RecordSet")
             try:
                 record_set = RecordSet.objects.get(secret=meeting.secret, meeting_id=parameters["meetingID"], nonce=parameters["nonce"])
+                print("delete RecordSet with uuid: {}".format(record_set.uuid))
                 record_set.delete()
             except RecordSet.DoesNotExist:
                 pass
