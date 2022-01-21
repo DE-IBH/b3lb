@@ -30,26 +30,24 @@ def backend_end_meeting_callback(request):
     Custom callback URL for end meeting.
     """
     parameters = request.GET
-    print(parameters)
-    print(parameters["recordingmarks"])
-    print(parameters.get("recordingmarks"))
     if "end_nonce" not in parameters:
-        return HttpResponse("Unauthorized", status=401)
+        return HttpResponse(status=204)
     try:
         meeting = Meeting.objects.get(id=parameters["meetingID"], end_nonce=parameters["end_nonce"])
-        print("Meeting end url: {}".format(meeting.end_callback_url))
         if meeting.end_callback_url:
-            print("send meeting end callback to original url")
-            requests.get(meeting.end_callback_url)
-        print("check recordingmarks")
+            url_postfix = "meetingID={}&recordingmarks={}".format(parameters["meetingID"], parameters["recordingmarks"])
+            if "?" in meeting.end_callback_url:
+                url = "{}&{}".format(meeting.end_callback_url, url_postfix)
+            else:
+                url = "{}?{}".format(meeting.end_callback_url, url_postfix)
+            requests.get(url)
         if parameters["recordingmarks"] == "false":
             try:
                 record_set = RecordSet.objects.get(secret=meeting.secret, meeting_id=parameters["meetingID"], nonce=parameters["nonce"])
-                print("delete RecordSet with uuid: {}".format(record_set.uuid))
                 record_set.delete()
             except RecordSet.DoesNotExist:
                 pass
         meeting.delete()
     except Meeting.DoesNotExist:
-        print("No meeting found")
+        pass
     return HttpResponse(status=204)
