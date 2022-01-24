@@ -47,11 +47,9 @@ def backend_end_meeting_callback(request):
                     url = "{}?{}".format(meeting.end_callback_url, url_suffix)
                 requests.get(url)
 
+            print(recording_marks)
             if recording_marks == "false":
-                try:
-                    RecordSet.objects.get(meeting=meeting).delete()
-                except RecordSet.DoesNotExist:
-                    pass
+                RecordSet.objects.get(meeting=meeting).delete()
 
             meeting.delete()
         except Meeting.DoesNotExist:
