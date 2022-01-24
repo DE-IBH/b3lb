@@ -189,21 +189,6 @@ async def create(request, endpoint, params, node, secret):
         body = await sync_to_async(lb.get_slide_body_for_post)(secret)
         request.method = "POST"
 
-    # check if records are enabled
-    print(params)
-    if secret.is_record_enabled:
-        if "meta_bbb-recording-ready-url" in params:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, record_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
-            del params["meta_bbb-recording-ready-url"]
-            print(params)
-        else:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret)
-    else:
-        # record aren't enabled -> suppress any record related parameter
-        record_set = None
-        for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
-            params[param] = "false"
-
     if "meta_endCallbackUrl" in params:
         end_callback_origin_url = params["meta_endCallbackUrl"]
     else:
@@ -218,9 +203,19 @@ async def create(request, endpoint, params, node, secret):
     }
 
     meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
-    if record_set:
-        record_set.meeting = meeting
-        sync_to_async(record_set.save)
+
+    # check if records are enabled
+    if secret.is_record_enabled:
+        if "meta_bbb-recording-ready-url" in params:
+            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, record_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
+            del params["meta_bbb-recording-ready-url"]
+        else:
+            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
+    else:
+        # record aren't enabled -> suppress any record related parameter
+        record_set = None
+        for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
+            params[param] = "false"
 
     params["meta_endCallbackUrl"] = "https://{}-{}.{}/{}?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/meeting/end", meeting.nonce)
 
