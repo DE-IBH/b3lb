@@ -28,17 +28,8 @@ from rest.models import RecordSet, Record
 def backend_record_ready(request):
     """
     Callback URL for available records on node.
+    Does currently nothing.
     """
-    parameters = request.GET
-    print(parameters)
-    if "nonce" not in parameters:
-        return HttpResponse(status=204)
-
-    try:
-        record_set = RecordSet.objects.get(nonce=parameters["nonce"])
-    except RecordSet.DoesNotExist:
-        pass
-
     return HttpResponse(status=204)
 
 
