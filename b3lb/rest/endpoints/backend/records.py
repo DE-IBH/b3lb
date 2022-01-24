@@ -24,26 +24,6 @@ from django.views.decorators.http import require_http_methods
 from rest.models import RecordSet, Record
 
 
-@require_http_methods(["GET"])
-def backend_record_available(request):
-    """
-    Callback URL for available records on node.
-    """
-    parameters = request.GET
-    print(parameters)
-    if "nonce" not in parameters:
-        return HttpResponse("Unauthorized", status=401)
-
-    try:
-        record_set = RecordSet.objects.get(nonce=parameters["nonce"])
-        record_set.send_callback = True
-        record_set.save()
-    except RecordSet.DoesNotExist:
-        HttpResponse("Unauthorized", status=401)
-
-    return HttpResponse(status=204)
-
-
 @require_http_methods(["POST"])
 def backend_record_upload(request):
     """

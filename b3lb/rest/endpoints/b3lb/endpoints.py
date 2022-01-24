@@ -189,28 +189,36 @@ async def create(request, endpoint, params, node, secret):
         body = await sync_to_async(lb.get_slide_body_for_post)(secret)
         request.method = "POST"
 
-    # check if records are enabled
-    if secret.is_record_enabled:
-        record_relation = RecordSet()
-        record_relation.secret = secret
-        record_relation.meeting_id = meeting_id
-        record_relation.record_available_url = "https:://{}-{}.{}/{}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, "b3lb/b/record/available")
-
+    if "meta_endCallbackUrl" in params:
+        end_callback_origin_url = params["meta_endCallbackUrl"]
     else:
-        # suppress any record related parameter
-        for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
-            params[param] = "false"
-
-    response = await pass_through(request, endpoint, params, node, body=body)
+        end_callback_origin_url = ""
 
     defaults = {
         "id": meeting_id,
         "secret": secret,
         "node": node,
-        "room_name": params.get("name", "Unknown")
+        "room_name": params.get("name", "Unknown"),
+        "end_callback_url": end_callback_origin_url
     }
 
-    obj, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
+    meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
+
+    # check if records are enabled
+    if secret.is_record_enabled:
+        if "meta_bbb-recording-ready-url" in params:
+            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
+            del params["meta_bbb-recording-ready-url"]
+        else:
+            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
+    else:
+        # record aren't enabled -> suppress any record related parameter
+        for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
+            params[param] = "false"
+
+    params["meta_endCallbackUrl"] = "https://{}-{}.{}/b3lb/b/meeting/end?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, meeting.nonce)
+
+    response = await pass_through(request, endpoint, params, node, body=body)
 
     if created:
         await lb.update_create_metrics(secret, node)
