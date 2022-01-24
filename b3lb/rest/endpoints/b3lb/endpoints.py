@@ -213,7 +213,6 @@ async def create(request, endpoint, params, node, secret):
             await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
     else:
         # record aren't enabled -> suppress any record related parameter
-        record_set = None
         for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
             params[param] = "false"
 
