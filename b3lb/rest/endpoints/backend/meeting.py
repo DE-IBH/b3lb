@@ -21,7 +21,7 @@
 import requests
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
-from rest.models import Meeting
+from rest.models import Meeting, RecordSet
 
 
 @require_http_methods(["GET"])
@@ -30,16 +30,32 @@ def backend_end_meeting_callback(request):
     Custom callback URL for end meeting.
     """
     parameters = request.GET
-    print(parameters)
-    if "nonce" not in parameters:
-        return HttpResponse("Unauthorized", status=401)
+    if "nonce" in parameters and "meetingID" in parameters:
+        try:
+            meeting = Meeting.objects.get(id=parameters["meetingID"], nonce=parameters["nonce"])
 
-    try:
-        meeting = Meeting.objects.get(end_nonce=parameters["nonce"])
-        requests.get(meeting.end_callback_url)
-        meeting.is_running = False
-        meeting.save()
-    except Meeting.DoesNotExist:
-        print("No Meeting found")
+            if parameters["recordingmarks"] not in ["false", "true"]:
+                recording_marks = "false"
+            else:
+                recording_marks = parameters["recordingmarks"]
 
+            if meeting.end_callback_url:
+                url_suffix = "meetingID={}&recordingmarks={}".format(parameters["meetingID"], recording_marks)
+                if "?" in meeting.end_callback_url:
+                    url = "{}&{}".format(meeting.end_callback_url, url_suffix)
+                else:
+                    url = "{}?{}".format(meeting.end_callback_url, url_suffix)
+                requests.get(url)
+
+            if recording_marks == "false":
+                try:
+                    RecordSet.objects.get(meeting=meeting).delete()
+                except RecordSet.DoesNotExist:
+                    pass
+
+            meeting.delete()
+        except Meeting.DoesNotExist:
+            return HttpResponse(status=404)
+    else:
+        return HttpResponse(status=400)
     return HttpResponse(status=204)
