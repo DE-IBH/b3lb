@@ -25,15 +25,6 @@ from rest.models import RecordSet, Record
 
 
 @require_http_methods(["POST"])
-def backend_record_ready(request):
-    """
-    Callback URL for available records on node.
-    Does currently nothing.
-    """
-    return HttpResponse(status=204)
-
-
-@require_http_methods(["POST"])
 def backend_record_upload(request):
     """
     Upload for BBB record files.
