@@ -26,10 +26,10 @@ from django.db.models import (
     Model, UUIDField, BinaryField, FileField, ImageField, URLField,
     FloatField, SmallIntegerField, IntegerField, BigIntegerField, DateTimeField,
     CharField, TextField, BooleanField, ForeignKey, OneToOneField,
-    UniqueConstraint, PROTECT, CASCADE
+    UniqueConstraint, PROTECT, CASCADE, SET_NULL
 )
-from django.utils import timezone
 from django.utils.crypto import get_random_string
+from django.utils.timezone import now
 from math import pow
 from rest.utils import xml_escape, get_file_from_storage
 from uuid import uuid4
@@ -315,7 +315,7 @@ class Tenant(Model):
     cluster_group = ForeignKey(ClusterGroup, on_delete=PROTECT)
     attendee_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
     meeting_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
-    records_enabled = BooleanField(default=False)
+    recording_enabled = BooleanField(default=False)
     records_hold_time = IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
@@ -331,8 +331,7 @@ class Tenant(Model):
 
 class TenantAdmin(ModelAdmin):
     model = Tenant
-    list_filter = [('cluster_group', admin.RelatedOnlyFieldListFilter)]
-    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'records_enabled', 'attendee_limit', 'meeting_limit']
+    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'recording_enabled', 'attendee_limit', 'meeting_limit']
     actions = [records_on, records_off]
 
 
@@ -345,7 +344,7 @@ class Secret(Model):
     secret2 = CharField(max_length=42, default="", blank=True, validators=[RegexValidator(r'^($|[a-zA-Z0-9]{42})$')])
     attendee_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
     meeting_limit = IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
-    records_enabled = BooleanField(default=True)
+    recording_enabled = BooleanField(default=True)
     records_hold_time = IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
@@ -364,7 +363,7 @@ class Secret(Model):
 
     @property
     def is_record_enabled(self):
-        if self.records_enabled and self.tenant.records_enabled:
+        if self.recording_enabled and self.tenant.recording_enabled:
             return True
         else:
             return False
@@ -379,8 +378,7 @@ class Secret(Model):
 
 class SecretAdmin(ModelAdmin):
     model = Secret
-    list_filter = [('tenant', admin.RelatedOnlyFieldListFilter)]
-    list_display = ['__str__', 'description', 'endpoint', 'records_enabled', 'attendee_limit', 'meeting_limit']
+    list_display = ['__str__', 'description', 'endpoint', 'recording_enabled', 'attendee_limit', 'meeting_limit']
     actions = [records_on, records_off]
 
 
@@ -503,7 +501,7 @@ class Meeting(Model):
     secret = ForeignKey(Secret, on_delete=CASCADE)
     node = ForeignKey(Node, on_delete=CASCADE)
     room_name = CharField(max_length=500)
-    age = DateTimeField(default=timezone.now)
+    age = DateTimeField(default=now)
     attendees = SmallIntegerField(default=0)
     listenerCount = SmallIntegerField(default=0)
     voiceParticipantCount = SmallIntegerField(default=0)
@@ -511,9 +509,8 @@ class Meeting(Model):
     videoCount = SmallIntegerField(default=0)
     bbb_origin = CharField(max_length=255, default="")
     bbb_origin_server_name = CharField(max_length=255, default="")
-    is_running = BooleanField(default=True)
     end_callback_url = URLField(default="")
-    end_nonce = CharField(max_length=64, default=get_nonce, editable=False)
+    nonce = CharField(max_length=64, default=get_nonce, editable=False)
 
     class Meta(object):
         ordering = ['secret__tenant', 'age']
@@ -533,19 +530,15 @@ class MeetingAdmin(ModelAdmin):
 class RecordSet(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     secret = ForeignKey(Secret, on_delete=CASCADE)
-    meeting_id = CharField(max_length=MEETING_ID_LENGTH)
-    created_at = DateTimeField(default=timezone.now)
-    send_callback = BooleanField(default=False)
-    record_available_url = URLField(default="")
+    meeting = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
+    created_at = DateTimeField(default=now)
+    recording_ready_origin_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False)
-
-    def __str__(self):
-        return "{}|{}".format(self.secret.__str__(), self.meeting_id)
 
 
 class RecordSetAdmin(ModelAdmin):
     model = RecordSet
-    list_display = ['__str__', 'secret', 'meeting_id', 'send_callback', 'created_at', 'nonce']
+    list_display = ['uuid', 'secret', 'meeting_id', 'created_at', 'nonce']
 
 
 class Record(Model):
@@ -554,7 +547,7 @@ class Record(Model):
     relation = ForeignKey(RecordSet, on_delete=CASCADE)
     storage_id = CharField(max_length=100, default="")
     duration = IntegerField(default=0)
-    started_at = DateTimeField(default=timezone.now)
+    started_at = DateTimeField(default=now)
 
 
 class RecordAdmin(ModelAdmin):
