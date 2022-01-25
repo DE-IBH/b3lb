@@ -216,7 +216,7 @@ async def create(request, endpoint, params, node, secret):
         for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
             params[param] = "false"
 
-    params["meta_endCallbackUrl"] = "https://{}-{}.{}/b3lb/b/meeting/end?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN, meeting.nonce)
+    params["meta_endCallbackUrl"] = "https://{}-{}.{}/b3lb/b/meeting/end?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BACKEND_DOMAIN, meeting.nonce)
 
     response = await pass_through(request, endpoint, params, node, body=body)
 
