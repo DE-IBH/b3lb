@@ -471,7 +471,7 @@ class Record(Model):
 
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     id = CharField(max_length=MEETING_ID_LENGTH)
-    status = CharField(max_length=10, choices=STATUS_CHOICES)
+    status = CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
     relation = ForeignKey(RecordSet, on_delete=CASCADE)
     storage_id = CharField(max_length=100, default="")
     duration = IntegerField(default=0)
