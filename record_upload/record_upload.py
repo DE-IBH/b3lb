@@ -33,6 +33,8 @@ published_presentations = os.listdir(PUBLISH_FOLDER)
 
 meeting_id = sys.argv[1]
 
+bbb_record_listing = sp.check_output(["bbb-record", "--list"]).decode("utf-8").split("\n")[2:]
+
 tar_filename = "{}/{}.tar.xz".format(PUBLISH_FOLDER, meeting_id)
 
 with open("/var/log/bigbluebutton/post_publish.log", "a") as f:
