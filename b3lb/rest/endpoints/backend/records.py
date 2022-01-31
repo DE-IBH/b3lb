@@ -19,6 +19,7 @@
 #
 
 import requests
+from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from rest.models import RecordSet, Record
@@ -30,4 +31,7 @@ def backend_record_upload(request):
     Upload for BBB record files.
     Does currently nothing.
     """
-    return HttpResponse(status=204)
+    if settings.B3LB_STORAGE_USE_LOCAL_STORAGE or settings.B3LB_STORAGE_USE_S3_STORAGE:
+        return HttpResponse(status=204)
+    else:
+        return HttpResponse(status=423)

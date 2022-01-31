@@ -220,3 +220,16 @@ B3LB_NO_SLIDES_TEXT = env.str('B3LB_NO_SLIDES_TEXT', default='<default>')
 
 B3LB_CACHE_NML_PATTERN = env.str('B3LB_CACHE_NML_PATTERN', default='NML#{}')
 B3LB_CACHE_NML_TIMEOUT = env.int('B3LB_CACHE_NML_TIMEOUT', default=30)
+
+######
+# B3LB Storage Setting
+######
+
+# use local storage for uploading record files
+# set all USE_*_STORAGE to "False" to disable Record workflow in B3LB
+B3LB_STORAGE_USE_LOCAL_STORAGE = env.bool('B3LB_STORAGE_USE_LOCAL_STORAGE', default=True)
+
+# S3 Storage Settings
+# ToDo: Implement S3 later
+B3LB_STORAGE_USE_S3_STORAGE = env.bool('B3LB_STORAGE_USE_LOCAL_STORAGE', default=False)
+

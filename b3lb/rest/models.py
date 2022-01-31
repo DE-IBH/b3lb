@@ -455,8 +455,23 @@ class RecordSetAdmin(ModelAdmin):
 
 
 class Record(Model):
+    UNKNOWN = "UNKNOWN"
+    UPLOADED = "UPLOADED"
+    RENDERED = "RENDERED"
+    DELETING = "DELETING"
+    DELETED = "DELETED"
+
+    STATUS_CHOICES = [
+        (UNKNOWN, "Record state is unknown"),
+        (UPLOADED, "Record files has been uploaded"),
+        (RENDERED, "Record files has been rendered to a video"),
+        (DELETING, "Record video will be deleted"),
+        (DELETED, "Record files have been deleted")
+    ]
+
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     id = CharField(max_length=MEETING_ID_LENGTH)
+    status = CharField(max_length=10, choices=STATUS_CHOICES)
     relation = ForeignKey(RecordSet, on_delete=CASCADE)
     storage_id = CharField(max_length=100, default="")
     duration = IntegerField(default=0)
