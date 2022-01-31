@@ -21,11 +21,13 @@
 import requests
 from django.conf import settings
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest.models import RecordSet, Record
 
 
 @require_http_methods(["POST"])
+@csrf_exempt
 def backend_record_upload(request):
     """
     Upload for BBB record files.
