@@ -34,7 +34,7 @@ def backend_record_upload(request):
     Does currently nothing.
     """
     if settings.B3LB_STORAGE_USE_LOCAL_STORAGE or settings.B3LB_STORAGE_USE_S3_STORAGE:
-        print(request.files)
+        print(request.FILES)
         return HttpResponse(status=204)
     else:
         return HttpResponse(status=423)

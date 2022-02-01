@@ -57,17 +57,12 @@ with open("/var/log/bigbluebutton/post_publish.log", "a") as f:
     f.write("B3LB Upload files compressed.\n".format(tar_filename))
 
     if meeting_id:
-        # response = requests.post("{}b3lb/b/record/upload", files={"file": open(tar_filename, "rb")}, data={"meeting_id": meeting_id})
-        response = requests.post("{}b3lb/b/record/upload", files={"file": tar_file.getvalue()}, data={"meeting_id": meeting_id})
+        response = requests.post("{}b3lb/b/record/upload".format(B3LB_BASE_DOMAIN), files={"file": tar_file.getvalue()}, data={"meeting_id": meeting_id})
     else:
-        # response = requests.post("{}b3lb/b/record/upload", files={"file": open(tar_filename, "rb")})
-        response = requests.post("{}b3lb/b/record/upload", files={"file": tar_file.getvalue()})
+        response = requests.post("{}b3lb/b/record/upload".format(B3LB_BASE_DOMAIN), files={"file": tar_file.getvalue()})
 
     if response.status_code == 204:
         f.write("B3LB Upload successful. Deleting record {}\n".format(internal_meeting_id))
         sp.check_output(["bbb-record", "--delete", internal_meeting_id])
-        # os.remove("{}/{}".format(PUBLISH_FOLDER, tar_filename))
     else:
         f.write("B3LB Upload failed. Keeping record files {}\n".format(internal_meeting_id))
-        # os.remove("{}/{}".format(PUBLISH_FOLDER, tar_filename))
-
