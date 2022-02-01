@@ -31,6 +31,7 @@ if len(sys.argv) < 2:
 B3LB_BASE_DOMAIN = "https://api-test.bbbconf.de/"
 PUBLISH_FOLDER = "/var/bigbluebutton/published/presentation"
 published_presentations = os.listdir(PUBLISH_FOLDER)
+os.chdir(PUBLISH_FOLDER)
 
 internal_meeting_id = sys.argv[1]
 if internal_meeting_id not in published_presentations:
@@ -42,7 +43,7 @@ tar_file = io.BytesIO()
 with open("/var/log/bigbluebutton/post_publish.log", "a") as f:
     f.write("B3LB Start Upload routine for {} received\n".format(internal_meeting_id))
     tar = tarfile.open(fileobj=tar_file, mode="w|xz")
-    tar.add("{}/{}".format(PUBLISH_FOLDER, internal_meeting_id))
+    tar.add(internal_meeting_id)
     tar.close()
     f.write("B3LB Upload files compressed.\n".format(tar_filename))
 
