@@ -35,7 +35,7 @@ def backend_record_upload(request):
     """
     if settings.B3LB_STORAGE_USE_LOCAL_STORAGE or settings.B3LB_STORAGE_USE_S3_STORAGE:
         tar_file = request.FILES.get("file")
-        tar_name = request.data.get("meeting_id")
+        tar_name = request.DATA.get("meeting_id")
         print(tar_name, tar_file)
         if tar_name:
             with open("/upload/{}.tar.xz".format(tar_name), "wb") as tar:
