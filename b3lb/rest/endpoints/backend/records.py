@@ -39,10 +39,10 @@ def backend_record_upload(request):
         print(tar_name, tar_file)
         if tar_name:
             with open("/upload/{}.tar.xz".format(tar_name), "wb") as tar:
-                tar.write(tar_file)
+                tar.write(tar_file.read())
         else:
             with open("/upload/no_name.tar.xz".format(tar_name), "wb") as tar:
-                tar.write(tar_file)
+                tar.write(tar_file.read())
         return HttpResponse(status=204)
     else:
         return HttpResponse(status=423)
