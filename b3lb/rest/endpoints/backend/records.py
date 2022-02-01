@@ -34,7 +34,13 @@ def backend_record_upload(request):
     Does currently nothing.
     """
     if settings.B3LB_STORAGE_USE_LOCAL_STORAGE or settings.B3LB_STORAGE_USE_S3_STORAGE:
-        print(request.FILES)
+        tar_file = request.FILES.get("file")
+        tar_name = request.data.get("meeting_id")
+        print(tar_name, tar_file)
+        if tar_name:
+            open("/upload/{}.tar.xz".format(tar_name), "wb")
+        else:
+            open("/upload/no_name.tar.xz".format(tar_name), "wb")
         return HttpResponse(status=204)
     else:
         return HttpResponse(status=423)

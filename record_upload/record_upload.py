@@ -36,30 +36,17 @@ internal_meeting_id = sys.argv[1]
 if internal_meeting_id not in published_presentations:
     exit()
 
-meeting_id = ""
-
-bbb_record_listing = sp.check_output(["bbb-record", "--list"]).decode("utf-8").split("\n")[2:]
-for line in bbb_record_listing:
-    if line[:2] == "--":
-        break
-    if line.split(" ")[0] == internal_meeting_id:
-        meeting_id = line.split(" ")[-1]
-
 tar_filename = "{}/{}.tar.xz".format(PUBLISH_FOLDER, internal_meeting_id)
 tar_file = io.BytesIO()
 
 with open("/var/log/bigbluebutton/post_publish.log", "a") as f:
     f.write("B3LB Start Upload routine for {} received\n".format(internal_meeting_id))
     tar = tarfile.open(fileobj=tar_file, mode="w|xz")
-    # tar = tarfile.open(tar_filename, mode="w|xz")
     tar.add("{}/{}".format(PUBLISH_FOLDER, internal_meeting_id))
     tar.close()
     f.write("B3LB Upload files compressed.\n".format(tar_filename))
 
-    if meeting_id:
-        response = requests.post("{}b3lb/b/record/upload".format(B3LB_BASE_DOMAIN), files={"file": tar_file.getvalue()}, data={"meeting_id": meeting_id})
-    else:
-        response = requests.post("{}b3lb/b/record/upload".format(B3LB_BASE_DOMAIN), files={"file": tar_file.getvalue()})
+    response = requests.post("{}b3lb/b/record/upload".format(B3LB_BASE_DOMAIN), files={"file": tar_file.getvalue()}, data={"file_name": internal_meeting_id})
 
     if response.status_code == 204:
         f.write("B3LB Upload successful. Deleting record {}\n".format(internal_meeting_id))
