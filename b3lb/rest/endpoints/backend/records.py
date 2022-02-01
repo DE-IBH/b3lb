@@ -38,9 +38,11 @@ def backend_record_upload(request):
         tar_name = request.data.get("meeting_id")
         print(tar_name, tar_file)
         if tar_name:
-            open("/upload/{}.tar.xz".format(tar_name), "wb")
+            with open("/upload/{}.tar.xz".format(tar_name), "wb") as tar:
+                tar.write(tar_file)
         else:
-            open("/upload/no_name.tar.xz".format(tar_name), "wb")
+            with open("/upload/no_name.tar.xz".format(tar_name), "wb") as tar:
+                tar.write(tar_file)
         return HttpResponse(status=204)
     else:
         return HttpResponse(status=423)
