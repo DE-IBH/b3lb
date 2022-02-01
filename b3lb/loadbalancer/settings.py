@@ -209,6 +209,7 @@ ADMINS = email.utils.getaddresses([env.str('DJANGO_ADMINS', '')])
 
 B3LB_API_BASE_DOMAIN = env.str('B3LB_API_BASE_DOMAIN')
 B3LB_API_BACKEND_DOMAIN = env.str('B3LB_API_BACKEND_DOMAIN', default=B3LB_API_BASE_DOMAIN)
+B3LB_SITE_SLUG = env.str('B3LB_SITE_SLUG', default='b3lb')
 
 B3LB_NODE_PROTOCOL = env.str('B3LB_NODE_PROTOCOL', default='https://')
 B3LB_NODE_DEFAULT_DOMAIN = env.str('B3LB_NODE_DEFAULT_DOMAIN', default='bbbconf.de')
