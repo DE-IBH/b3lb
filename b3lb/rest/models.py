@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2022 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -56,6 +56,7 @@ def get_random_secret():
 
 def get_nonce():
     return get_random_string(64, NONCE_CHAR_POOL)
+
 
 #
 # ADMIN ACTIONS
@@ -444,7 +445,7 @@ class RecordSet(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     secret = ForeignKey(Secret, on_delete=CASCADE)
     meeting = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
-    meeting_id = CharField(max_length=MEETING_ID_LENGTH)
+    meetingid = CharField(max_length=MEETING_ID_LENGTH, default="")
     created_at = DateTimeField(default=now)
     recording_ready_origin_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False, unique=True)
