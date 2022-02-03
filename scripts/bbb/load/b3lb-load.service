@@ -1,0 +1,9 @@
+[Unit]
+Description=Dumps the server load periodically at /run/b3lb/load.
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3 /usr/local/lib/b3lb/b3lb-load
+
+[Install]
+WantedBy=multi-user.target
