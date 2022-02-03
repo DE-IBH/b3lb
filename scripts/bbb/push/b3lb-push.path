@@ -1,0 +1,9 @@
+[Unit]
+Description=triggering b3lb-push by filesystem changes
+
+[Path]
+PathChanged=/var/bigbluebutton/published/presentation
+TriggerLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target
