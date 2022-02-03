@@ -1,0 +1,11 @@
+[Unit]
+Description=uploading bbb recordings to the b3lb backend
+
+[Service]
+Type=simple
+User=bigbluebutton
+Group=bigbluebutton
+ExecStart=/usr/bin/env python3 /usr/local/lib/b3lb/b3lb-push
+
+[Install]
+WantedBy=multi-user.target

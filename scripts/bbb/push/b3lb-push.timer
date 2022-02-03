@@ -1,0 +1,9 @@
+[Unit]
+Description=triggering b3lb-push regulary
+
+[Timer]
+OnBootSec=60min
+OnUnitInactiveSec=60min
+
+[Install]
+WantedBy=timers.target
