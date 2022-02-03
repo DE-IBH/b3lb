@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+
+# B3LB - BigBlueButton Load Balancer
+# Copyright (C) 2020-2022 IBH IT-Service GmbH
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+# for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+import configparser
+import os
+import requests
+import subprocess as sp
+import sys
+import sqlite3
+import itertools
+import time
+
+CONFIG_FILENAME = "/etc/b3lb/push.properties"
+
+# make java properties file compatible for ConfigParser()
+CONFIG_SECTIONNAME = "push"
+config = configparser.ConfigParser()
+with open(CONFIG_FILENAME, "r") as fh:
+    config.read_file(itertools.chain(["[{}]".format(CONFIG_SECTIONNAME)], fh))
+
+# get config options
+B3LB_BASE_DOMAIN = config.get(CONFIG_SECTIONNAME, "b3lbBaseDomain")
+QUEUE_DB_DIRNAME = config.get(CONFIG_SECTIONNAME, "queueDirname")
+QUEUE_DB_FILENAME = config.get(CONFIG_SECTIONNAME, "queueFilename")
+PUBLISHED_FOLDER = config.get(CONFIG_SECTIONNAME, "publishedFolder")
+
+# tar command to archive a recording with all of it's auxiliary files
+TAR_CMD = ["tar", "-cC", PUBLISHED_FOLDER]
+
+
+def upload_recording(mid, nonce):
+    if not os.path.isdir(os.path.join(PUBLISHED_FOLDER, mid)):
+        print("[{}] published folder not found, aborting".format(mid))
+        return False
+
+    print("[{}] uploading...".format(mid))
+
+    tar = sp.Popen(TAR_CMD + [mid],
+                   stdin=sp.DEVNULL,
+                   stdout=sp.PIPE,
+                   close_fds=True)
+
+    response = requests.post(
+        "{}b3lb/b/record/upload".format(B3LB_BASE_DOMAIN),
+        params={
+            'nonce': nonce,
+        },
+        files={
+            "file": tar.stdout,
+        },
+    )
+
+    print("[{}] http code {}".format(mid, response.status_code))
+
+    return response.status_code >= 200 and response.status_code < 300
+
+
+def process_backlog(fn):
+    num_errors = 0
+
+    dh = sqlite3.connect(fn)
+    dh.execute(
+        "CREATE TABLE IF NOT EXISTS backlog (mid varchar(64), nonce varchar(64))")
+
+    cur = dh.cursor()
+    for rowid, mid, nonce in cur.execute("SELECT ROWID, mid, nonce FROM backlog"):
+        try:
+            if upload_recording(mid, nonce):
+                sp.run(["bbb-record", "--delete", mid])
+                dh.execute("DELETE FROM backlog WHERE ROWID=?", (rowid,))
+                print("[{}] removed from backlog".format(mid))
+        except Exception as ex:
+            print("[{}] EXCEPTION: {}".format(mid, ex))
+            num_errors += 1
+
+    return num_errors
+
+if __name__ == '__main__':
+    # create DB directory if required
+    if not os.path.isdir(QUEUE_DB_DIRNAME):
+        os.mkdir(QUEUE_DB_DIRNAME)
+
+    # take a break... (throttle)
+    time.sleep(2)
+
+    print("process backlog...")
+
+    rc = process_backlog(os.path.join(QUEUE_DB_DIRNAME, QUEUE_DB_FILENAME))
+
+    print("done")
+
+    exit(rc)
