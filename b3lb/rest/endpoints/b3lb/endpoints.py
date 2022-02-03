@@ -210,7 +210,7 @@ async def create(request, endpoint, params, node, secret):
             record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
         else:
             record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
-        params["meta_{}_recordset".format(settings.B3LB_SITE_SLUG)] = record_set.nonce
+        params["meta_{}-recordset".format(settings.B3LB_SITE_SLUG)] = record_set.nonce
     else:
         # record aren't enabled -> suppress any record related parameter
         for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
