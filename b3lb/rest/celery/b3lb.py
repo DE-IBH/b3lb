@@ -194,10 +194,10 @@ def celery_update_get_meetings_xml(secret_uuid):
     else:
         mcis = Meeting.objects.filter(secret=secret)
 
-    meeting_ids = []
+    internal_meeting_ids = {}
 
     for mci in mcis:
-        meeting_ids.append(mci.id)
+        internal_meeting_ids[mci.id] = mci.external_id
 
     nodes = Node.objects.all()
     context = {"meetings": []}
@@ -231,14 +231,17 @@ def celery_update_get_meetings_xml(secret_uuid):
                                 elif sub_cat.tag == "metadata":
                                     meeting_json["metadata"] = {}
                                     for ssub_cat in sub_cat:
-                                        meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
+                                        if ssub_cat.tag != "{}-recordset".format(settings.B3LB_SITE_SLUG):
+                                            meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
+                                elif sub_cat.tag == "meetingID":
+                                    if sub_cat.text not in internal_meeting_ids:
+                                        add_to_response = False
+                                        break
+                                    else:
+                                        meeting_json["meetingID"] = internal_meeting_ids[sub_cat.text]
                                 else:
                                     meeting_json[sub_cat.tag] = utils.xml_escape(sub_cat.text)
 
-                                if sub_cat.tag == "meetingID":
-                                    if sub_cat.text not in meeting_ids:
-                                        add_to_response = False
-                                        break
                             if add_to_response:
                                 context["meetings"].append(meeting_json)
         except:
