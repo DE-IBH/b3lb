@@ -41,7 +41,7 @@ def backend_record_upload(request):
                 filename = tar_name
             else:
                 filename = timezone.now().strftime("%Y%m%d%H%M%S%f")
-            with open("/upload/{}.tar.xz".format(filename), "wb") as tar:
+            with open("/upload/{}.tar".format(filename), "wb") as tar:
                 tar.write(tar_file.read())
         return HttpResponse(status=204)
     else:
