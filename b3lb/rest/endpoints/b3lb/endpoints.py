@@ -63,7 +63,8 @@ async def requested_endpoint(secret, endpoint, request, params):
 
     if endpoint in ["join", "end", "isMeetingRunning", "getMeetingInfo", "setConfigXML"]:
         if params.get("meetingID"):
-            params["meetingID"] = await lb.get_internal_id(secret, params["meetingID"])
+            external_id = params["meetingID"]
+            params["meetingID"] = await sync_to_async(lb.get_internal_id)(secret, external_id)
         else:
             return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
 
@@ -75,7 +76,7 @@ async def requested_endpoint(secret, endpoint, request, params):
             return HttpResponseBadRequest()
 
     if endpoint == "create":
-        internal_id = await lb.get_internal_id(secret, params.get("meetingID"))
+        internal_id = await sync_to_async(lb.get_internal_id)(secret, params["meetingID"])
         node, new_meeting = await lb.check_meeting_existence(internal_id, secret)
         if node and new_meeting:
             limit_check = await lb.limit_check(secret)
@@ -91,14 +92,14 @@ async def requested_endpoint(secret, endpoint, request, params):
     if endpoint == "end":
         node = await lb.get_node_by_meeting_id(params["meetingID"])
         if node:
-            return await pass_through(request, endpoint, params, node)
+            return await pass_through(request, endpoint, params, node, external_id)
         else:
             return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
     if endpoint == "isMeetingRunning":
         node = await lb.get_node_by_meeting_id(params["meetingID"])
         if node:
-            return await pass_through(request, endpoint, params, node)
+            return await pass_through(request, endpoint, params, node, external_id)
         else:
             return HttpResponse(constants.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
 
@@ -108,7 +109,7 @@ async def requested_endpoint(secret, endpoint, request, params):
     if endpoint == "getMeetingInfo":
         node = await lb.get_node_by_meeting_id(params["meetingID"])
         if node:
-            return await pass_through(request, endpoint, params, node)
+            return await pass_through(request, endpoint, params, node, external_id)
         else:
             return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
@@ -131,7 +132,7 @@ async def requested_endpoint(secret, endpoint, request, params):
     if endpoint == "setConfigXML":
         node = await lb.get_node_by_meeting_id(params["meetingID"])
         if node:
-            return await pass_through(request, endpoint, params, node)
+            return await pass_through(request, endpoint, params, node, external_id)
         else:
             return HttpResponseBadRequest()
 
@@ -180,9 +181,11 @@ async def create(request, endpoint, params, node, secret):
     body = request.body
 
     try:
-        meeting_id = params["meetingID"]
+        external_id = params["meetingID"]
     except KeyError:
         return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
+
+    params["meetingID"] = await sync_to_async(lb.get_internal_id)(secret, external_id)
 
     params = await sync_to_async(lb.check_parameter)(params, secret.tenant)
 
@@ -201,15 +204,15 @@ async def create(request, endpoint, params, node, secret):
         end_callback_origin_url = ""
 
     defaults = {
-        "id": lb.get_internal_id(secret, meeting_id),
-        "external_id": meeting_id,
+        "id": params["meetingID"],
+        "external_id": external_id,
         "secret": secret,
         "node": node,
         "room_name": params.get("name", "Unknown"),
         "end_callback_url": end_callback_origin_url
     }
 
-    meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
+    meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=params["meetingID"], secret=secret, defaults=defaults)
 
     # check if records are enabled
     if secret.is_record_enabled:
@@ -228,7 +231,7 @@ async def create(request, endpoint, params, node, secret):
 
     params["meta_endCallbackUrl"] = "https://{}-{}.{}/b3lb/b/meeting/end?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BACKEND_DOMAIN, meeting.nonce)
 
-    response = await pass_through(request, endpoint, params, node, body=body)
+    response = await pass_through(request, endpoint, params, node, external_id, body=body)
 
     if created:
         await lb.update_create_metrics(secret, node)
