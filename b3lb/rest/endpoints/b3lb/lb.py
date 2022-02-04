@@ -87,13 +87,13 @@ api_pass_through.csrf_exempt = True
 
 
 @sync_to_async
-def check_meeting_existence(meeting_id, secret):
-    if meeting_id is None:
+def check_meeting_existence(internal_id, secret):
+    if internal_id is None:
         return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
 
     with transaction.atomic():
         try:
-            meeting = Meeting.objects.get(id=meeting_id, secret=secret)
+            meeting = Meeting.objects.get(id=internal_id)
             return meeting.node, False
         except ObjectDoesNotExist:
             return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
@@ -155,12 +155,17 @@ def get_endpoint_str(endpoint, params, secret):
         return "{}?checksum={}".format(endpoint, sha_1.hexdigest())
 
 
+def get_internal_id(secret, external_id):
+    encoded_string = "{}\0{}\0".format(settings.B3LB_SITE_SLUG, secret.uuid, external_id).encode()
+    return hashlib.sha256(encoded_string).hexdigest()
+
+
 @sync_to_async
-def get_node_by_meeting_id(meeting_id, secret):
-    if meeting_id is None:
+def get_node_by_meeting_id(internal_id):
+    if internal_id is None:
         return None
     try:
-        meeting = Meeting.objects.get(id=meeting_id, secret=secret)
+        meeting = Meeting.objects.get(id=internal_id)
         if meeting.node.has_errors:
             return None
         else:
