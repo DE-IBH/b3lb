@@ -61,9 +61,9 @@ async def requested_endpoint(secret, endpoint, request, params):
     if not endpoint:
         return HttpResponse(constants.RETURN_STRING_VERSION, content_type='text/html')
 
+    external_id = params.get("meetingID")
     if endpoint in ["join", "end", "isMeetingRunning", "getMeetingInfo", "setConfigXML"]:
-        if params.get("meetingID"):
-            external_id = params["meetingID"]
+        if external_id:
             params["meetingID"] = await sync_to_async(lb.get_internal_id)(secret, external_id)
         else:
             return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
@@ -246,12 +246,10 @@ async def pass_through(request, endpoint, params, node, external_id, body=None):
     async with aiohttp.ClientSession() as session:
         if request.method == "POST":
             async with session.post(URL(url, encoded=True), data=body) as res:
-                print(res.text())
-                return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', 'text/html'))
+                return HttpResponse((await res.text()).replace(params["meetingID"], external_id), status=res.status, content_type=res.headers.get('content-type', 'text/html'))
         else:
             async with session.get(URL(url, encoded=True)) as res:
-                print(res.text())
-                return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', 'text/html'))
+                return HttpResponse((await res.text()).replace(params["meetingID"], external_id), status=res.status, content_type=res.headers.get('content-type', 'text/html'))
 
 
 def tenant_stats(tenant):
