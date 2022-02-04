@@ -65,15 +65,22 @@ async def requested_endpoint(secret, endpoint, request, params):
     if not endpoint:
         return HttpResponse(constants.RETURN_STRING_VERSION, content_type='text/html')
 
+    if endpoint in ["join", "end", "isMeetingRunning", "getMeetingInfo", "setConfigXML"]:
+        if params.get("meetingID"):
+            params["meetingID"] = await lb.get_internal_id(secret, params["meetingID"])
+        else:
+            return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
+
     if endpoint == "join":
-        node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
+        node = await lb.get_node_by_meeting_id(params["meetingID"])
         if node:
             return await join(params, node, secret)
         else:
             return HttpResponseBadRequest()
 
     if endpoint == "create":
-        node, new_meeting = await lb.check_meeting_existence(params["meetingID"], secret)
+        internal_id = await lb.get_internal_id(secret, params.get("meetingID"))
+        node, new_meeting = await lb.check_meeting_existence(internal_id, secret)
         if node and new_meeting:
             limit_check = await lb.limit_check(secret)
             if limit_check:
@@ -90,7 +97,7 @@ async def requested_endpoint(secret, endpoint, request, params):
 
     # Pass Through Endpoints
     if endpoint in PASS_THOUGH_ENDPOINTS:
-        node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
+        node = await lb.get_node_by_meeting_id(params["meetingID"])
         if node:
             return await pass_through(request, endpoint, params, node, body=request.body)
         else:
@@ -116,7 +123,7 @@ async def requested_endpoint(secret, endpoint, request, params):
         return HttpResponse(constants.RETURN_STRING_GENERAL_FAILED.format("updated", "updated"), content_type='text/html')
 
     if endpoint == "setConfigXML":
-        node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
+        node = await lb.get_node_by_meeting_id(params["meetingID"])
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
@@ -188,7 +195,8 @@ async def create(request, endpoint, params, node, secret):
         end_callback_origin_url = ""
 
     defaults = {
-        "id": meeting_id,
+        "id": lb.get_internal_id(secret, meeting_id),
+        "external_id": meeting_id,
         "secret": secret,
         "node": node,
         "room_name": params.get("name", "Unknown"),
@@ -200,9 +208,9 @@ async def create(request, endpoint, params, node, secret):
     # check if records are enabled
     if secret.is_record_enabled:
         if "meta_bbb-recording-ready-url" in params:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_relation=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
         else:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting_relation=meeting)
         params["meta_{}-recordset".format(settings.B3LB_SITE_SLUG)] = record_set.nonce
     else:
         # record aren't enabled -> suppress any record related parameter
@@ -222,16 +230,18 @@ async def create(request, endpoint, params, node, secret):
     return response
 
 
-# for endpoints without manipulations of b3lb
-async def pass_through(request, endpoint, params, node, body=None):
+# for endpoints without further manipulations of B3LB
+async def pass_through(request, endpoint, params, node, external_id, body=None):
     url = "{}{}".format(node.api_base_url, lb.get_endpoint_str(endpoint, params, node.secret))
 
     async with aiohttp.ClientSession() as session:
         if request.method == "POST":
             async with session.post(URL(url, encoded=True), data=body) as res:
+                print(res.text())
                 return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', 'text/html'))
         else:
             async with session.get(URL(url, encoded=True)) as res:
+                print(res.text())
                 return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', 'text/html'))
 
 

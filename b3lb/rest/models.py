@@ -500,6 +500,7 @@ class SecretMetricsListAdmin(ModelAdmin):
 # meeting - tenant - node relation class
 class Meeting(Model):
     id = CharField(max_length=MEETING_ID_LENGTH, primary_key=True)
+    external_id = CharField(max_length=64)
     secret = ForeignKey(Secret, on_delete=CASCADE)
     node = ForeignKey(Node, on_delete=CASCADE)
     room_name = CharField(max_length=500)
@@ -532,8 +533,8 @@ class MeetingAdmin(ModelAdmin):
 class RecordSet(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     secret = ForeignKey(Secret, on_delete=CASCADE)
-    meeting = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
-    meetingid = CharField(max_length=MEETING_ID_LENGTH, default="")
+    meeting_relation = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
+    meeting_id = CharField(max_length=MEETING_ID_LENGTH, default="")
     created_at = DateTimeField(default=now)
     recording_ready_origin_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False, unique=True)
