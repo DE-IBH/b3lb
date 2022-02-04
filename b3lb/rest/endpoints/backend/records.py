@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2022 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -18,16 +18,31 @@
 # B3LB Backend API Endpoints
 #
 
-import requests
+from django.utils import timezone
+from django.conf import settings
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest.models import RecordSet, Record
 
 
 @require_http_methods(["POST"])
+@csrf_exempt
 def backend_record_upload(request):
     """
     Upload for BBB record files.
     Does currently nothing.
     """
-    return HttpResponse(status=204)
+    if settings.B3LB_STORAGE_USE_LOCAL_STORAGE or settings.B3LB_STORAGE_USE_S3_STORAGE:
+        tar_file = request.FILES.get("file")
+        tar_name = request.POST.get("file_name")
+        if settings.B3LB_STORAGE_USE_LOCAL_STORAGE:
+            if tar_name:
+                filename = tar_name
+            else:
+                filename = timezone.now().strftime("%Y%m%d%H%M%S%f")
+            with open("/upload/{}.tar".format(filename), "wb") as tar:
+                tar.write(tar_file.read())
+        return HttpResponse(status=204)
+    else:
+        return HttpResponse(status=423)
