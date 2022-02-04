@@ -26,7 +26,7 @@ from rest.models import Node, Tenant, Secret
 logger = get_task_logger(__name__)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, name="Check Nodes")
 def check_node(node_uuid):
     return celery_run_check_node(node_uuid)
 
@@ -41,7 +41,7 @@ def update_secret_metrics_list(secret_uuid):
     return celery_update_metrics(secret_uuid)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, name="Update Secrets List")
 def update_secrets_lists():
     update_secret_metrics_list.si(None).apply_async()
     for secret in Secret.objects.all():
@@ -50,24 +50,24 @@ def update_secrets_lists():
     return True
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, name="Check Node Status")
 def check_status():
     for node in Node.objects.all():
         check_node.si(str(node.uuid)).apply_async()
     return True
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, name="Cleanup Assets")
 def cleanup_assets():
     return celery_cleanup_assets()
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, name="Update Tenant Statistics")
 def update_tenant_statistic(tenant_uuid):
     return celery_statistic_fill_by_tenant(tenant_uuid)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, name="Update Statistics")
 def update_statistic():
     for tenant in Tenant.objects.all():
         update_tenant_statistic.si(str(tenant.uuid)).apply_async()
