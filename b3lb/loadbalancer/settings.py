@@ -209,6 +209,7 @@ ADMINS = email.utils.getaddresses([env.str('DJANGO_ADMINS', '')])
 
 B3LB_API_BASE_DOMAIN = env.str('B3LB_API_BASE_DOMAIN')
 B3LB_API_BACKEND_DOMAIN = env.str('B3LB_API_BACKEND_DOMAIN', default=B3LB_API_BASE_DOMAIN)
+B3LB_SITE_SLUG = env.str('B3LB_SITE_SLUG', default='b3lb')
 
 B3LB_NODE_PROTOCOL = env.str('B3LB_NODE_PROTOCOL', default='https://')
 B3LB_NODE_DEFAULT_DOMAIN = env.str('B3LB_NODE_DEFAULT_DOMAIN', default='bbbconf.de')
@@ -220,3 +221,16 @@ B3LB_NO_SLIDES_TEXT = env.str('B3LB_NO_SLIDES_TEXT', default='<default>')
 
 B3LB_CACHE_NML_PATTERN = env.str('B3LB_CACHE_NML_PATTERN', default='NML#{}')
 B3LB_CACHE_NML_TIMEOUT = env.int('B3LB_CACHE_NML_TIMEOUT', default=30)
+
+######
+# B3LB Storage Setting
+######
+
+# use local storage for uploading record files
+# set all USE_*_STORAGE to "False" to disable Record workflow in B3LB
+B3LB_STORAGE_USE_LOCAL_STORAGE = env.bool('B3LB_STORAGE_USE_LOCAL_STORAGE', default=True)
+
+# S3 Storage Settings
+# ToDo: Implement S3 later
+B3LB_STORAGE_USE_S3_STORAGE = env.bool('B3LB_STORAGE_USE_S3_STORAGE', default=False)
+

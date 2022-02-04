@@ -200,14 +200,17 @@ async def create(request, endpoint, params, node, secret):
     # check if records are enabled
     if secret.is_record_enabled:
         if "meta_bbb-recording-ready-url" in params:
-            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
-            del params["meta_bbb-recording-ready-url"]
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
         else:
-            await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
+        params["meta_{}-recordset".format(settings.B3LB_SITE_SLUG)] = record_set.nonce
     else:
         # record aren't enabled -> suppress any record related parameter
         for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
             params[param] = "false"
+
+    if "meta_bbb-recording-ready-url" in params:
+        del params["meta_bbb-recording-ready-url"]
 
     params["meta_endCallbackUrl"] = "https://{}-{}.{}/b3lb/b/meeting/end?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BACKEND_DOMAIN, meeting.nonce)
 
