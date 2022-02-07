@@ -17,14 +17,12 @@
 
 import hashlib
 import re
-import rest.endpoints.b3lb.endpoints as ep
 import rest.utils as utils
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import F, Sum
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed
 from random import randint
 from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant, Parameter
 from rest.utils import load_template
@@ -47,45 +45,12 @@ METRIC_BIGINT_MODULO = 9223372036854775808
 ##
 # Routines
 ##
-async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
-    """
-    Entrypoint for BBB APIs
-    """
-    # async: workaround for @require_http_methods decorator
-    if request.method not in ["GET", "POST"]:
-        return HttpResponseNotAllowed(["GET", "POST"])
+@sync_to_async
+def check_meeting_node(meeting):
+    if meeting and meeting.node and not meeting.node.has_errors:
+        return True
+    return False
 
-    parameters = request.GET
-
-    params = {}
-    for param in parameters:
-        params[param] = parameters[param]
-
-    if "checksum" in params:
-        checksum = params["checksum"]
-        del params["checksum"]
-    else:
-        return HttpResponse("Unauthorized", status=401)
-
-    secret = await sync_to_async(get_request_secret)(request, slug, sub_id)
-    if not secret:
-        return HttpResponse("Unauthorized", status=401)
-
-    if not (check_tenant(secret.secret, checksum, endpoint, request.META.get("QUERY_STRING", "")) or check_tenant(secret.secret2, checksum, endpoint, request.META.get("QUERY_STRING", ""))):
-        return HttpResponse("Unauthorized", status=401)
-
-    if endpoint in ep.LEGAL_ENDPOINTS:
-        if endpoint in ep.WHITELISTED_ENDPOINTS:
-            return await ep.requested_endpoint(secret, endpoint, request, params)
-        else:
-            response = HttpResponse()
-            response.status_code = 403
-            return response
-    else:
-        return HttpResponseForbidden()
-
-# async: workaround for @csrf_excempt decorator
-api_pass_through.csrf_exempt = True
 
 def check_parameter(params, tenant, join=False):
     parameters = Parameter.objects.filter(tenant=tenant)
@@ -108,6 +73,7 @@ def check_parameter(params, tenant, join=False):
     return params
 
 
+@sync_to_async
 def check_tenant(secret, checksum, endpoint, query_string):
     if secret:
         sha_1 = hashlib.sha1()
@@ -129,6 +95,10 @@ def del_metric(name, secret, node):
 
 
 @sync_to_async
+def get_cluster_group_from_secret(secret):
+    return secret.tenant.cluster_group
+
+
 def get_endpoint_str(endpoint, params, secret):
     parameter_str = ""
 
@@ -151,7 +121,7 @@ def get_internal_id(secret, external_id):
 
 
 @sync_to_async
-def get_node_by_meeting(meeting):
+def get_meeting_node(meeting):
     if not meeting:
         return None
     if meeting.node.has_errors:
@@ -159,6 +129,7 @@ def get_node_by_meeting(meeting):
     return meeting.node
 
 
+@sync_to_async
 def get_node_params_by_lowest_workload(cluster_group):
     lowest = 10000000
     lowest_node_list = []
@@ -281,21 +252,22 @@ def replace_information_in_xml(response, endpoint, meeting):
         for category in xml:
             if category.tag == "attendees":
                 response_json["response"]["attendees"] = []
-                for ssub_cat in category:
-                    if ssub_cat.tag == "attendee":
+                for sub_cat in category:
+                    if sub_cat.tag == "attendee":
                         element_json = {}
-                        for element in ssub_cat:
+                        for element in sub_cat:
                             element_json[element.tag] = utils.xml_escape(element.text)
                         response_json["response"]["attendees"].append(element_json)
             elif category.tag == "meetingID":  # replace internal with external id
                 response_json["response"]["meetingID"] = utils.xml_escape(meeting.external_id)
             elif category.tag == "metadata":
                 response_json["response"]["metadata"] = {}
-                for ssub_cat in category:  # filter b3lb specific meta data information
-                    if ssub_cat.tag != ["{}-recordset".format(settings.B3LB_SITE_SLUG)]:
-                        response_json["response"]["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
-                    elif ssub_cat.tag == "endCallbackUrl":
-                        response_json["response"]["metadata"][ssub_cat.tag] = utils.xml_escape(meeting.end_callback_url)
+                for sub_cat in category:  # filter b3lb specific meta data information
+                    if sub_cat.tag not in ["{}-recordset".format(settings.B3LB_SITE_SLUG), "endcallbackurl"]:
+                        response_json["response"]["metadata"][sub_cat.tag] = utils.xml_escape(sub_cat.text)
+                    elif sub_cat.tag == "endcallbackurl":
+                        if meeting.end_callback_url:
+                            response_json["response"]["metadata"][sub_cat.tag] = utils.xml_escape(meeting.end_callback_url)
             else:
                 response_json["response"][category.tag] = utils.xml_escape(category.text)
         return template.render(response_json)

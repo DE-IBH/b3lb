@@ -1,4 +1,3 @@
-<response>
-{% for element_key, element_value in response.items() %}
-<element_key>{{ element_value }}</element_key>{% endfor %}
+<response>{% for element_key, element_value in response.items() %}
+<{{ element_key }}>{{ element_value }}</{{ element_key }}>{% endfor %}
 </response>

@@ -1,7 +1,7 @@
 <response>
 <returncode>SUCCESS</returncode>
-<meetings>
-{% for meeting_dict in meetings %}<meeting>
+<meetings>{% for meeting_dict in meetings %}
+<meeting>
 {% for meeting_key, meeting_value in meeting_dict.items() %}{% if meeting_key == "attendees" %}<attendees>{% for attendee in meeting_value %}
 <attendee>
 {% for attendee_key, attendee_value in attendee.items() %}<{{ attendee_key }}>{{ attendee_value }}</{{ attendee_key }}>

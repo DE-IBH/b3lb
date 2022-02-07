@@ -20,7 +20,7 @@ from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed
 from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter, RecordSet
 import rest.endpoints.b3lb.lb as lb
 import rest.endpoints.b3lb.constants as constants
@@ -67,6 +67,48 @@ SUPPRESSED_PARAMS = ['dialNumber', 'voiceBridge']
 ##
 # Meta Routine
 ##
+async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
+    """
+    Entrypoint for BBB APIs
+    """
+    # async: workaround for @require_http_methods decorator
+    if request.method not in ["GET", "POST"]:
+        return HttpResponseNotAllowed(["GET", "POST"])
+
+    parameters = request.GET
+
+    params = {}
+    for param in parameters:
+        params[param] = parameters[param]
+
+    if "checksum" in params:
+        checksum = params["checksum"]
+        del params["checksum"]
+    else:
+        return HttpResponse("Unauthorized", status=401)
+
+    secret = await sync_to_async(lb.get_request_secret)(request, slug, sub_id)
+    if not secret:
+        return HttpResponse("Unauthorized", status=401)
+
+    if not (await lb.check_tenant(secret.secret, checksum, endpoint, request.META.get("QUERY_STRING", "")) or await lb.check_tenant(secret.secret2, checksum, endpoint, request.META.get("QUERY_STRING", ""))):
+        return HttpResponse("Unauthorized", status=401)
+
+    if endpoint in LEGAL_ENDPOINTS:
+        if endpoint in WHITELISTED_ENDPOINTS:
+            return await requested_endpoint(secret, endpoint, request, params)
+        else:
+            response = HttpResponse()
+            response.status_code = 403
+            return response
+    else:
+        return HttpResponseForbidden()
+
+
+# async: workaround for @csrf_exempt decorator
+api_pass_through.csrf_exempt = True
+
+
 async def requested_endpoint(secret, endpoint, request, params):
     if not endpoint:
         return HttpResponse(constants.RETURN_STRING_VERSION, content_type='text/html')
@@ -81,7 +123,7 @@ async def requested_endpoint(secret, endpoint, request, params):
         meeting = await lb.get_running_meeting(params["meetingID"])
 
     if endpoint == "join":
-        if meeting and meeting.node:
+        if meeting and await lb.get_meeting_node(meeting):
             return await join(params, meeting.node, secret)
         else:
             return HttpResponseBadRequest()
@@ -97,13 +139,13 @@ async def requested_endpoint(secret, endpoint, request, params):
             return await create(request, endpoint, params, meeting, secret)
 
     if endpoint == "end":
-        if meeting and meeting.node:
+        if meeting and await lb.get_meeting_node(meeting):
             return await pass_through(request, endpoint, params, meeting)
         else:
             return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
     if endpoint == "isMeetingRunning":
-        if meeting and meeting.node:
+        if meeting and await lb.get_meeting_node(meeting):
             return await pass_through(request, endpoint, params, meeting)
         else:
             return HttpResponse(constants.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
@@ -112,7 +154,7 @@ async def requested_endpoint(secret, endpoint, request, params):
         return await sync_to_async(get_meetings)(secret)
 
     if endpoint == "getMeetingInfo":
-        if meeting and meeting.node:
+        if meeting and await lb.get_meeting_node(meeting):
             return await pass_through(request, endpoint, params, meeting)
         else:
             return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
@@ -177,22 +219,21 @@ async def join(params, node, secret):
     return HttpResponseRedirect(url)
 
 
-async def create(request, endpoint, params, secret, meeting=Meeting(), external_id=None):
+async def create(request, endpoint, params, meeting, secret, external_id=None):
     # suppress some parameters
     for param in SUPPRESSED_PARAMS:
         params.pop(param, None)
     body = request.body
-    created = False
 
     if not meeting and not external_id:
         return HttpResponse(constants.RETURN_STRING_MISSING_MEETING_ID, content_type='test/html')
     elif meeting:
         external_id = meeting.external_id
 
-    if meeting and meeting.node:
+    if await lb.check_meeting_node(meeting):
         node = meeting.node
     else:
-        node = await lb.get_node_params_by_lowest_workload(secret.tenant.cluster_group)
+        node = await lb.get_node_params_by_lowest_workload(await lb.get_cluster_group_from_secret(secret))
 
     if not node:
         return HttpResponse(constants.RETURN_STRING_CREATE_FAILED)
@@ -249,7 +290,7 @@ async def create(request, endpoint, params, secret, meeting=Meeting(), external_
 
 # request to and response from node
 async def pass_through(request, endpoint, params, meeting, body=None):
-    url = "{}{}".format(meeting.node.api_base_url, lb.get_endpoint_str(endpoint, params, meeting.node.secret))
+    url = "{}{}".format(meeting.node.api_base_url, await sync_to_async(lb.get_endpoint_str)(endpoint, params, meeting.node.secret))
 
     async with aiohttp.ClientSession() as session:
         if request.method == "POST":
@@ -259,7 +300,6 @@ async def pass_through(request, endpoint, params, meeting, body=None):
         else:
             async with session.get(URL(url, encoded=True)) as res:
                 response = await res.text()
-                print(response)
                 return HttpResponse(await lb.replace_information_in_xml(response, endpoint, meeting), status=res.status, content_type=res.headers.get('content-type', 'text/html'))
 
 
