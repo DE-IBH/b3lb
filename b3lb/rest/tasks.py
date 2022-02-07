@@ -26,7 +26,7 @@ from rest.models import Node, Tenant, Secret
 logger = get_task_logger(__name__)
 
 
-@app.task(ignore_result=True, base=Singleton, name="Check Nodes")
+@app.task(ignore_result=True, base=Singleton)
 def check_node(node_uuid):
     return celery_run_check_node(node_uuid)
 
