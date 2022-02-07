@@ -1,0 +1,14 @@
+<response>
+<returncode>SUCCESS</returncode>
+<meeting>
+{% for meeting_key, meeting_value in response.items() %}{% if meeting_key == "attendees" %}<attendees>{% for attendee in meeting_value %}
+<attendee>
+{% for attendee_key, attendee_value in attendee.items() %}<{{ attendee_key }}>{{ attendee_value }}</{{ attendee_key }}>
+{% endfor %}</attendee>{% endfor %}
+</attendees>
+{% elif meeting_key == "metadata" %}<metadata>{% for metadata_key, metadata_value in meeting_value.items() %}
+<{{ metadata_key }}>{{ metadata_value }}</{{ metadata_key }}>{% endfor %}
+</metadata>
+{% else %}<{{ meeting_key }}>{{ meeting_value }}</{{ meeting_key }}>
+{% endif %}{% endfor %}</meeting>
+</response>

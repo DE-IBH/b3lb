@@ -27,7 +27,9 @@ from django.conf import settings
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed
 from random import randint
 from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant, Parameter
+from rest.utils import load_template
 from urllib.parse import urlencode
+from xml.etree import ElementTree
 
 
 ##
@@ -85,20 +87,6 @@ async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
 # async: workaround for @csrf_excempt decorator
 api_pass_through.csrf_exempt = True
 
-
-@sync_to_async
-def check_meeting_existence(internal_id, secret):
-    if internal_id is None:
-        return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
-
-    with transaction.atomic():
-        try:
-            meeting = Meeting.objects.get(id=internal_id)
-            return meeting.node, False
-        except ObjectDoesNotExist:
-            return get_node_params_by_lowest_workload(secret.tenant.cluster_group), True
-
-
 def check_parameter(params, tenant, join=False):
     parameters = Parameter.objects.filter(tenant=tenant)
 
@@ -140,6 +128,7 @@ def del_metric(name, secret, node):
     Metric.objects.filter(name=name, secret=secret, node=node).delete()
 
 
+@sync_to_async
 def get_endpoint_str(endpoint, params, secret):
     parameter_str = ""
 
@@ -155,23 +144,19 @@ def get_endpoint_str(endpoint, params, secret):
         return "{}?checksum={}".format(endpoint, sha_1.hexdigest())
 
 
+@sync_to_async
 def get_internal_id(secret, external_id):
     encoded_string = "{}\0{}\0".format(settings.B3LB_SITE_SLUG, secret.uuid, external_id).encode()
     return hashlib.sha256(encoded_string).hexdigest()
 
 
 @sync_to_async
-def get_node_by_meeting_id(internal_id):
-    if internal_id is None:
+def get_node_by_meeting(meeting):
+    if not meeting:
         return None
-    try:
-        meeting = Meeting.objects.get(id=internal_id)
-        if meeting.node.has_errors:
-            return None
-        else:
-            return meeting.node
-    except ObjectDoesNotExist:
+    if meeting.node.has_errors:
         return None
+    return meeting.node
 
 
 def get_node_params_by_lowest_workload(cluster_group):
@@ -191,6 +176,66 @@ def get_node_params_by_lowest_workload(cluster_group):
         return lowest_node_list[randint(0, len(lowest_node_list) - 1)]
     else:
         return None
+
+
+def get_slug(request, slug, sub_id):
+    if slug is None:
+        host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
+        host = utils.forwarded_host_regex.sub(r'\1', host)
+
+        regex_search = slug_regex.search(host)
+        if regex_search:
+            return regex_search.group(1).upper(), int(regex_search.group(3) or 0)
+        else:
+            return None, None
+    else:
+        return slug.upper(), int(sub_id)
+
+
+def get_request_tenant(request, slug, sub_id):
+    slug, sub_id = get_slug(request, slug, sub_id)
+    if not slug:
+        return None
+
+    try:
+        return Secret.objects.select_related("tenant", "tenant__asset").get(tenant__slug=slug, sub_id=sub_id)
+    except ObjectDoesNotExist:
+        return None
+
+
+def get_request_tenant(request, slug, sub_id):
+    slug, sub_id = get_slug(request, slug, sub_id)
+    if not slug:
+        return None
+
+    try:
+        return Tenant.objects.get(slug=slug)
+    except ObjectDoesNotExist:
+        return None
+
+
+@sync_to_async
+def get_running_meeting(internal_id):
+    """
+    Get running meeting or returns None when meeting is non-existing.
+    """
+    if internal_id is None:
+        return None
+
+    with transaction.atomic():
+        try:
+            meeting = Meeting.objects.get(id=internal_id)
+            return meeting
+        except ObjectDoesNotExist:
+            return None
+
+
+def get_slide_body_for_post(secret):
+    slide_base64 = secret.tenant.asset.slide_base64
+    if slide_base64:
+        return '<modules><module name="presentation"><document name="{}">{}</document></module></modules>'.format(secret.tenant.asset.s_filename, slide_base64)
+    else:
+        return '<modules><module name="presentation"><document url="{}" filename="{}"></document></module></modules>'.format(secret.tenant.asset.slide_url, secret.tenant.asset.s_filename)
 
 
 def incr_metric(name, secret, node=None, incr=1):
@@ -227,48 +272,43 @@ def limit_check(secret):
     return True
 
 
-def get_slug(request, slug, sub_id):
-    if slug is None:
-        host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
-        host = utils.forwarded_host_regex.sub(r'\1', host)
-
-        regex_search = slug_regex.search(host)
-        if regex_search:
-            return regex_search.group(1).upper(), int(regex_search.group(3) or 0)
-        else:
-            return None, None
-    else:
-        return slug.upper(), int(sub_id)
-
-
-def get_request_tenant(request, slug, sub_id):
-    slug, sub_id = get_slug(request, slug, sub_id)
-    if not slug:
-        return None
-
-    try:
-        return Tenant.objects.get(slug=slug)
-    except ObjectDoesNotExist:
-        return None
-
-
-def get_request_secret(request, slug, sub_id):
-    slug, sub_id = get_slug(request, slug, sub_id)
-    if not slug:
-        return None
-
-    try:
-        return Secret.objects.select_related("tenant", "tenant__asset").get(tenant__slug=slug, sub_id=sub_id)
-    except ObjectDoesNotExist:
-        return None
-
-
-def get_slide_body_for_post(secret):
-    slide_base64 = secret.tenant.asset.slide_base64
-    if slide_base64:
-        return '<modules><module name="presentation"><document name="{}">{}</document></module></modules>'.format(secret.tenant.asset.s_filename, slide_base64)
-    else:
-        return '<modules><module name="presentation"><document url="{}" filename="{}"></document></module></modules>'.format(secret.tenant.asset.slide_url, secret.tenant.asset.s_filename)
+@sync_to_async
+def replace_information_in_xml(response, endpoint, meeting):
+    response_json = {"response": {}}
+    if response and meeting and endpoint == "getMeetingInfo":
+        xml = ElementTree.fromstring(response)
+        template = load_template("getMeetingInfo.xml")
+        for category in xml:
+            if category.tag == "attendees":
+                response_json["response"]["attendees"] = []
+                for ssub_cat in category:
+                    if ssub_cat.tag == "attendee":
+                        element_json = {}
+                        for element in ssub_cat:
+                            element_json[element.tag] = utils.xml_escape(element.text)
+                        response_json["response"]["attendees"].append(element_json)
+            elif category.tag == "meetingID":  # replace internal with external id
+                response_json["response"]["meetingID"] = utils.xml_escape(meeting.external_id)
+            elif category.tag == "metadata":
+                response_json["response"]["metadata"] = {}
+                for ssub_cat in category:  # filter b3lb specific meta data information
+                    if ssub_cat.tag != ["{}-recordset".format(settings.B3LB_SITE_SLUG)]:
+                        response_json["response"]["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
+                    elif ssub_cat.tag == "endCallbackUrl":
+                        response_json["response"]["metadata"][ssub_cat.tag] = utils.xml_escape(meeting.end_callback_url)
+            else:
+                response_json["response"][category.tag] = utils.xml_escape(category.text)
+        return template.render(response_json)
+    elif response and meeting and endpoint == "create":
+        xml = ElementTree.fromstring(response)
+        template = load_template("create.xml")
+        for category in xml:
+            if category.tag == "meetingID":  # replace internal with external id
+                response_json["response"]["meetingID"] = utils.xml_escape(meeting.external_id)
+            else:
+                response_json["response"][category.tag] = utils.xml_escape(category.text)
+        return template.render(response_json)
+    return response
 
 
 def set_metric(name, secret, node, value):
