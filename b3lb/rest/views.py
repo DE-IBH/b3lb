@@ -20,4 +20,4 @@ from rest.endpoints.backend.meeting import *
 from rest.endpoints.other.monitoring import *
 from rest.endpoints.tenant.assets import *
 from rest.endpoints.tenant.statistics import *
-from rest.endpoints.b3lb.lb import api_pass_through
+from rest.endpoints.b3lb.endpoints import api_pass_through
