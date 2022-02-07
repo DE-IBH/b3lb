@@ -231,8 +231,11 @@ def celery_update_get_meetings_xml(secret_uuid):
                                 elif sub_cat.tag == "metadata":
                                     meeting_json["metadata"] = {}
                                     for ssub_cat in sub_cat:
-                                        if ssub_cat.tag != "{}-recordset".format(settings.B3LB_SITE_SLUG):
+                                        if ssub_cat.tag not in ["{}-recordset".format(settings.B3LB_SITE_SLUG), "endcallbackurl"]:
                                             meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
+                                        elif ssub_cat.tag == "endcallbackurl":
+                                            if node_meeting.end_callback_url:
+                                                meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(node_meeting.end_callback_url)
                                 elif sub_cat.tag == "meetingID":
                                     if sub_cat.text not in internal_meeting_ids:
                                         add_to_response = False
