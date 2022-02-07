@@ -197,7 +197,7 @@ def celery_update_get_meetings_xml(secret_uuid):
     internal_meeting_ids = {}
 
     for mci in mcis:
-        internal_meeting_ids[mci.id] = mci.external_id
+        internal_meeting_ids[mci.id] = {"external_id": mci.external_id, "end_callback_url": mci.end_callback_url}
 
     nodes = Node.objects.all()
     context = {"meetings": []}
@@ -229,19 +229,22 @@ def celery_update_get_meetings_xml(secret_uuid):
                                                 element_json[element.tag] = utils.xml_escape(element.text)
                                             meeting_json["attendees"].append(element_json)
                                 elif sub_cat.tag == "metadata":
-                                    meeting_json["metadata"] = {}
+                                    if "metadata" not in meeting_json:
+                                        meeting_json["metadata"] = {}
                                     for ssub_cat in sub_cat:
                                         if ssub_cat.tag not in ["{}-recordset".format(settings.B3LB_SITE_SLUG), "endcallbackurl"]:
                                             meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
-                                        elif ssub_cat.tag == "endcallbackurl":
-                                            if node_meeting.end_callback_url:
-                                                meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(node_meeting.end_callback_url)
                                 elif sub_cat.tag == "meetingID":
                                     if sub_cat.text not in internal_meeting_ids:
                                         add_to_response = False
                                         break
                                     else:
-                                        meeting_json["meetingID"] = internal_meeting_ids[sub_cat.text]
+                                        meeting_json["meetingID"] = utils.xml_escape(internal_meeting_ids[sub_cat.text]["external_id"])
+                                        if internal_meeting_ids[sub_cat.text]["end_callback_url"]:
+                                            if "metadata" not in meeting_json:
+                                                meeting_json["metadata"] = {"endcallbackurl": utils.xml_escape(internal_meeting_ids[sub_cat.text]["end_callback_url"])}
+                                            else:
+                                                meeting_json["metadata"]["endcallbackurl"] = utils.xml_escape(internal_meeting_ids[sub_cat.text]["end_callback_url"])
                                 else:
                                     meeting_json[sub_cat.tag] = utils.xml_escape(sub_cat.text)
 
