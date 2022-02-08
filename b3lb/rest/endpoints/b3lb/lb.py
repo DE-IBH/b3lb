@@ -24,7 +24,7 @@ from django.db import transaction
 from django.db.models import F, Sum
 from django.conf import settings
 from random import randint
-from rest.models import Meeting, Metric, Node, ClusterGroupRelation, Secret, Tenant, Parameter
+from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, Tenant
 from rest.utils import load_template
 from urllib.parse import urlencode
 from xml.etree import ElementTree
@@ -247,6 +247,10 @@ def limit_check(secret):
 def replace_information_in_xml(response, endpoint, meeting):
     response_json = {"response": {}}
     if response and meeting and endpoint == "getMeetingInfo":
+        try:
+            recording_ready_url = utils.xml_escape(RecordSet.objects.get(meeting_relation=meeting).recording_ready_origin_url)
+        except RecordSet.DoesNotExist:
+            recording_ready_url = ""
         xml = ElementTree.fromstring(response)
         template = load_template("getMeetingInfo.xml")
         for category in xml:
@@ -263,13 +267,21 @@ def replace_information_in_xml(response, endpoint, meeting):
             elif category.tag == "metadata":
                 response_json["response"]["metadata"] = {}
                 for sub_cat in category:  # filter b3lb specific meta data information
-                    if sub_cat.tag not in ["{}-recordset".format(settings.B3LB_SITE_SLUG), "endcallbackurl"]:
+                    if sub_cat.tag not in ["{}-recordset".format(settings.B3LB_SITE_SLUG), "endcallbackurl", "bbb-recording-ready-url"]:
                         response_json["response"]["metadata"][sub_cat.tag] = utils.xml_escape(sub_cat.text)
                     elif sub_cat.tag == "endcallbackurl":
                         if meeting.end_callback_url:
                             response_json["response"]["metadata"][sub_cat.tag] = utils.xml_escape(meeting.end_callback_url)
+                    elif sub_cat.tag == "bbb-recording-ready-url":
+                        if recording_ready_url:
+                            response_json["response"]["metadata"][sub_cat.tag] = utils.xml_escape(recording_ready_url)
             else:
                 response_json["response"][category.tag] = utils.xml_escape(category.text)
+        if recording_ready_url:
+            if "metadata" in response_json["response"]:
+                response_json["response"]["metadata"]["bbb-recording-ready-url"] = recording_ready_url
+            else:
+                response_json["response"]["metadata"] = {"bbb-recording-ready-url": recording_ready_url}
         return template.render(response_json)
     elif response and meeting and endpoint == "create":
         xml = ElementTree.fromstring(response)
