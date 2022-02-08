@@ -255,7 +255,8 @@ def celery_update_get_meetings_xml(secret_uuid):
                                                     "bbb-recording-ready-url": internal_meeting_ids[sub_cat.text]["recording_ready_url"]
                                                 }
                                             else:
-                                                meeting_json["metadata"]["endcallbackurl"] = utils.xml_escape(internal_meeting_ids[sub_cat.text]["end_callback_url"])
+                                                meeting_json["metadata"]["endcallbackurl"] = internal_meeting_ids[sub_cat.text]["end_callback_url"]
+                                                meeting_json["metadata"]["bbb-recording-ready-url"] = internal_meeting_ids[sub_cat.text]["recording_ready_url"]
                                 else:
                                     meeting_json[sub_cat.tag] = utils.xml_escape(sub_cat.text)
 
