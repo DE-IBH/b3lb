@@ -89,22 +89,20 @@ async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
         checksum = params["checksum"]
         del params["checksum"]
     else:
-        return HttpResponse("Unauthorized", status=401)
+        return HttpResponseBadRequest(constants.RETURN_STRING_CHECKSUM_MATCH_ERROR, content_type='text/html')
 
     secret = await sync_to_async(lb.get_request_secret)(request, slug, sub_id)
     if not secret:
-        return HttpResponse("Unauthorized", status=401)
+        return HttpResponseBadRequest(constants.RETURN_STRING_CHECKSUM_MATCH_ERROR, content_type='text/html')
 
     if not (await lb.check_tenant(secret.secret, checksum, endpoint, request.META.get("QUERY_STRING", "")) or await lb.check_tenant(secret.secret2, checksum, endpoint, request.META.get("QUERY_STRING", ""))):
-        return HttpResponse("Unauthorized", status=401)
+        return HttpResponseBadRequest(constants.RETURN_STRING_CHECKSUM_MATCH_ERROR, content_type='text/html')
 
     if endpoint in LEGAL_ENDPOINTS:
         if endpoint in WHITELISTED_ENDPOINTS:
             return await requested_endpoint(secret, endpoint, request, params)
         else:
-            response = HttpResponse()
-            response.status_code = 403
-            return response
+            return HttpResponseForbidden()
     else:
         return HttpResponseForbidden()
 
@@ -277,7 +275,7 @@ async def create(request, endpoint, params, meeting, secret, external_id=None):
     if "meta_bbb-recording-ready-url" in params:
         del params["meta_bbb-recording-ready-url"]
 
-    params["meta_endCallbackUrl"] = "https://{}-{}.{}/b3lb/b/meeting/end?nonce={}".format(secret.tenant.slug.lower(), str(secret.sub_id).zfill(3), settings.B3LB_API_BACKEND_DOMAIN, meeting.nonce)
+    params["meta_endCallbackUrl"] = "https://{}/b3lb/b/meeting/end?nonce={}".format(settings.B3LB_API_BACKEND_DOMAIN, meeting.nonce)
 
     response = await pass_through(request, endpoint, params, meeting, body=body)
 
