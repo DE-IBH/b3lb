@@ -47,9 +47,7 @@ METRIC_BIGINT_MODULO = 9223372036854775808
 ##
 @sync_to_async
 def check_meeting_node(meeting):
-    if meeting and meeting.node and not meeting.node.has_errors:
-        return True
-    return False
+    return meeting and meeting.node and not meeting.node.has_errors
 
 
 def check_parameter(params, tenant, join=False):
