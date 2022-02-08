@@ -250,12 +250,13 @@ def celery_update_get_meetings_xml(secret_uuid):
                                         meeting_json["meetingID"] = internal_meeting_ids[sub_cat.text]["external_id"]
                                         if internal_meeting_ids[sub_cat.text]["end_callback_url"]:
                                             if "metadata" not in meeting_json:
-                                                meeting_json["metadata"] = {
-                                                    "endcallbackurl": internal_meeting_ids[sub_cat.text]["end_callback_url"],
-                                                    "bbb-recording-ready-url": internal_meeting_ids[sub_cat.text]["recording_ready_url"]
-                                                }
+                                                meeting_json["metadata"] = {"endcallbackurl": internal_meeting_ids[sub_cat.text]["end_callback_url"]}
                                             else:
                                                 meeting_json["metadata"]["endcallbackurl"] = internal_meeting_ids[sub_cat.text]["end_callback_url"]
+                                        if internal_meeting_ids[sub_cat.text]["recording_ready_url"]:
+                                            if "metadata" not in meeting_json:
+                                                meeting_json["metadata"] = {"bbb-recording-ready-url": internal_meeting_ids[sub_cat.text]["recording_ready_url"]}
+                                            else:
                                                 meeting_json["metadata"]["bbb-recording-ready-url"] = internal_meeting_ids[sub_cat.text]["recording_ready_url"]
                                 else:
                                     meeting_json[sub_cat.tag] = utils.xml_escape(sub_cat.text)
