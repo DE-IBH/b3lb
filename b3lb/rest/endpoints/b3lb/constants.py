@@ -16,6 +16,7 @@
 
 
 RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
+RETURN_STRING_CHECKSUM_MATCH_ERROR = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>checksumError</messageKey>\r\n<message>Checksums do not match</message>\r\n</response>'
 RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n</response>'
 RETURN_STRING_CREATE_FAILED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>No node available.</message>\r\n</response>'
 RETURN_STRING_CREATE_LIMIT_REACHED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting/Attendee limit reached.</message>\r\n</response>'
