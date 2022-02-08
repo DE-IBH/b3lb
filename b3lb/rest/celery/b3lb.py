@@ -20,7 +20,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
-from rest.models import Metric, Node, Meeting, Secret, SecretMeetingList, NodeMeetingList
+from rest.models import Metric, Node, NodeMeetingList, Meeting, RecordSet, Secret, SecretMeetingList
 from rest.utils import load_template
 import rest.endpoints.b3lb.lb as lb
 import rest.utils as utils
@@ -197,7 +197,15 @@ def celery_update_get_meetings_xml(secret_uuid):
     internal_meeting_ids = {}
 
     for mci in mcis:
-        internal_meeting_ids[mci.id] = {"external_id": mci.external_id, "end_callback_url": mci.end_callback_url}
+        try:
+            recording_ready_url = RecordSet.objects.get(meeting_relation=mci).recording_ready_origin_url
+        except RecordSet.DoesNotExist:
+            recording_ready_url = ""
+        internal_meeting_ids[mci.id] = {
+            "external_id": utils.xml_escape(mci.external_id),
+            "end_callback_url": utils.xml_escape(mci.end_callback_url),
+            "recording_ready_url": utils.xml_escape(recording_ready_url)
+        }
 
     nodes = Node.objects.all()
     context = {"meetings": []}
@@ -232,17 +240,20 @@ def celery_update_get_meetings_xml(secret_uuid):
                                     if "metadata" not in meeting_json:
                                         meeting_json["metadata"] = {}
                                     for ssub_cat in sub_cat:
-                                        if ssub_cat.tag not in ["{}-recordset".format(settings.B3LB_SITE_SLUG), "endcallbackurl"]:
+                                        if ssub_cat.tag not in ["{}-recordset".format(settings.B3LB_SITE_SLUG), "endcallbackurl", "bbb-recording-ready-url"]:
                                             meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
                                 elif sub_cat.tag == "meetingID":
                                     if sub_cat.text not in internal_meeting_ids:
                                         add_to_response = False
                                         break
                                     else:
-                                        meeting_json["meetingID"] = utils.xml_escape(internal_meeting_ids[sub_cat.text]["external_id"])
+                                        meeting_json["meetingID"] = internal_meeting_ids[sub_cat.text]["external_id"]
                                         if internal_meeting_ids[sub_cat.text]["end_callback_url"]:
                                             if "metadata" not in meeting_json:
-                                                meeting_json["metadata"] = {"endcallbackurl": utils.xml_escape(internal_meeting_ids[sub_cat.text]["end_callback_url"])}
+                                                meeting_json["metadata"] = {
+                                                    "endcallbackurl": internal_meeting_ids[sub_cat.text]["end_callback_url"],
+                                                    "bbb-recording-ready-url": internal_meeting_ids[sub_cat.text]["recording_ready_url"]
+                                                }
                                             else:
                                                 meeting_json["metadata"]["endcallbackurl"] = utils.xml_escape(internal_meeting_ids[sub_cat.text]["end_callback_url"])
                                 else:
@@ -265,5 +276,3 @@ def celery_update_get_meetings_xml(secret_uuid):
         return "{} MeetingListXML created.".format(secret.__str__())
     else:
         return "{} MeetingListXML updated.".format(secret.__str__())
-
-
