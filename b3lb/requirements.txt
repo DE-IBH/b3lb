@@ -1,6 +1,7 @@
 Django==3.2.13
-Pillow==9.1.0
+Pillow==9.1.1
 aiohttp==3.8.1
+boto3==1.20.53
 celery==5.2.6
 celery-singleton==0.3.1
 django-cacheops==6.0

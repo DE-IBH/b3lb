@@ -20,6 +20,7 @@ import base64
 import rest.endpoints.b3lb.constants as ct
 from django.conf import settings
 from django.contrib.admin import ModelAdmin, action
+from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.core.exceptions import ValidationError
 from django.db.models import (
@@ -32,15 +33,15 @@ from django.utils.crypto import get_random_string
 from django.utils.timezone import now
 from math import pow
 from rest.utils import xml_escape, get_file_from_storage
+from storages.backends.s3boto3 import S3Boto3Storage
 from uuid import uuid4
-
 
 #
 # CONSTANTS
 #
 SECRET_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*(-_=+)'
-MEETING_ID_LENGTH = 100  # ToDo AB1 -> CryptoHashFunction?
+NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$*(-_)'
+MEETING_ID_LENGTH = 100
 
 
 #
@@ -56,6 +57,21 @@ def get_random_secret():
 
 def get_nonce():
     return get_random_string(64, NONCE_CHAR_POOL)
+
+
+def get_storage():
+    if settings.B3LB_RECORD_STORAGE == "local":
+        used_storage = FileSystemStorage()
+    elif settings.B3LB_RECORD_STORAGE == "s3":
+        used_storage = S3Boto3Storage()
+        used_storage.access_key = settings.B3LB_S3_ACCESS_KEY
+        used_storage.secret_key = settings.B3LB_S3_SECRET_KEY
+        used_storage.endpoint_url = settings.B3LB_S3_ENDPOINT_URL
+        used_storage.url_protocol = settings.B3LB_S3_URL_PROTOCOL
+        used_storage.bucket_name = settings.B3LB_S3_BUCKET_NAME
+    else:
+        used_storage = default_storage
+    return used_storage
 
 
 #
@@ -228,7 +244,7 @@ class NodeAdmin(ModelAdmin):
     actions = [maintenance_on, maintenance_off]
 
     def show_cpu_load(self, obj):
-        return "{:.1f} %".format(obj.cpu_load/100)
+        return "{:.1f} %".format(obj.cpu_load / 100)
 
     show_cpu_load.short_description = "CPU Load"
 
@@ -530,21 +546,6 @@ class MeetingAdmin(ModelAdmin):
 
 # Meeting - Secret - Recording relation class
 class RecordSet(Model):
-    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
-    secret = ForeignKey(Secret, on_delete=CASCADE)
-    meeting_relation = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
-    meeting_id = CharField(max_length=MEETING_ID_LENGTH, default="")
-    created_at = DateTimeField(default=now)
-    recording_ready_origin_url = URLField(default="")
-    nonce = CharField(max_length=64, default=get_nonce, editable=False, unique=True)
-
-
-class RecordSetAdmin(ModelAdmin):
-    model = RecordSet
-    list_display = ['uuid', 'secret', 'meeting_id', 'created_at']
-
-
-class Record(Model):
     UNKNOWN = "UNKNOWN"
     UPLOADED = "UPLOADED"
     RENDERED = "RENDERED"
@@ -560,12 +561,41 @@ class Record(Model):
     ]
 
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
-    id = CharField(max_length=MEETING_ID_LENGTH)
+    secret = ForeignKey(Secret, on_delete=CASCADE)
+    meeting = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
+    meetingid = CharField(max_length=MEETING_ID_LENGTH, default="")
+    created_at = DateTimeField(default=now)
+    recording_ready_origin_url = URLField(default="")
+    nonce = CharField(max_length=64, default=get_nonce, editable=False, unique=True)
     status = CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
-    relation = ForeignKey(RecordSet, on_delete=CASCADE)
+
+
+# ToDo:
+#   storage_path: tenant.uuid/secret.uuid/recordset.uuid/raw.tar -> dir als property
+#   -> property: FileObject raw.tar -> storage backend!
+#   -> admin action:
+#       * Rendern (neu) starten
+#       * Status setzen auf "DELETING"
+
+
+class RecordSetAdmin(ModelAdmin):
+    model = RecordSet
+    list_display = ['uuid', 'secret', 'meeting_id', 'created_at']
+
+
+class Record(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    id = CharField(max_length=MEETING_ID_LENGTH)
+    record_set = ForeignKey(RecordSet, on_delete=CASCADE)
     storage_id = CharField(max_length=100, default="")
     duration = IntegerField(default=0)
     started_at = DateTimeField(default=now)
+    file = FileField(storage=get_storage)
+
+
+# ToDo: One Record, one file
+#   profile = ... ForeignKey / Hardcoded im Dev
+#   file = FileObject
 
 
 class RecordAdmin(ModelAdmin):
@@ -704,7 +734,7 @@ class Parameter(Model):
     USERDATA_BBB_SKIP_CHECK_AUDIO = "userdata-bbb_skip_check_audio"
     USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN = "userdata-bbb_skip_check_audio_on_first_join"
     USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE = "userdata-bbb_override_default_locale"
-    
+
     # Join Parameters - Branding
     USERDATA_BBB_DISPLAY_BRANDING_AREA = "userdata-bbb_display_branding_area"
 
@@ -747,7 +777,7 @@ class Parameter(Model):
     BLOCK = "BLOCK"
     SET = "SET"
     OVERRIDE = "OVERRIDE"
-    
+
     PARAMETER_CHOICES = (
         # Create
         (ALLOW_MODS_TO_UNMUTE_USERS, ALLOW_MODS_TO_UNMUTE_USERS),
