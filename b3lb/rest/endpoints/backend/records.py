@@ -18,9 +18,7 @@
 # B3LB Backend API Endpoints
 #
 
-from django.utils import timezone
-from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest.models import RecordSet, Record
@@ -31,18 +29,27 @@ from rest.models import RecordSet, Record
 def backend_record_upload(request):
     """
     Upload for BBB record files.
-    Does currently nothing.
+    Saves file to given Storage (default, local or S3)
     """
-    if settings.B3LB_STORAGE_USE_LOCAL_STORAGE or settings.B3LB_STORAGE_USE_S3_STORAGE:
-        tar_file = request.FILES.get("file")
-        tar_name = request.POST.get("file_name")
-        if settings.B3LB_STORAGE_USE_LOCAL_STORAGE:
-            if tar_name:
-                filename = tar_name
-            else:
-                filename = timezone.now().strftime("%Y%m%d%H%M%S%f")
-            with open("/upload/{}.tar".format(filename), "wb") as tar:
-                tar.write(tar_file.read())
-        return HttpResponse(status=204)
+    nonce = request.POST.get("nonce")
+    uploaded_file = request.FILES.get('file')
+    if nonce and uploaded_file:
+        try:
+            record_set = RecordSet.objects.get(nonce=nonce)
+        except RecordSet.DoesNotExist:
+            return HttpResponseBadRequest()
+
+        record = Record()
+        record.record_set = record_set
+        try:
+            record.file.save(name="{}/{}".format(record_set.directory_path, record.uuid), content=uploaded_file.read())
+        except:
+            return HttpResponse("Error during filesave", status=500)
+
+        return HttpResponse("File uploaded sucessfully", status=201)
+    elif uploaded_file:
+        return HttpResponse("Missing 'file' upload file.", status=423)
+    elif nonce:
+        return HttpResponse("Missing nonce POST parameter", status=423)
     else:
-        return HttpResponse(status=423)
+        return HttpResponse("Missing nonce POST parameter and 'file' upload file", status=423)
