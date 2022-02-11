@@ -56,7 +56,5 @@ def backend_end_meeting_callback(request):
 
             meeting.delete()
         except Meeting.DoesNotExist:
-            return HttpResponse(status=404)
-    else:
-        return HttpResponse(status=400)
+            return HttpResponse(status=204)
     return HttpResponse(status=204)
