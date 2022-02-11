@@ -570,9 +570,12 @@ class RecordSet(Model):
     nonce = CharField(max_length=64, default=get_nonce, editable=False, unique=True)
     status = CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
 
+    @property
+    def directory_path(self):
+        return "{}/{}/{}".format(self.secret.tenant.uuid, self.secret.uuid, self.uuid)
+
 
 # ToDo:
-#   storage_path: tenant.uuid/secret.uuid/recordset.uuid/raw.tar -> dir als property
 #   -> property: FileObject raw.tar -> storage backend!
 #   -> admin action:
 #       * Rendern (neu) starten
@@ -584,24 +587,23 @@ class RecordSetAdmin(ModelAdmin):
     list_display = ['uuid', 'secret', 'meeting_id', 'created_at']
 
 
+class RecordProfile(Model):
+    uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
+    name = CharField(max_length=64)
+
+
 class Record(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
-    id = CharField(max_length=MEETING_ID_LENGTH)
-    record_set = ForeignKey(RecordSet, on_delete=CASCADE)
-    storage_id = CharField(max_length=100, default="")
-    duration = IntegerField(default=0)
-    started_at = DateTimeField(default=now)
+    is_raw = BooleanField(default=True)
     file = FileField(storage=get_storage)
-
-
-# ToDo: One Record, one file
-#   profile = ... ForeignKey / Hardcoded im Dev
-#   file = FileObject
+    profile = ForeignKey(RecordProfile, on_delete=PROTECT, null=True)
+    record_set = ForeignKey(RecordSet, on_delete=CASCADE)
+    uploaded_at = DateTimeField(default=now)
 
 
 class RecordAdmin(ModelAdmin):
     model = Record
-    list_display = ['id', 'storage_id', 'duration', 'started_at']
+    list_display = ['uuid', 'record_set', 'is_raw', 'file']
 
 
 class Stats(Model):
