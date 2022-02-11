@@ -226,11 +226,10 @@ B3LB_CACHE_NML_TIMEOUT = env.int('B3LB_CACHE_NML_TIMEOUT', default=30)
 # B3LB Storage Setting
 ######
 
-# use local storage for uploading record files
-# set all USE_*_STORAGE to "False" to disable Record workflow in B3LB
-B3LB_STORAGE_USE_LOCAL_STORAGE = env.bool('B3LB_STORAGE_USE_LOCAL_STORAGE', default=True)
-
-# S3 Storage Settings
-# ToDo: Implement S3 later
-B3LB_STORAGE_USE_S3_STORAGE = env.bool('B3LB_STORAGE_USE_S3_STORAGE', default=False)
-
+# B3LB_RECORD_STORAGE = env.str('B3LB_RECORD_STORAGE', 'django.core.files.storage.FileSystemStorage')
+B3LB_RECORD_STORAGE = env.str('B3LB_RECORD_STORAGE', 'local')
+B3LB_S3_ACCESS_KEY = env.str('B3LB_S3_ACCESS_KEY', env.str('AWS_S3_ACCESS_KEY_ID', env.str('AWS_S3_SECRET_ACCESS_KEY', '')))
+B3LB_S3_BUCKET_NAME = env.str('B3LB_S3_BUCKET_NAME', 'raw')
+B3LB_S3_ENDPOINT_URL = env.str('B3LB_S3_ENDPOINT_URL', env.str('AWS_S3_ENDPOINT_URL', ''))
+B3LB_S3_SECRET_KEY = env.str('B3LB_S3_SECRET_KEY', env.str('AWS_ACCESS_KEY_ID', env.str('AWS_SECRET_ACCESS_KEY', '')))
+B3LB_S3_URL_PROTOCOL = env.str('B3LB_S3_URL_PROTOCOL', env.str('AWS_S3_URL_PROTOCOL', 'https:'))
