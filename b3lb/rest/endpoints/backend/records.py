@@ -18,10 +18,11 @@
 # B3LB Backend API Endpoints
 #
 
+from django.core.files.base import ContentFile
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from rest.models import RecordSet, Record
+from rest.models import RecordSet
 
 
 @require_http_methods(["POST"])
@@ -31,7 +32,7 @@ def backend_record_upload(request):
     Upload for BBB record files.
     Saves file to given Storage (default, local or S3)
     """
-    nonce = request.POST.get("nonce")
+    nonce = request.GET.get("nonce")
     uploaded_file = request.FILES.get('file')
     if nonce and uploaded_file:
         try:
@@ -39,17 +40,14 @@ def backend_record_upload(request):
         except RecordSet.DoesNotExist:
             return HttpResponseBadRequest()
 
-        record = Record()
-        record.record_set = record_set
         try:
-            record.file.save(name="{}/{}".format(record_set.directory_path, record.uuid), content=uploaded_file.read())
+            record_set.recording_archive.save(name="{}/raw.tar".format(record_set.file_path), content=ContentFile(uploaded_file.read()))
         except:
-            return HttpResponse("Error during filesave", status=500)
+            return HttpResponse("Error during file save", status=503)
 
-        return HttpResponse("File uploaded sucessfully", status=201)
-    elif uploaded_file:
-        return HttpResponse("Missing 'file' upload file.", status=423)
-    elif nonce:
-        return HttpResponse("Missing nonce POST parameter", status=423)
+        record_set.status = RecordSet.UPLOADED
+        record_set.save()
+
+        return HttpResponse("File uploaded successfully", status=201)
     else:
-        return HttpResponse("Missing nonce POST parameter and 'file' upload file", status=423)
+        return HttpResponseBadRequest()
