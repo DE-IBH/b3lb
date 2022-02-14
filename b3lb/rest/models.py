@@ -15,6 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
+import os
 import re
 import base64
 import rest.endpoints.b3lb.constants as ct
@@ -34,7 +35,9 @@ from django.utils.timezone import now
 from math import pow
 from rest.utils import xml_escape, get_file_from_storage
 from storages.backends.s3boto3 import S3Boto3Storage
+from textwrap import wrap
 from uuid import uuid4
+
 
 #
 # CONSTANTS
@@ -565,17 +568,20 @@ class RecordSet(Model):
     meeting = ForeignKey(Meeting, on_delete=SET_NULL, null=True)
     meetingid = CharField(max_length=MEETING_ID_LENGTH, default="")
     created_at = DateTimeField(default=now)
+    recording_archive = FileField(storage=get_storage)
     recording_ready_origin_url = URLField(default="")
     nonce = CharField(max_length=64, default=get_nonce, editable=False, unique=True)
     status = CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
+    file_path = CharField(max_length=50)
 
-    @property
-    def directory_path(self):
-        return "{}/{}/{}".format(self.secret.tenant.uuid, self.secret.uuid, self.uuid)
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        base32 = base64.b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
+        path = wrap(base32, settings.B3LB_FILESYSTEM_HIERARCHY_WIDTH)[:settings.B3LB_FILESYSTEM_HIERARCHY_DEPHT]
+        path.append(base32[settings.B3LB_FILESYSTEM_HIERARCHY_WIDTH * settings.B3LB_FILESYSTEM_HIERARCHY_DEPHT:])
+        self.file_path = os.path.join(*path)
 
 # ToDo:
-#   -> property: FileObject raw.tar -> storage backend!
 #   -> admin action:
 #       * Rendern (neu) starten
 #       * Status setzen auf "DELETING"
@@ -1011,4 +1017,3 @@ class Parameter(Model):
 class ParameterAdmin(ModelAdmin):
     model = Parameter
     list_display = ['tenant', 'parameter', 'mode', 'value']
-    list_filter = [('tenant', admin.RelatedOnlyFieldListFilter), 'mode']
