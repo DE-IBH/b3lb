@@ -202,6 +202,9 @@ vars().update(EMAIL_CONFIG)
 # set Django admins for error notification
 ADMINS = email.utils.getaddresses([env.str('DJANGO_ADMINS', '')])
 
+FILE_UPLOAD_TEMP_DIR = env.str('FILE_UPLOAD_TEMP_DIR', default=None)
+FILE_UPLOAD_MAX_MEMORY_SIZE = env.int('FILE_UPLOAD_MAX_MEMORY_SIZE', default=2621440)
+
 
 ######
 # B3LB Base Settings
