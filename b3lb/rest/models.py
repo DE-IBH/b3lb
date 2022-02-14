@@ -578,8 +578,8 @@ class RecordSet(Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         base32 = base64.b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
-        path = wrap(base32, settings.B3LB_FILESYSTEM_HIERARCHY_WIDTH)[:settings.B3LB_FILESYSTEM_HIERARCHY_DEPHT]
-        path.append(base32[settings.B3LB_FILESYSTEM_HIERARCHY_WIDTH * settings.B3LB_FILESYSTEM_HIERARCHY_DEPHT:])
+        path = wrap(base32, settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH)[:settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT]
+        path.append(base32[settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH * settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
         self.file_path = os.path.join(*path)
 
 # ToDo:
