@@ -19,9 +19,12 @@ from django.db import models
 from django.contrib import admin
 from django.utils import timezone
 from django.utils.crypto import get_random_string
+from django.utils.html import format_html
+from django.utils.http import urlencode
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.core.exceptions import ValidationError
 from django.conf import settings
+from django.urls import reverse
 import uuid as uid
 import re
 import base64
@@ -61,26 +64,56 @@ class Cluster(models.Model):
 
 class ClusterAdmin(admin.ModelAdmin):
     model = Cluster
-    list_display = ['name', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
+    list_display = ['name', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes', 'a_factor', 'm_factor', 'cpu_iterations', 'cpu_max']
     actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
 
+    def a_factor(self, obj):
+        return obj.load_a_factor
+
+    a_factor.short_description = "a-Factor"
+
+    def m_factor(self, obj):
+        return obj.load_m_factor
+
+    m_factor.short_description = "m-Factor"
+
+    def cpu_iterations(self, obj):
+        return obj.load_cpu_iterations
+
+    cpu_iterations.short_description = "# CPU Iter."
+
+    def cpu_max(self, obj):
+        return obj.load_cpu_max
+
+    cpu_max.short_description = "CPU max. Load"
+
     def number_of_nodes(self, obj):
-        return Node.objects.filter(cluster=obj).count()
+        count = Node.objects.filter(cluster=obj).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}"}))
+        return format_html('<a href="{}">{} Nodes</a>', url, count)
 
     number_of_nodes.short_description = "# Nodes"
 
     def available_nodes(self, obj):
-        return Node.objects.filter(cluster=obj, has_errors=False, maintenance=False).count()
+        count = Node.objects.filter(cluster=obj, has_errors=False, maintenance=False).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 0, "has_errors__exact": 0}))
+        return format_html('<a href="{}">{} Nodes</a>', url, count)
 
-    available_nodes.short_description = "Avail. Nodes"
+    available_nodes.short_description = "# Avail."
 
     def maintenance_nodes(self, obj):
-        return Node.objects.filter(cluster=obj, maintenance=True).count()
+        count = Node.objects.filter(cluster=obj, maintenance=True).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 1}))
+        return format_html('<a href="{}">{} Nodes</a>', url, count)
 
-    maintenance_nodes.short_description = "Main. Nodes"
+    maintenance_nodes.short_description = "# Maint."
 
     def error_nodes(self, obj):
-        return Node.objects.filter(cluster=obj, has_errors=True).count()
+        count = Node.objects.filter(cluster=obj, has_errors=True).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "has_errors__exact": 1}))
+        return format_html('<a href="{}">{} Nodes</a>', url, count)
+
+    error_nodes.short_description = "# Errors"
 
 
 def get_b3lb_node_default_domain():
@@ -205,23 +238,28 @@ class ClusterGroupAdmin(admin.ModelAdmin):
         count = 0
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=False, maintenance=False).count()
-        return count
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 0, "has_errors__exact": 0}))
+        return format_html('<a href="{}">{} Nodes</a>', url, count)
 
-    available_nodes.short_description = "Avail. Nodes"
+    available_nodes.short_description = "# Avail."
 
     def maintenance_nodes(self, obj):
         count = 0
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, maintenance=True).count()
-        return count
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 1}))
+        return format_html('<a href="{}">{} Nodes</a>', url, count)
 
-    maintenance_nodes.short_description = "Main. Nodes"
+    maintenance_nodes.short_description = "# Maint."
 
     def error_nodes(self, obj):
         count = 0
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=True).count()
-        return count
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"has_errors__exact": 1}))
+        return format_html('<a href="{}">{} Nodes</a>', url, count)
+
+    error_nodes.short_description = "# Errors"
 
 
 class ClusterGroupRelation(models.Model):
