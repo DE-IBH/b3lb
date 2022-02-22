@@ -67,11 +67,17 @@ class ClusterAdmin(admin.ModelAdmin):
     def number_of_nodes(self, obj):
         return Node.objects.filter(cluster=obj).count()
 
+    number_of_nodes.short_description = "# Nodes"
+
     def available_nodes(self, obj):
         return Node.objects.filter(cluster=obj, has_errors=False, maintenance=False).count()
 
+    available_nodes.short_description = "Avail. Nodes"
+
     def maintenance_nodes(self, obj):
         return Node.objects.filter(cluster=obj, maintenance=True).count()
+
+    maintenance_nodes.short_description = "Main. Nodes"
 
     def error_nodes(self, obj):
         return Node.objects.filter(cluster=obj, has_errors=True).count()
@@ -147,6 +153,7 @@ def maintenance_off(modeladmin, request, queryset):
 class NodeAdmin(admin.ModelAdmin):
     model = Node
     list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance']
+    list_filter = [('cluster', admin.RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
     actions = [maintenance_on, maintenance_off]
 
     def show_cpu_load(self, obj):
@@ -191,17 +198,23 @@ class ClusterGroupAdmin(admin.ModelAdmin):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster).count()
         return count
 
+    number_of_nodes.short_description = "# Nodes"
+
     def available_nodes(self, obj):
         count = 0
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=False, maintenance=False).count()
         return count
 
+    available_nodes.short_description = "Avail. Nodes"
+
     def maintenance_nodes(self, obj):
         count = 0
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, maintenance=True).count()
         return count
+
+    maintenance_nodes.short_description = "Main. Nodes"
 
     def error_nodes(self, obj):
         count = 0
@@ -250,6 +263,7 @@ class Tenant(models.Model):
 class TenantAdmin(admin.ModelAdmin):
     model = Tenant
     list_display = ['slug', 'description', 'hostname', 'cluster_group', 'attendee_limit', 'meeting_limit']
+    list_filter = [('cluster_group', admin.RelatedOnlyFieldListFilter)]
 
 
 class Secret(models.Model):
@@ -280,6 +294,7 @@ class Secret(models.Model):
 class SecretAdmin(admin.ModelAdmin):
     model = Secret
     list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit']
+    list_filter = [('tenant', admin.RelatedOnlyFieldListFilter)]
 
 
 class AssetSlide(models.Model):
@@ -416,6 +431,7 @@ class Meeting(models.Model):
 class MeetingAdmin(admin.ModelAdmin):
     model = Meeting
     list_display = ['__str__', 'bbb_origin_server_name', 'node', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount', 'age', 'id']
+    list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'node']
 
 
 class Stats(models.Model):
@@ -440,6 +456,7 @@ class Stats(models.Model):
 class StatsAdmin(admin.ModelAdmin):
     model = Stats
     list_display = ['tenant', 'meetings', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount']
+    list_filter = ['tenant']
 
 
 class Metric(models.Model):
@@ -807,3 +824,4 @@ class Parameter(models.Model):
 class ParameterAdmin(admin.ModelAdmin):
     model = Parameter
     list_display = ['tenant', 'parameter', 'mode', 'value']
+    list_filter = [('tenant', admin.RelatedOnlyFieldListFilter), 'mode']
