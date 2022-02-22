@@ -154,6 +154,7 @@ class NodeAdmin(admin.ModelAdmin):
     model = Node
     list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance']
     list_filter = [('cluster', admin.RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
+    search_fields = ['slug']
     actions = [maintenance_on, maintenance_off]
 
     def show_cpu_load(self, obj):
@@ -264,6 +265,7 @@ class TenantAdmin(admin.ModelAdmin):
     model = Tenant
     list_display = ['slug', 'description', 'hostname', 'cluster_group', 'attendee_limit', 'meeting_limit']
     list_filter = [('cluster_group', admin.RelatedOnlyFieldListFilter)]
+    search_fields = ['cluster_group', 'slug', 'description']
 
 
 class Secret(models.Model):
@@ -432,6 +434,7 @@ class MeetingAdmin(admin.ModelAdmin):
     model = Meeting
     list_display = ['__str__', 'bbb_origin_server_name', 'node', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount', 'age', 'id']
     list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'node']
+    search_fields = ['room_name']
 
 
 class Stats(models.Model):
