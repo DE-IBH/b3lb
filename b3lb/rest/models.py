@@ -61,8 +61,20 @@ class Cluster(models.Model):
 
 class ClusterAdmin(admin.ModelAdmin):
     model = Cluster
-    list_display = ['name', 'load_a_factor', 'load_m_factor', 'load_cpu_iterations', 'load_cpu_max']
+    list_display = ['name', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
     actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
+
+    def number_of_nodes(self, obj):
+        return Node.objects.filter(cluster=obj).count()
+
+    def available_nodes(self, obj):
+        return Node.objects.filter(cluster=obj, has_errors=False, maintenance=False).count()
+
+    def maintenance_nodes(self, obj):
+        return Node.objects.filter(cluster=obj, maintenance=True).count()
+
+    def error_nodes(self, obj):
+        return Node.objects.filter(cluster=obj, has_errors=True).count()
 
 
 def get_b3lb_node_default_domain():
@@ -171,7 +183,31 @@ class ClusterGroup(models.Model):
 
 class ClusterGroupAdmin(admin.ModelAdmin):
     model = ClusterGroup
-    list_display = ['name', 'description']
+    list_display = ['name', 'description', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
+
+    def number_of_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster).count()
+        return count
+
+    def available_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=False, maintenance=False).count()
+        return count
+
+    def maintenance_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster, maintenance=True).count()
+        return count
+
+    def error_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=True).count()
+        return count
 
 
 class ClusterGroupRelation(models.Model):
