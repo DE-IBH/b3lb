@@ -90,28 +90,28 @@ class ClusterAdmin(admin.ModelAdmin):
     def number_of_nodes(self, obj):
         count = Node.objects.filter(cluster=obj).count()
         url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}"}))
-        return format_html('<a href="{}">{} Nodes</a>', url, count)
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
 
     number_of_nodes.short_description = "# Nodes"
 
     def available_nodes(self, obj):
         count = Node.objects.filter(cluster=obj, has_errors=False, maintenance=False).count()
         url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 0, "has_errors__exact": 0}))
-        return format_html('<a href="{}">{} Nodes</a>', url, count)
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
 
     available_nodes.short_description = "# Avail."
 
     def maintenance_nodes(self, obj):
         count = Node.objects.filter(cluster=obj, maintenance=True).count()
         url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 1}))
-        return format_html('<a href="{}">{} Nodes</a>', url, count)
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
 
     maintenance_nodes.short_description = "# Maint."
 
     def error_nodes(self, obj):
         count = Node.objects.filter(cluster=obj, has_errors=True).count()
         url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "has_errors__exact": 1}))
-        return format_html('<a href="{}">{} Nodes</a>', url, count)
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
 
     error_nodes.short_description = "# Errors"
 
@@ -239,7 +239,7 @@ class ClusterGroupAdmin(admin.ModelAdmin):
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=False, maintenance=False).count()
         url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 0, "has_errors__exact": 0}))
-        return format_html('<a href="{}">{} Nodes</a>', url, count)
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
 
     available_nodes.short_description = "# Avail."
 
@@ -248,7 +248,7 @@ class ClusterGroupAdmin(admin.ModelAdmin):
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, maintenance=True).count()
         url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 1}))
-        return format_html('<a href="{}">{} Nodes</a>', url, count)
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
 
     maintenance_nodes.short_description = "# Maint."
 
@@ -257,7 +257,7 @@ class ClusterGroupAdmin(admin.ModelAdmin):
         for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
             count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=True).count()
         url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"has_errors__exact": 1}))
-        return format_html('<a href="{}">{} Nodes</a>', url, count)
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
 
     error_nodes.short_description = "# Errors"
 
