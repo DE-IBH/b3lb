@@ -1,5 +1,15 @@
 # ChangeLog
 
+## 2.2.3 - 2022-03-04
+
+Changes:
+- admin: add filters, links and search
+- bump python dependencies:
+  - Django `3.2.10` => `3.2.12`
+  - Pillow `8.4.0`=>  `9.0.1`
+  - requests `2.26.0` => `2.27.1`
+  - uvicorn `0.16.0`=>  `0.17.5`
+
 ## 2.2.2 - 2021-12-29
 
 Fix:
