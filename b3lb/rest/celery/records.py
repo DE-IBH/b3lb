@@ -35,10 +35,10 @@ def celery_render_records(record_set=RecordSet()):
     with open(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}/raw.tar", "wb") as tar:
         tar.write(record_set.recording_archive.read())
 
-    sp.check_output(["tar", "-xf", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/{record_set.uuid}")
+    sp.check_output(["tar", "-xf", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}")
 
     # delete raw.tar
-    sp.check_output(["rm", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/{record_set.uuid}")
+    sp.check_output(["rm", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}")
 
     # record_profiles = RecordProfile.objects.all()
     # for record_profile in record_profiles:
