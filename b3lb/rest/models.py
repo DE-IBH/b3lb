@@ -498,6 +498,7 @@ class RecordSet(Model):
 #   -> admin action:
 #       * Rendern (neu) starten
 #       * Status setzen auf "DELETING"
+#   -> Celery Queues
 
 
 class RecordSetAdmin(ModelAdmin):
@@ -507,12 +508,21 @@ class RecordSetAdmin(ModelAdmin):
 
 class RecordProfile(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
-    name = CharField(max_length=64)
+    description = CharField(max_length=255)
+    name = CharField(max_length=32, unique=True)
+    command = CharField(max_length=255)
+    mime_type = CharField(max_length=32)
+    file_extension = CharField(max_length=10, default="mp4")
+
+    # ToDo:
+    #   -> ENV: place holder for input dir ("unzipped" tar), video filename, tenant, secret, ...
+
+    def __str__(self):
+        return self.name
 
 
 class Record(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
-    is_raw = BooleanField(default=True)
     file = FileField(storage=get_storage)
     profile = ForeignKey(RecordProfile, on_delete=PROTECT, null=True)
     record_set = ForeignKey(RecordSet, on_delete=CASCADE)
@@ -521,7 +531,7 @@ class Record(Model):
 
 class RecordAdmin(ModelAdmin):
     model = Record
-    list_display = ['uuid', 'record_set', 'is_raw', 'file']
+    list_display = ['uuid', 'record_set', 'profile', 'file']
 
 
 class Stats(Model):
