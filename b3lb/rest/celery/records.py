@@ -14,5 +14,39 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-def celery_record():
-    pass
+import os
+import subprocess as sp
+from rest.models import Record, RecordProfile, RecordSet
+from django.conf import settings as st
+
+
+def check_dir_paths(sub_folder_name):
+    if not os.path.isdir(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{sub_folder_name}"):
+        os.makedirs(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{sub_folder_name}")
+    if not os.path.isdir(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir"):
+        os.makedirs(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir")
+
+
+def celery_render_records(record_set=RecordSet()):
+    # Check if dirs exists
+    check_dir_paths(record_set.uuid)
+
+    # Save and unpack raw files
+    with open(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/{record_set.uuid}/raw.tar", "wb") as tar:
+        tar.write(record_set.recording_archive.read())
+
+    sp.check_output(["tar", "-xf", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/{record_set.uuid}")
+
+    # delete raw.tar
+    sp.check_output(["rm", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/{record_set.uuid}")
+
+    # record_profiles = RecordProfile.objects.all()
+    # for record_profile in record_profiles:
+    #
+    #     record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
+    #
+    #
+    #     sp.check_output(record_profile.command.split(" "), cwd=st.B3LB_RECORD_RENDER_WORK_DIR)
+
+
+

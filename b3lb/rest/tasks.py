@@ -19,9 +19,10 @@ from celery.utils.log import get_task_logger
 from celery_singleton import Singleton
 from loadbalancer.celery import app
 from rest.celery.b3lb import celery_run_check_node, celery_update_get_meetings_xml
-from rest.celery.statistics import celery_statistic_fill_by_tenant, celery_update_metrics
 from rest.celery.housekeeping import celery_cleanup_assets
-from rest.models import Node, Tenant, Secret
+from rest.celery.records import celery_render_records
+from rest.celery.statistics import celery_statistic_fill_by_tenant, celery_update_metrics
+from rest.models import Node, Tenant, Secret, RecordSet
 
 logger = get_task_logger(__name__)
 
@@ -29,6 +30,25 @@ logger = get_task_logger(__name__)
 @app.task(ignore_result=True, base=Singleton)
 def check_node(node_uuid):
     return celery_run_check_node(node_uuid)
+
+
+@app.task(ignore_result=True, base=Singleton, name="Check Node Status")
+def check_status():
+    for node in Node.objects.all():
+        check_node.si(str(node.uuid)).apply_async()
+    return True
+
+
+@app.task(ignore_result=True, base=Singleton, name="Cleanup Assets")
+def cleanup_assets():
+    return celery_cleanup_assets()
+
+
+@app.task(ignore_result=True, base=Singleton, name="Render not rendered Record Sets")
+def render_record_sets():
+    for record_set in RecordSet.objects.filter(status=RecordSet.UPLOADED):
+        celery_render_records(record_set)
+    return True
 
 
 @app.task(ignore_result=True, base=Singleton)
@@ -50,25 +70,13 @@ def update_secrets_lists():
     return True
 
 
-@app.task(ignore_result=True, base=Singleton, name="Check Node Status")
-def check_status():
-    for node in Node.objects.all():
-        check_node.si(str(node.uuid)).apply_async()
-    return True
-
-
-@app.task(ignore_result=True, base=Singleton, name="Cleanup Assets")
-def cleanup_assets():
-    return celery_cleanup_assets()
-
-
-@app.task(ignore_result=True, base=Singleton, name="Update Tenant Statistics")
-def update_tenant_statistic(tenant_uuid):
-    return celery_statistic_fill_by_tenant(tenant_uuid)
-
-
 @app.task(ignore_result=True, base=Singleton, name="Update Statistics")
 def update_statistic():
     for tenant in Tenant.objects.all():
         update_tenant_statistic.si(str(tenant.uuid)).apply_async()
     return True
+
+
+@app.task(ignore_result=True, base=Singleton, name="Update Tenant Statistics")
+def update_tenant_statistic(tenant_uuid):
+    return celery_statistic_fill_by_tenant(tenant_uuid)

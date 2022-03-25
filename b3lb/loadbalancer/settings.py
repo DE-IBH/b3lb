@@ -230,15 +230,19 @@ B3LB_CACHE_NML_TIMEOUT = env.int('B3LB_CACHE_NML_TIMEOUT', default=30)
 ######
 
 # B3LB_RECORD_STORAGE = env.str('B3LB_RECORD_STORAGE', 'django.core.files.storage.FileSystemStorage')
-B3LB_RECORD_STORAGE = env.str('B3LB_RECORD_STORAGE', 'local')
-B3LB_S3_ACCESS_KEY = env.str('B3LB_S3_ACCESS_KEY', env.str('AWS_S3_ACCESS_KEY_ID', env.str('AWS_S3_SECRET_ACCESS_KEY', '')))
+B3LB_RECORD_STORAGE = env.str('B3LB_RECORD_STORAGE', default='local')
+B3LB_S3_ACCESS_KEY = env.str('B3LB_S3_ACCESS_KEY', default=env.str('AWS_S3_ACCESS_KEY_ID', default=env.str('AWS_S3_SECRET_ACCESS_KEY', default='')))
 B3LB_S3_BUCKET_NAME = env.str('B3LB_S3_BUCKET_NAME', 'raw')
-B3LB_S3_ENDPOINT_URL = env.str('B3LB_S3_ENDPOINT_URL', env.str('AWS_S3_ENDPOINT_URL', ''))
-B3LB_S3_SECRET_KEY = env.str('B3LB_S3_SECRET_KEY', env.str('AWS_ACCESS_KEY_ID', env.str('AWS_SECRET_ACCESS_KEY', '')))
-B3LB_S3_URL_PROTOCOL = env.str('B3LB_S3_URL_PROTOCOL', env.str('AWS_S3_URL_PROTOCOL', 'https:'))
+B3LB_S3_ENDPOINT_URL = env.str('B3LB_S3_ENDPOINT_URL', default=env.str('AWS_S3_ENDPOINT_URL', default=''))
+B3LB_S3_SECRET_KEY = env.str('B3LB_S3_SECRET_KEY', default=env.str('AWS_ACCESS_KEY_ID', default=env.str('AWS_SECRET_ACCESS_KEY', default='')))
+B3LB_S3_URL_PROTOCOL = env.str('B3LB_S3_URL_PROTOCOL', default=env.str('AWS_S3_URL_PROTOCOL', default='https:'))
 
 # Filesystem configuration
 # max len is 26
 # HIERARCHY_LEN * HIERARCHY_DEPHT < 26
-B3LB_RECORD_PATH_HIERARCHY_WIDTH = env.int('B3LB_RECORD_PATH_HIERARCHY_WIDTH', 2)
-B3LB_RECORD_PATH_HIERARCHY_DEPHT = env.int('B3LB_RECORD_PATH_HIERARCHY_DEPHT', 3)
+B3LB_RECORD_PATH_HIERARCHY_WIDTH = env.int('B3LB_RECORD_PATH_HIERARCHY_WIDTH', default=2)
+B3LB_RECORD_PATH_HIERARCHY_DEPHT = env.int('B3LB_RECORD_PATH_HIERARCHY_DEPHT', default=3)
+
+# Record Rendering Parameters
+B3LB_RECORD_RENDER_WORK_DIR = env.str('B3LB_RECORD_RENDER_WORK_DIR', default='/rendering')
+
