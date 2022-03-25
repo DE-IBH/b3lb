@@ -521,6 +521,11 @@ class RecordProfile(Model):
         return self.name
 
 
+class RecordProfileAdmin(ModelAdmin):
+    model = RecordProfile
+    list_display = ['uuid', 'name', 'description', 'file_extension', 'command']
+
+
 class Record(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
     file = FileField(storage=get_storage)
