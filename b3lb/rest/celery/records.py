@@ -32,8 +32,8 @@ def celery_render_records(record_set=RecordSet()):
     check_dir_paths(record_set.uuid)
 
     # Save and unpack raw files
-    with open(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}/raw.tar", "wb") as tar:
-        tar.write(record_set.recording_archive.read())
+    with open(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}/raw.tar", "wb") as tar_file:
+        tar_file.write(record_set.recording_archive.open().read())
 
     sp.check_output(["tar", "-xf", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}")
 
