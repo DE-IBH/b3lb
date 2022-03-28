@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2022 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -40,13 +40,14 @@ def celery_render_records(record_set=RecordSet()):
     # delete raw.tar
     sp.check_output(["rm", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}")
 
-    # record_profiles = RecordProfile.objects.all()
-    # for record_profile in record_profiles:
-    #
-    #     record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
-    #
-    #
-    #     sp.check_output(record_profile.command.split(" "), cwd=st.B3LB_RECORD_RENDER_WORK_DIR)
+    # run rendering
+    record_profiles = RecordProfile.objects.all()
+    for record_profile in record_profiles:
+        # rendering command
+        sp.check_output(record_profile.command.split(" "), cwd=st.B3LB_RECORD_RENDER_WORK_DIR)
 
-
-
+        # check for video file
+        if os.path.isfile(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/video.mp4"):
+            video = open(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/video.mp4", "rb")
+            record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
+            record.file.save(name=f"{record.uuid}.{record_profile.file_extension}", content=video.read())

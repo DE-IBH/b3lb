@@ -245,4 +245,3 @@ B3LB_RECORD_PATH_HIERARCHY_DEPHT = env.int('B3LB_RECORD_PATH_HIERARCHY_DEPHT', d
 
 # Record Rendering Parameters
 B3LB_RECORD_RENDER_WORK_DIR = env.str('B3LB_RECORD_RENDER_WORK_DIR', default='/rendering')
-
