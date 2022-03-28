@@ -49,5 +49,5 @@ def celery_render_records(record_set=RecordSet()):
         # check for video file
         if os.path.isfile(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/video.mp4"):
             video = open(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/video.mp4", "rb")
-            record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
+            record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)[0]
             record.file.save(name=f"{record.uuid}.{record_profile.file_extension}", content=video.read())
