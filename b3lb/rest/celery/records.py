@@ -54,3 +54,11 @@ def celery_render_records(record_set=RecordSet()):
             video = open(video_path, "rb")
             record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)[0]
             record.file.save(name=f"{record.record_set.file_path}/{record.uuid}.{record_profile.file_extension}", content=ContentFile(video.read()))
+
+            # ToDo:
+            #   remove video instead of ls
+            sp.check_output(["ls", video_path])
+
+    # remove raw dir
+    sp.check_output(["rm", "-rf", f"{record_set.uuid}"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir")
+
