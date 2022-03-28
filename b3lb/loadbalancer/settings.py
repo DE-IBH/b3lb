@@ -139,11 +139,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configure Celery to use the django-celery-results backend.
 
+CELERY_IGNORE_RESULT = True
+
 CELERY_RESULT_BACKEND = 'django-db'
-
-# Expire task results after 1h
-
 CELERY_RESULT_EXPIRES = 3600
+
 
 # Lock expiry time in second for singleton task locks.
 
