@@ -281,7 +281,7 @@ class ClusterGroupRelationAdmin(admin.ModelAdmin):
 
 class Tenant(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    slug = models.CharField(max_length=10, validators=[RegexValidator('[A-Z]{2,10}')])
+    slug = models.CharField(max_length=10, validators=[RegexValidator('^[A-Z]{2,10}$')])
     description = models.CharField(max_length=256, blank=True, default="")
     stats_token = models.UUIDField(default=uid.uuid4)
     cluster_group = models.ForeignKey(ClusterGroup, on_delete=models.PROTECT)
