@@ -144,19 +144,6 @@ CELERY_IGNORE_RESULT = True
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_RESULT_EXPIRES = 3600
 
-CELERY_ROUTES = {
-    'core.tasks.check_node': {'queue': 'nodes'},
-    'core.tasks.check_status': {'queue': 'nodes'},
-    'core.tasks.update_statistic': {'queue': 'statistics'},
-    'core.tasks.update_tenant_statistic': {'queue': 'statistics'},
-    'core.tasks.render_record_sets': {'queue': 'recording'},
-    'core.tasks.cleanup_assets': {'queue': 'cleanups'},
-    'core.tasks.update_secret_meetings_lists': {'queue': 'secrets'},
-    'core.tasks.update_secret_metrics_list': {'queue': 'secrets'},
-    'core.tasks.update_secrets_lists': {'queue': 'secrets'}
-}
-
-
 # Lock expiry time in second for singleton task locks.
 
 CELERY_SINGLETON_LOCK_EXPIRY = 300
