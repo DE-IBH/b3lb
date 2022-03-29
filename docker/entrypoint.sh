@@ -27,11 +27,8 @@ case "$CMD" in
     celery-beat)
         exec celery -A loadbalancer beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
         ;;
-    celery-flower)
-        exec celery -A loadbalancer flower --url_prefix=flower --address=0.0.0.0 --port=5555 -l info
-        ;;
     celery-tasks)
-        exec celery -A loadbalancer $@ worker -l info
+        exec celery -A loadbalancer worker $@ -l info
         ;;
     loadbalancer)
         /usr/bin/env python3 ./manage.py migrate --no-input --force-color
