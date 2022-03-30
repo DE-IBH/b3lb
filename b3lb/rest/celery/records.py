@@ -19,46 +19,38 @@ import subprocess as sp
 from django.core.files.base import ContentFile
 from rest.models import Record, RecordProfile, RecordSet
 from django.conf import settings as st
-
-
-def check_dir_paths(sub_folder_name):
-    if not os.path.isdir(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{sub_folder_name}"):
-        os.makedirs(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{sub_folder_name}")
-    if not os.path.isdir(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir"):
-        os.makedirs(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir")
+from tempfile import TemporaryDirectory
 
 
 def celery_render_records(record_set=RecordSet()):
-    # Check if dirs exists
-    check_dir_paths(record_set.uuid)
+    # Create temporary dir
+    # ToDo:
+    #   ignore_cleanup_errors is only availabe in python 3.10+, but pypy version is python 3.7
+    #   implement when using python 3.10+ in pypy docker
+    with TemporaryDirectory(prefix=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/") as temp_dir:
+        # Save and unpack raw files
+        with open(f"{temp_dir}/raw.tar", "wb") as tar_file:
+            tar_file.write(record_set.recording_archive.open().read())
 
-    # Save and unpack raw files
-    with open(f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}/raw.tar", "wb") as tar_file:
-        tar_file.write(record_set.recording_archive.open().read())
+        # unpack raw tar file
+        sp.check_output(["tar", "-xf", "raw.tar"], cwd=temp_dir)
 
-    sp.check_output(["tar", "-xf", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}")
+        # run rendering
+        record_profiles = RecordProfile.objects.all()
+        for record_profile in record_profiles:
+            # rendering command
+            sp.check_output(record_profile.command.split(" "), cwd=temp_dir)
 
-    # delete raw.tar
-    sp.check_output(["rm", "raw.tar"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir/{record_set.uuid}")
-
-    # run rendering
-    record_profiles = RecordProfile.objects.all()
-    for record_profile in record_profiles:
-        # rendering command
-        sp.check_output(record_profile.command.split(" "), cwd=st.B3LB_RECORD_RENDER_WORK_DIR)
-
-        # check for video file
-        video_file = "video.mp4" # just for development
-        video_path = f"{st.B3LB_RECORD_RENDER_WORK_DIR}/outdir/{video_file}"
-        if os.path.isfile(video_path):
-            video = open(video_path, "rb")
-            record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)[0]
-            record.file.save(name=f"{record.record_set.file_path}/{record.uuid}.{record_profile.file_extension}", content=ContentFile(video.read()))
+            # ToDo
+            #   remove development command
+            sp.check_output(["cp", "video.mp4", temp_dir], cwd=st.B3LB_RECORD_RENDER_WORK_DIR)
 
             # ToDo:
-            #   remove video instead of ls
-            sp.check_output(["ls", video_path])
+            #   Replace with real rendering and
+            video_file_name = "video"
+            video_path = f"{temp_dir}/{video_file_name}{record_profile.file_extension}"
 
-    # remove raw dir
-    sp.check_output(["rm", "-rf", f"{record_set.uuid}"], cwd=f"{st.B3LB_RECORD_RENDER_WORK_DIR}/indir")
-
+            if os.path.isfile(video_path):
+                video = open(video_path, "rb")
+                record = Record.objects.get_or_create(record_set=record_set, profile=record_profile)[0]
+                record.file.save(name=f"{record.record_set.file_path}/{record.uuid}.{record_profile.file_extension}", content=ContentFile(video.read()))
