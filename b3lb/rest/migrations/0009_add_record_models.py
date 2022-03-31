@@ -11,7 +11,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rest', '0007_alter_parameter_parameter'),
+        ('rest', '0008_alter_tenant_slug'),
     ]
 
     operations = [
