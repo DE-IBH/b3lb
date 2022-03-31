@@ -432,7 +432,7 @@ class SecretAdmin(ModelAdmin):
             params["record"] = True
 
         # Todo
-        #   get correct way to send "key=value" format via url
+        #   don't send params or get correct way to send "key=value" format via url
 
         # custom_parameters = ""
         # for custom_parameter in Parameter.objects.filter(tenant__secret=obj):
