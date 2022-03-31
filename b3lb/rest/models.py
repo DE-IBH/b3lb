@@ -20,10 +20,11 @@ import re
 import base64
 import rest.endpoints.b3lb.constants as ct
 from django.conf import settings
-from django.contrib.admin import ModelAdmin, action
+from django.contrib.admin import ModelAdmin, action, RelatedOnlyFieldListFilter
 from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 from django.db.models import (
     Model, UUIDField, BinaryField, FileField, ImageField, URLField,
     FloatField, SmallIntegerField, IntegerField, BigIntegerField, DateTimeField,
@@ -31,6 +32,8 @@ from django.db.models import (
     UniqueConstraint, PROTECT, CASCADE, SET_NULL
 )
 from django.utils.crypto import get_random_string
+from django.utils.html import format_html
+from django.utils.http import urlencode
 from django.utils.timezone import now
 from math import pow
 from rest.utils import xml_escape, get_file_from_storage
@@ -134,8 +137,56 @@ class Cluster(Model):
 
 class ClusterAdmin(ModelAdmin):
     model = Cluster
-    list_display = ['name', 'load_a_factor', 'load_m_factor', 'load_cpu_iterations', 'load_cpu_max']
+    list_display = ['name', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes', 'a_factor', 'm_factor', 'cpu_iterations', 'cpu_max']
     actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
+
+    def a_factor(self, obj):
+        return obj.load_a_factor
+
+    a_factor.short_description = "a-Factor"
+
+    def m_factor(self, obj):
+        return obj.load_m_factor
+
+    m_factor.short_description = "m-Factor"
+
+    def cpu_iterations(self, obj):
+        return obj.load_cpu_iterations
+
+    cpu_iterations.short_description = "# CPU Iter."
+
+    def cpu_max(self, obj):
+        return obj.load_cpu_max
+
+    cpu_max.short_description = "CPU max. Load"
+
+    def number_of_nodes(self, obj):
+        count = Node.objects.filter(cluster=obj).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}"}))
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
+
+    number_of_nodes.short_description = "# Nodes"
+
+    def available_nodes(self, obj):
+        count = Node.objects.filter(cluster=obj, has_errors=False, maintenance=False).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 0, "has_errors__exact": 0}))
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
+
+    available_nodes.short_description = "# Avail."
+
+    def maintenance_nodes(self, obj):
+        count = Node.objects.filter(cluster=obj, maintenance=True).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 1}))
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
+
+    maintenance_nodes.short_description = "# Maint."
+
+    def error_nodes(self, obj):
+        count = Node.objects.filter(cluster=obj, has_errors=True).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "has_errors__exact": 1}))
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
+
+    error_nodes.short_description = "# Errors"
 
 
 class Node(Model):
@@ -194,6 +245,8 @@ class Node(Model):
 class NodeAdmin(ModelAdmin):
     model = Node
     list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance']
+    list_filter = [('cluster', RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
+    search_fields = ['slug']
     actions = [maintenance_on, maintenance_off]
 
     def show_cpu_load(self, obj):
@@ -226,7 +279,42 @@ class ClusterGroup(Model):
 
 class ClusterGroupAdmin(ModelAdmin):
     model = ClusterGroup
-    list_display = ['name', 'description']
+    list_display = ['name', 'description', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
+
+    def number_of_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster).count()
+        return count
+
+    number_of_nodes.short_description = "# Nodes"
+
+    def available_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=False, maintenance=False).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 0, "has_errors__exact": 0}))
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
+
+    available_nodes.short_description = "# Avail."
+
+    def maintenance_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster, maintenance=True).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 1}))
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
+
+    maintenance_nodes.short_description = "# Maint."
+
+    def error_nodes(self, obj):
+        count = 0
+        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
+            count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=True).count()
+        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"has_errors__exact": 1}))
+        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
+
+    error_nodes.short_description = "# Errors"
 
 
 class ClusterGroupRelation(Model):
@@ -248,7 +336,7 @@ class ClusterGroupRelationAdmin(ModelAdmin):
 
 class Tenant(Model):
     uuid = UUIDField(primary_key=True, editable=False, unique=True, default=uuid4)
-    slug = CharField(max_length=10, validators=[RegexValidator('[A-Z]{2,10}')])
+    slug = CharField(max_length=10, validators=[RegexValidator('^[A-Z]{2,10}$')])
     description = CharField(max_length=256, blank=True, default="")
     stats_token = UUIDField(default=uuid4)
     cluster_group = ForeignKey(ClusterGroup, on_delete=PROTECT)
@@ -271,6 +359,8 @@ class Tenant(Model):
 class TenantAdmin(ModelAdmin):
     model = Tenant
     list_display = ['slug', 'description', 'hostname', 'cluster_group', 'recording_enabled', 'attendee_limit', 'meeting_limit']
+    list_filter = [('cluster_group', RelatedOnlyFieldListFilter)]
+    search_fields = ['cluster_group', 'slug', 'description']
     actions = [records_on, records_off]
 
 
@@ -317,6 +407,7 @@ class Secret(Model):
 
 class SecretAdmin(ModelAdmin):
     model = Secret
+    list_filter = [('tenant', RelatedOnlyFieldListFilter)]
     list_display = ['__str__', 'description', 'endpoint', 'recording_enabled', 'attendee_limit', 'meeting_limit']
     actions = [records_on, records_off]
 
@@ -458,6 +549,8 @@ class Meeting(Model):
 class MeetingAdmin(ModelAdmin):
     model = Meeting
     list_display = ['__str__', 'bbb_origin_server_name', 'node', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount', 'age', 'id']
+    list_filter = [('secret__tenant', RelatedOnlyFieldListFilter), 'node']
+    search_fields = ['room_name']
 
 
 # Meeting - Secret - Recording relation class
@@ -561,6 +654,7 @@ class Stats(Model):
 class StatsAdmin(ModelAdmin):
     model = Stats
     list_display = ['tenant', 'meetings', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount']
+    list_filter = ['tenant']
 
 
 class Metric(Model):
@@ -944,3 +1038,4 @@ class Parameter(Model):
 class ParameterAdmin(ModelAdmin):
     model = Parameter
     list_display = ['tenant', 'parameter', 'mode', 'value']
+    list_filter = [('tenant', RelatedOnlyFieldListFilter), 'mode']
