@@ -19,7 +19,7 @@ import os
 import re
 import base64
 import rest.endpoints.b3lb.constants as ct
-from django.conf import settings
+from django.conf import settings as st
 from django.contrib.admin import ModelAdmin, action, RelatedOnlyFieldListFilter
 from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
@@ -54,7 +54,7 @@ MEETING_ID_LENGTH = 100
 # DEFAULT FUNCTIONS
 #
 def get_b3lb_node_default_domain():
-    return settings.B3LB_NODE_DEFAULT_DOMAIN
+    return st.B3LB_NODE_DEFAULT_DOMAIN
 
 
 def get_random_secret():
@@ -66,15 +66,15 @@ def get_nonce():
 
 
 def get_storage():
-    if settings.B3LB_RECORD_STORAGE == "local":
+    if st.B3LB_RECORD_STORAGE == "local":
         used_storage = FileSystemStorage()
-    elif settings.B3LB_RECORD_STORAGE == "s3":
+    elif st.B3LB_RECORD_STORAGE == "s3":
         used_storage = S3Boto3Storage()
-        used_storage.access_key = settings.B3LB_S3_ACCESS_KEY
-        used_storage.secret_key = settings.B3LB_S3_SECRET_KEY
-        used_storage.endpoint_url = settings.B3LB_S3_ENDPOINT_URL
-        used_storage.url_protocol = settings.B3LB_S3_URL_PROTOCOL
-        used_storage.bucket_name = settings.B3LB_S3_BUCKET_NAME
+        used_storage.access_key = st.B3LB_S3_ACCESS_KEY
+        used_storage.secret_key = st.B3LB_S3_SECRET_KEY
+        used_storage.endpoint_url = st.B3LB_S3_ENDPOINT_URL
+        used_storage.url_protocol = st.B3LB_S3_URL_PROTOCOL
+        used_storage.bucket_name = st.B3LB_S3_BUCKET_NAME
     else:
         used_storage = default_storage
     return used_storage
@@ -109,12 +109,12 @@ def maintenance_off(modeladmin, request, queryset):
 
 @action(description="Enable records")
 def records_on(modeladmin, request, queryset):
-    queryset.update(records_enabled=True)
+    queryset.update(recording_enabled=True)
 
 
 @action(description="Disable records")
 def records_off(modeladmin, request, queryset):
-    queryset.update(records_enabled=False)
+    queryset.update(recording_enabled=False)
 
 
 #
@@ -209,11 +209,11 @@ class Node(Model):
 
     @property
     def api_base_url(self):
-        return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_BBB_ENDPOINT)
+        return "{}{}.{}/{}".format(st.B3LB_NODE_PROTOCOL, self.slug, self.domain, st.B3LB_NODE_BBB_ENDPOINT)
 
     @property
     def load_base_url(self):
-        return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_LOAD_ENDPOINT)
+        return "{}{}.{}/{}".format(st.B3LB_NODE_PROTOCOL, self.slug, self.domain, st.B3LB_NODE_LOAD_ENDPOINT)
 
     @property
     def load(self):
@@ -353,7 +353,7 @@ class Tenant(Model):
 
     @property
     def hostname(self):
-        return "{}.{}".format(str(self.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
+        return "{}.{}".format(str(self.slug).lower(), st.B3LB_API_BASE_DOMAIN)
 
 
 class TenantAdmin(ModelAdmin):
@@ -386,9 +386,9 @@ class Secret(Model):
     @property
     def endpoint(self):
         if self.sub_id == 0:
-            return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
+            return "{}.{}".format(str(self.tenant.slug).lower(), st.B3LB_API_BASE_DOMAIN)
         else:
-            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
+            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), st.B3LB_API_BASE_DOMAIN)
 
     @property
     def is_record_enabled(self):
@@ -408,8 +408,50 @@ class Secret(Model):
 class SecretAdmin(ModelAdmin):
     model = Secret
     list_filter = [('tenant', RelatedOnlyFieldListFilter)]
-    list_display = ['__str__', 'description', 'endpoint', 'recording_enabled', 'attendee_limit', 'meeting_limit']
+    list_display = ['__str__', 'description', 'endpoint', 'api_mate', 'recording_enabled', 'attendee_limit', 'meeting_limit', ]
     actions = [records_on, records_off]
+
+    def api_mate(self, obj):
+        low_slug = str(obj.tenant.slug).lower()
+        low_slug_id = f"{low_slug}-{str(obj.sub_id).zfill(3)}"
+        params = {
+            "sharedSecret": obj.secret,
+            "name": f"API Mate test room for {low_slug_id}",
+            "attendeePW": get_random_string(6, '0123456789'),
+            "moderatorPW": get_random_string(6, '0123456789')
+        }
+        slide_string = ""
+        try:
+            slide = Asset.objects.get(tenant__secret=obj).slide
+            if slide:
+                slide_string = f"pre-upload=https://{st.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug}/slide"
+        except Asset.DoesNotExist:
+            pass
+
+        if obj.recording_enabled and obj.tenant.recording_enabled:
+            params["record"] = True
+
+        # Todo
+        #   get correct way to send "key=value" format via url
+
+        # custom_parameters = ""
+        # for custom_parameter in Parameter.objects.filter(tenant__secret=obj):
+        #     if custom_parameter.mode != Parameter.BLOCK:
+        #         if not custom_parameters:
+        #             custom_parameters = f"{custom_parameter.parameter}={custom_parameter.value}"
+        #         else:
+        #             custom_parameters += f"\n{custom_parameter.parameter}={custom_parameter.value}"
+
+        url = f"https://mconf.github.io/api-mate/?server=https://{obj.endpoint}/bigbluebutton&{urlencode(params)}"
+        if slide_string:
+            url += f"&{slide_string}"
+
+        # if custom_parameters:
+        #     url += f"&custom-params={custom_parameters}"
+
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>', url, low_slug_id)
+
+    api_mate.short_description = "API Test for"
 
 
 class AssetSlide(Model):
@@ -463,15 +505,15 @@ class Asset(Model):
 
     @property
     def custom_css_url(self):
-        return "https://{}/b3lb/t/{}/css".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+        return "https://{}/b3lb/t/{}/css".format(st.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     @property
     def logo_url(self):
-        return "https://{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+        return "https://{}/b3lb/t/{}/logo".format(st.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     @property
     def slide_url(self):
-        return "https://{}/b3lb/t/{}/slide".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+        return "https://{}/b3lb/t/{}/slide".format(st.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
 
     @property
     def slide_base64(self):
@@ -583,8 +625,8 @@ class RecordSet(Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         base32 = base64.b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
-        path = wrap(base32, settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH)[:settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT]
-        path.append(base32[settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH * settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
+        path = wrap(base32, st.B3LB_RECORD_PATH_HIERARCHY_WIDTH)[:st.B3LB_RECORD_PATH_HIERARCHY_DEPHT]
+        path.append(base32[st.B3LB_RECORD_PATH_HIERARCHY_WIDTH * st.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
         self.file_path = os.path.join(*path)
 
 # ToDo:
@@ -750,8 +792,8 @@ class Parameter(Model):
     # Join Parameters
     # see https://docs.bigbluebutton.org/admin/customize.html#passing-custom-parameters-to-the-client-on-join for documentation
     #
-    # some join parameters needs settings.yml defined inputs, see
-    # https://github.com/bigbluebutton/bigbluebutton/blob/develop/bigbluebutton-html5/private/config/settings.yml
+    # some join parameters needs st.yml defined inputs, see
+    # https://github.com/bigbluebutton/bigbluebutton/blob/develop/bigbluebutton-html5/private/config/st.yml
     # for possible options
 
     # Join Parameters - Application
