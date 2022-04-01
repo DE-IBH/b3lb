@@ -224,6 +224,8 @@ B3LB_NO_SLIDES_TEXT = env.str('B3LB_NO_SLIDES_TEXT', default='<default>')
 B3LB_CACHE_NML_PATTERN = env.str('B3LB_CACHE_NML_PATTERN', default='NML#{}')
 B3LB_CACHE_NML_TIMEOUT = env.int('B3LB_CACHE_NML_TIMEOUT', default=30)
 
+B3LB_API_MATE_BASE_URL = env.str('B3LB_API_MATE_BASE_URL', default='https://mconf.github.io/api-mate/')
+
 ######
 # B3LB Storage Setting
 ######
