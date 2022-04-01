@@ -104,12 +104,12 @@ def maintenance_off(modeladmin, request, queryset):
     queryset.update(maintenance=False)
 
 
-@action(description="Enable records")
+@action(description="Enable recording")
 def records_on(modeladmin, request, queryset):
     queryset.update(recording_enabled=True)
 
 
-@action(description="Disable records")
+@action(description="Disable recording")
 def records_off(modeladmin, request, queryset):
     queryset.update(recording_enabled=False)
 
@@ -422,7 +422,7 @@ class SecretAdmin(ModelAdmin):
         except Asset.DoesNotExist:
             pass
 
-        if obj.recording_enabled and obj.tenant.recording_enabled:
+        if obj.is_record_enabled:
             params["record"] = True
 
         # Todo
@@ -436,7 +436,7 @@ class SecretAdmin(ModelAdmin):
         #         else:
         #             custom_parameters += f"\n{custom_parameter.parameter}={custom_parameter.value}"
 
-        url = f"https://mconf.github.io/api-mate/?server=https://{obj.endpoint}/bigbluebutton&{urlencode(params)}"
+        url = f"{st.B3LB_API_MATE_BASE_URL}#server=https://{obj.endpoint}/bigbluebutton&{urlencode(params)}"
         if slide_string:
             url += f"&{slide_string}"
 
@@ -786,7 +786,7 @@ class Parameter(Model):
     # Join Parameters
     # see https://docs.bigbluebutton.org/admin/customize.html#passing-custom-parameters-to-the-client-on-join for documentation
     #
-    # some join parameters needs st.yml defined inputs, see
+    # some join parameters needs settings.yml defined inputs, see
     # https://github.com/bigbluebutton/bigbluebutton/blob/develop/bigbluebutton-html5/private/config/st.yml
     # for possible options
 
