@@ -431,25 +431,15 @@ class SecretAdmin(ModelAdmin):
         if obj.is_record_enabled:
             params["record"] = True
 
-        # Todo
-        #   don't send params or get correct way to send "key=value" format via url
-
-        # custom_parameters = ""
-        # for custom_parameter in Parameter.objects.filter(tenant__secret=obj):
-        #     if custom_parameter.mode != Parameter.BLOCK:
-        #         if not custom_parameters:
-        #             custom_parameters = f"{custom_parameter.parameter}={custom_parameter.value}"
-        #         else:
-        #             custom_parameters += f"\n{custom_parameter.parameter}={custom_parameter.value}"
-
-        url = f"{st.B3LB_API_MATE_BASE_URL}#server=https://{obj.endpoint}/bigbluebutton&{urlencode(params)}"
+        url_enc_params = urlencode(params)
+        url_base = f"{st.B3LB_API_MATE_BASE_URL}#server=https://"
+        url_multi = f"{url_base}{obj.endpoint}/bigbluebutton&{url_enc_params}"
+        url_single = f"{url_base}{st.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
         if slide_string:
-            url += f"&{slide_string}"
+            url_multi += f"&{slide_string}"
+            url_single += f"&{slide_string}"
 
-        # if custom_parameters:
-        #     url += f"&custom-params={custom_parameters}"
-
-        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>', url, low_slug_id)
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Multi-Domain</a><br><a href="{}" target="_blank" rel="noopener noreferrer">Single-Domain</a>', url_multi, url_single)
 
     api_mate.short_description = "API Test for"
 
