@@ -46,6 +46,7 @@ from uuid import uuid4
 # CONSTANTS
 #
 SECRET_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+API_MATE_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
 NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$*(-_)'
 MEETING_ID_LENGTH = 100
 
@@ -244,10 +245,29 @@ class Node(Model):
 
 class NodeAdmin(ModelAdmin):
     model = Node
-    list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance']
+    list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance', 'api_mate']
     list_filter = [('cluster', RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
     search_fields = ['slug']
     actions = [maintenance_on, maintenance_off]
+
+    def api_mate(self, obj):
+        params = {
+            "sharedSecret": obj.secret,
+            "name": f"API Mate test room on {obj.slug.lower()}{obj.domain}",
+            "attendeePW": get_random_string(st.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL),
+            "moderatorPW": get_random_string(st.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL)
+        }
+
+        url_enc_params = urlencode(params)
+        url_base = f"{st.B3LB_API_MATE_BASE_URL}#server=https://"
+        url = f"{url_base}{obj.slug.lower()}{obj.domain}/bigbluebutton&{url_enc_params}"
+        # Todo
+        #   check if single-domain is used, when implemented
+        # url = f"{url_base}{st.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
+
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Link</a>', url)
+
+    api_mate.short_description = "API Mate"
 
     def show_cpu_load(self, obj):
         return "{:.1f} %".format(obj.cpu_load / 100)
@@ -417,8 +437,8 @@ class SecretAdmin(ModelAdmin):
         params = {
             "sharedSecret": obj.secret,
             "name": f"API Mate test room for {low_slug_id}",
-            "attendeePW": get_random_string(6, '0123456789'),
-            "moderatorPW": get_random_string(6, '0123456789')
+            "attendeePW": get_random_string(st.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL),
+            "moderatorPW": get_random_string(st.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL)
         }
         slide_string = ""
         try:
@@ -433,15 +453,16 @@ class SecretAdmin(ModelAdmin):
 
         url_enc_params = urlencode(params)
         url_base = f"{st.B3LB_API_MATE_BASE_URL}#server=https://"
-        url_multi = f"{url_base}{obj.endpoint}/bigbluebutton&{url_enc_params}"
-        url_single = f"{url_base}{st.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
+        url = f"{url_base}{obj.endpoint}/bigbluebutton&{url_enc_params}"
+        # Todo
+        #   check if single-domain is used, when implemented
+        # url = f"{url_base}{st.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
         if slide_string:
-            url_multi += f"&{slide_string}"
-            url_single += f"&{slide_string}"
+            url += f"&{slide_string}"
 
-        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Multi-Domain</a><br><a href="{}" target="_blank" rel="noopener noreferrer">Single-Domain</a>', url_multi, url_single)
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Link</a>', url)
 
-    api_mate.short_description = "API Test for"
+    api_mate.short_description = "API Mate"
 
 
 class AssetSlide(Model):
