@@ -250,14 +250,14 @@ class NodeAdmin(ModelAdmin):
     def api_mate(self, obj):
         params = {
             "sharedSecret": obj.secret,
-            "name": f"API Mate test room on {obj.slug.lower()}{obj.domain}",
+            "name": f"API Mate test room on {obj.slug.lower()}.{obj.domain}",
             "attendeePW": get_random_string(st.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL),
             "moderatorPW": get_random_string(st.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL)
         }
 
         url_enc_params = urlencode(params)
         url_base = f"{st.B3LB_API_MATE_BASE_URL}#server=https://"
-        url = f"{url_base}{obj.slug.lower()}{obj.domain}/bigbluebutton&{url_enc_params}"
+        url = f"{url_base}{obj.slug.lower()}.{obj.domain}/bigbluebutton&{url_enc_params}"
         # Todo
         #   check if single-domain is used, when implemented
         # url = f"{url_base}{st.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
