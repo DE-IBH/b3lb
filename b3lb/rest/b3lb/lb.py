@@ -189,11 +189,11 @@ def get_slug(request, slug, sub_id):
         else:
             return None, None
     else:
-        return slug, int(sub_id)
+        return slug.upper(), int(sub_id)
 
 
 def get_request_tenant(request, slug, sub_id):
-    (slug, sub_id) = get_slug(request, slug, sub_id)
+    slug, sub_id = get_slug(request, slug, sub_id)
     if not slug:
         return None
 
@@ -204,7 +204,7 @@ def get_request_tenant(request, slug, sub_id):
 
 
 def get_request_secret(request, slug, sub_id):
-    (slug, sub_id) = get_slug(request, slug, sub_id)
+    slug, sub_id = get_slug(request, slug, sub_id)
     if not slug:
         return None
 
