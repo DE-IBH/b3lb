@@ -1,5 +1,18 @@
 # ChangeLog
 
+## 2.2.4 - 2022-04-12
+
+Fixes:
+- stats: fix regex for retrieving secret for metrics and stats url (#85)
+
+Changes:
+- bump python dependencies:
+  - celery `5.2.3` => `5.2.6`
+  - Django `3.2.12` => `3.2.13`
+  - jinja2 `3.0.3` => `3.1.1`
+  - Pillow `9.0.1`=>  `9.1.0`
+  - uvicorn `0.17.5`=>  `0.17.6`
+
 ## 2.2.3 - 2022-03-04
 
 Changes:
@@ -12,7 +25,7 @@ Changes:
 
 ## 2.2.2 - 2021-12-29
 
-Fix:
+Fixes:
 - api: change checksum validation to match upstream implementation (#54)
 
 Changes:
