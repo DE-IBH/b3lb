@@ -91,7 +91,7 @@ def stats(request, slug=None, sub_id=0):
     auth_token = request.headers.get('Authorization')
     tenant = lb.get_request_tenant(request, slug, sub_id)
 
-    if auth_token and tenant and auth_token == tenant.stats_token:
+    if auth_token and tenant and auth_token == str(tenant.stats_token):
         return HttpResponse(ep.tenant_stats(tenant), content_type='application/json')
     else:
         return HttpResponse("Unauthorized", status=401)
@@ -107,7 +107,7 @@ def metrics(request, slug=None, sub_id=0):
 
     if forwarded_host == settings.B3LB_API_BASE_DOMAIN and slug is None:
         return HttpResponse(SecretMetricsList.objects.get(secret=None).metrics, content_type='text/plain')
-    elif auth_token and secret and auth_token == secret.tenant.stats_token:
+    elif auth_token and secret and auth_token == str(secret.tenant.stats_token):
         return HttpResponse(SecretMetricsList.objects.get(secret=secret).metrics, content_type='text/plain')
     else:
         return HttpResponse("Unauthorized", status=401)
