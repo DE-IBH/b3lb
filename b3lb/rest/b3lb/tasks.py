@@ -20,6 +20,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
+from django.template import Template
 from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList, AssetLogo, AssetSlide
 import rest.b3lb.lb as lb
 import rest.b3lb.utils as utils
@@ -28,7 +29,6 @@ import os
 import xml.etree.ElementTree as ElementTree
 import requests as rq
 import json
-from jinja2 import Template
 
 
 #
