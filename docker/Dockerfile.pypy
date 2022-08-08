@@ -30,7 +30,7 @@ RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 FROM pypy:3.9-7-slim
 
-RUN apt-get update && apt-get install -y libpq5 libjpeg-turbo zlib
+RUN apt-get update && apt-get install -y libpq5 libjpeg-turbo
 
 ARG B3LBUID=8318
 ENV PYTHONUNBUFFERED 1
