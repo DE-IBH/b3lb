@@ -34,6 +34,7 @@ WHITELISTED_ENDPOINTS = [
     "create",
     "join",
     "end",
+    "insertDocument",
     "setConfigXML",
     "getMeetings",
     "isMeetingRunning",
