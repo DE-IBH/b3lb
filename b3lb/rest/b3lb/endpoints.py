@@ -93,7 +93,10 @@ async def requested_endpoint(secret, endpoint, request, params):
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
-            return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
+            if endpoint == "isMeetingRunning":
+                return HttpResponse(constants.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
+            else:
+                return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
     return HttpResponseBadRequest()
 
