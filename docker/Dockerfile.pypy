@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y libpq5
 
 ARG B3LBUID=8318
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONPATH /usr/local/site-packages
 
 WORKDIR /usr/src/app
 
