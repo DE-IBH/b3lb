@@ -35,7 +35,7 @@ import rest.b3lb.constants as ct
 #
 # CONSTANTS
 #
-API_MATE_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
+API_MATE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
 
 
 #
@@ -205,8 +205,8 @@ class NodeAdmin(admin.ModelAdmin):
         params = {
             "sharedSecret": obj.secret,
             "name": f"API Mate test room on {obj.slug.lower()}.{obj.domain}",
-            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL),
-            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL)
+            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL),
+            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL)
         }
 
         url_enc_params = urlencode(params)
@@ -372,8 +372,8 @@ class SecretAdmin(admin.ModelAdmin):
         params = {
             "sharedSecret": obj.secret,
             "name": f"API Mate test room for {low_slug_id}",
-            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL),
-            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL)
+            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL),
+            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL)
         }
         slide_string = ""
         try:
