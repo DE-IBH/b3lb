@@ -1,5 +1,19 @@
 # ChangeLog
 
+## 2.2.5 - 2022-08-09
+
+Changes:
+- adopt new BBB 2.5 API features
+  - add insertDocument API call
+  - add meta_fullaudio-bridge API parameter
+- bump python dependencies:
+  - celery `5.2.6` => `5.2.7`
+  - Django `3.2.13` => `3.2.15`
+  - jinja2 `3.1.1` => `3.1.2`
+  - Pillow `9.1.0`=>  `9.2.0`
+  - uvicorn `0.17.6`=>  `0.18.2`
+  - requests `2.27.1` => `2.28.1`
+
 ## 2.2.4 - 2022-04-12
 
 Fixes:
