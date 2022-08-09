@@ -91,7 +91,7 @@ async def requested_endpoint(secret, endpoint, request, params):
     if endpoint in PASS_THOUGH_ENDPOINTS:
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
         if node:
-            return await pass_through(request, endpoint, params, node)
+            return await pass_through(request, endpoint, params, node, body=request.body)
         else:
             if endpoint == "isMeetingRunning":
                 return HttpResponse(constants.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
