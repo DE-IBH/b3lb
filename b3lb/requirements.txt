@@ -17,5 +17,3 @@ psycopg2cffi==2.9.0
 uvicorn[standard]==0.18.2
 aiohttp==3.8.1
 jinja2==3.1.2
-# ToDo: v3.0 - drop dependency (ImageField)
-Pillow==9.2.0
