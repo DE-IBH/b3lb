@@ -32,7 +32,15 @@ from math import pow
 from rest.b3lb.utils import xml_escape, get_file_from_storage
 import rest.b3lb.constants as ct
 
+#
+# CONSTANTS
+#
+API_MATE_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
 
+
+#
+# ADMIN ACTIONS
+#
 @admin.action(description="Set nodes of cluster to active")
 def set_cluster_nodes_to_active(modeladmin, request, queryset):
     for cluster in queryset:
@@ -47,6 +55,9 @@ def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
         nodes.update(maintenance=True)
 
 
+#
+# MODELS
+#
 class Cluster(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     name = models.CharField(max_length=100, help_text="cluster name", unique=True)
@@ -189,6 +200,25 @@ class NodeAdmin(admin.ModelAdmin):
     list_filter = [('cluster', admin.RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
     search_fields = ['slug']
     actions = [maintenance_on, maintenance_off]
+
+    def api_mate(self, obj):
+        params = {
+            "sharedSecret": obj.secret,
+            "name": f"API Mate test room on {obj.slug.lower()}.{obj.domain}",
+            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL),
+            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL)
+        }
+
+        url_enc_params = urlencode(params)
+        url_base = f" {settings.B3LB_API_MATE_BASE_URL}#server=https://"
+        url = f"{url_base}{obj.slug.lower()}.{obj.domain}/bigbluebutton&{url_enc_params}"
+        # Todo
+        #   check if single-domain is used, when implemented
+        # url = f"{url_base} {settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
+
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Link</a>', url)
+
+    api_mate.short_description = "API Mate"
 
     def show_cpu_load(self, obj):
         return "{:.1f} %".format(obj.cpu_load/100)
@@ -335,6 +365,39 @@ class SecretAdmin(admin.ModelAdmin):
     model = Secret
     list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit']
     list_filter = [('tenant', admin.RelatedOnlyFieldListFilter)]
+
+    def api_mate(self, obj):
+        low_slug = str(obj.tenant.slug).lower()
+        low_slug_id = f"{low_slug}-{str(obj.sub_id).zfill(3)}"
+        params = {
+            "sharedSecret": obj.secret,
+            "name": f"API Mate test room for {low_slug_id}",
+            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL),
+            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_POOL)
+        }
+        slide_string = ""
+        try:
+            slide = Asset.objects.get(tenant__secret=obj).slide
+            if slide:
+                slide_string = f"pre-upload=https:// {settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug}/slide"
+        except Asset.DoesNotExist:
+            pass
+
+        if obj.is_record_enabled:
+            params["record"] = True
+
+        url_enc_params = urlencode(params)
+        url_base = f" {settings.B3LB_API_MATE_BASE_URL}#server=https://"
+        url = f"{url_base}{obj.endpoint}/bigbluebutton&{url_enc_params}"
+        # Todo
+        #   check if single-domain is used, when implemented
+        # url = f"{url_base}{settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
+        if slide_string:
+            url += f"&{slide_string}"
+
+        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Link</a>', url)
+
+    api_mate.short_description = "API Mate"
 
 
 class AssetSlide(models.Model):
