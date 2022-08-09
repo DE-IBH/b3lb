@@ -196,7 +196,7 @@ def maintenance_off(modeladmin, request, queryset):
 
 class NodeAdmin(admin.ModelAdmin):
     model = Node
-    list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance']
+    list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance', 'api_mate']
     list_filter = [('cluster', admin.RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
     search_fields = ['slug']
     actions = [maintenance_on, maintenance_off]
@@ -363,7 +363,7 @@ class Secret(models.Model):
 
 class SecretAdmin(admin.ModelAdmin):
     model = Secret
-    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit']
+    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit', 'api_mate']
     list_filter = [('tenant', admin.RelatedOnlyFieldListFilter)]
 
     def api_mate(self, obj):
