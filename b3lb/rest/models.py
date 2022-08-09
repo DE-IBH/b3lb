@@ -374,6 +374,7 @@ class Asset(models.Model):
     tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
     slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
     slide_filename = models.CharField(max_length=250, blank=True, null=True)
+    # ToDo: v3.0 - change to FileField, drop Pillow dependency
     logo = models.ImageField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
     custom_css = models.FileField(upload_to='rest.AssetCustomCSS/blob/filename/mimetype', blank=True, null=True)
 

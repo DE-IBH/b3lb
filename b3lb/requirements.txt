@@ -1,9 +1,11 @@
+# ToDo: v3.1 - Delay update to Django 4.x
 Django==3.2.15
 django-extensions==3.2.0
 requests==2.28.1
 celery==5.2.7
 celery-singleton==0.3.1
 django-cacheops==6.1
+# ToDo: v3.1 - TBD for Django 4.x
 django-db-file-storage==0.5.5
 django-celery-admin==0.1
 django-celery-beat==2.3.0
@@ -15,4 +17,5 @@ psycopg2cffi==2.9.0
 uvicorn[standard]==0.18.2
 aiohttp==3.8.1
 jinja2==3.1.2
+# ToDo: v3.0 - drop dependency (ImageField)
 Pillow==9.2.0
