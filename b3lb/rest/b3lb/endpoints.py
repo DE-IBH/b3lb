@@ -29,16 +29,20 @@ import json
 ##
 # CONSTANTS
 ##
+PASS_THOUGH_ENDPOINTS = [
+    "end",
+    "insertDocument",
+    "setConfigXML",
+    "isMeetingRunning",
+    "getMeetingInfo"
+]
+
 WHITELISTED_ENDPOINTS = [
     "",
     "create",
     "join",
-    "end",
-    "setConfigXML",
-    "getMeetings",
-    "isMeetingRunning",
-    "getMeetingInfo",
-]
+    "getMeetings"
+] + PASS_THOUGH_ENDPOINTS
 
 BLACKLISTED_ENDPOINTS = [
     "publishRecordings",
@@ -80,37 +84,19 @@ async def requested_endpoint(secret, endpoint, request, params):
         else:
             return HttpResponse(constants.RETURN_STRING_CREATE_FAILED, content_type='text/html')
 
-    if endpoint == "end":
-        node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
-        if node:
-            return await pass_through(request, endpoint, params, node)
-        else:
-            return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
-
-    if endpoint == "isMeetingRunning":
-        node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
-
-        if node:
-            return await pass_through(request, endpoint, params, node)
-        else:
-            return HttpResponse(constants.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
-
     if endpoint == "getMeetings":
         return await sync_to_async(get_meetings)(secret)
 
-    if endpoint == "getMeetingInfo":
+    # Pass Through Endpoints
+    if endpoint in PASS_THOUGH_ENDPOINTS:
         node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
         if node:
             return await pass_through(request, endpoint, params, node)
         else:
-            return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
-
-    if endpoint == "setConfigXML":
-        node = await lb.get_node_by_meeting_id(params["meetingID"], secret)
-        if node:
-            return await pass_through(request, endpoint, params, node)
-        else:
-            return HttpResponseBadRequest()
+            if endpoint == "isMeetingRunning":
+                return HttpResponse(constants.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type='text/html')
+            else:
+                return HttpResponse(constants.RETURN_STRING_GET_MEETING_NOT_FOUND, content_type='text/html')
 
     return HttpResponseBadRequest()
 
