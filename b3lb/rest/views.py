@@ -15,12 +15,15 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.files.base import ContentFile
 from django.db.utils import OperationalError
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from rest.models import Cluster, SecretMetricsList, Asset
+from rest.models import Asset, Cluster, Meeting, RecordSet, SecretMetricsList
+import requests
 import rest.b3lb.lb as lb
 import rest.b3lb.utils as utils
 import rest.b3lb.endpoints as ep
@@ -153,3 +156,66 @@ def custom_css(request, slug=None):
         return utils.get_file_response_from_storage(asset.custom_css.name)
     else:
         return HttpResponseNotFound()
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def backend_record_upload(request):
+    """
+    Upload for BBB record files.
+    Saves file to given Storage (default, local or S3)
+    """
+    nonce = request.GET.get("nonce")
+    uploaded_file = request.FILES.get('file')
+    if nonce and uploaded_file:
+        try:
+            record_set = RecordSet.objects.get(nonce=nonce)
+        except RecordSet.DoesNotExist:
+            return HttpResponseBadRequest()
+
+        try:
+            record_set.recording_archive.save(name="{}/raw.tar".format(record_set.file_path), content=ContentFile(uploaded_file.read()))
+        except:
+            return HttpResponse("Error during file save", status=503)
+
+        record_set.status = RecordSet.UPLOADED
+        record_set.save()
+
+        return HttpResponse("File uploaded successfully", status=201)
+    else:
+        return HttpResponseBadRequest()
+
+
+@require_http_methods(["GET"])
+def backend_end_meeting_callback(request):
+    """
+    Custom callback URL for end meeting.
+    """
+    parameters = request.GET
+    if "nonce" in parameters and "meetingID" in parameters:
+        try:
+            meeting = Meeting.objects.get(id=parameters["meetingID"], nonce=parameters["nonce"])
+
+            if parameters["recordingmarks"] not in ["false", "true"]:
+                recording_marks = "false"
+            else:
+                recording_marks = parameters["recordingmarks"]
+
+            if meeting.end_callback_url:
+                url_suffix = "meetingID={}&recordingmarks={}".format(parameters["meetingID"], recording_marks)
+                if "?" in meeting.end_callback_url:
+                    url = "{}&{}".format(meeting.end_callback_url, url_suffix)
+                else:
+                    url = "{}?{}".format(meeting.end_callback_url, url_suffix)
+                requests.get(url)
+
+            if recording_marks == "false":
+                try:
+                    RecordSet.objects.get(meeting=meeting).delete()
+                except RecordSet.DoesNotExist:
+                    pass
+
+            meeting.delete()
+        except Meeting.DoesNotExist:
+            return HttpResponse(status=204)
+    return HttpResponse(status=204)

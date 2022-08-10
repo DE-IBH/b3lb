@@ -16,27 +16,54 @@
 
 
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.core.files.storage import FileSystemStorage, default_storage
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+from django.conf import settings
 from django.contrib import admin
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.utils.html import format_html
 from django.utils.http import urlencode
-from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
-from django.core.exceptions import ValidationError
-from django.conf import settings
 from django.urls import reverse
-import uuid as uid
-import re
-import base64
 from math import pow
+from os.path import join
 from rest.b3lb.utils import xml_escape, get_file_from_storage
+from storages.backends.s3boto3 import S3Boto3Storage
+from textwrap import wrap
+import base64
+import re
 import rest.b3lb.constants as ct
+import uuid as uid
 
 #
 # CONSTANTS
 #
 API_MATE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
+NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$*(-_)'
+MEETING_ID_LENGTH = 100
 
+
+#
+# FUNCTIONS
+#
+def get_nonce():
+    return get_random_string(64, NONCE_CHAR_POOL)
+
+
+def get_storage():
+    if settings.B3LB_RECORD_STORAGE == "local":
+        used_storage = FileSystemStorage()
+    elif settings.B3LB_RECORD_STORAGE == "s3":
+        used_storage = S3Boto3Storage()
+        used_storage.access_key = settings.B3LB_S3_ACCESS_KEY
+        used_storage.secret_key = settings.B3LB_S3_SECRET_KEY
+        used_storage.endpoint_url = settings.B3LB_S3_ENDPOINT_URL
+        used_storage.url_protocol = settings.B3LB_S3_URL_PROTOCOL
+        used_storage.bucket_name = settings.B3LB_S3_BUCKET_NAME
+    else:
+        used_storage = default_storage
+    return used_storage
 
 #
 # ADMIN ACTIONS
@@ -210,7 +237,7 @@ class NodeAdmin(admin.ModelAdmin):
         }
 
         url_enc_params = urlencode(params)
-        url_base = f" {settings.B3LB_API_MATE_BASE_URL}#server=https://"
+        url_base = f"{settings.B3LB_API_MATE_BASE_URL}#server=https://"
         url = f"{url_base}{obj.slug.lower()}.{obj.domain}/bigbluebutton&{url_enc_params}"
         # Todo
         #   check if single-domain is used, when implemented
@@ -317,6 +344,8 @@ class Tenant(models.Model):
     cluster_group = models.ForeignKey(ClusterGroup, on_delete=models.PROTECT)
     attendee_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
     meeting_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
+    recording_enabled = models.BooleanField(default=False)
+    records_hold_time = models.IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
         ordering = ['slug']
@@ -329,11 +358,22 @@ class Tenant(models.Model):
         return "{}.{}".format(str(self.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
 
 
+@admin.action(description="Enable recording")
+def records_on(modeladmin, request, queryset):
+    queryset.update(recording_enabled=True)
+
+
+@admin.action(description="Disable recording")
+def records_off(modeladmin, request, queryset):
+    queryset.update(recording_enabled=False)
+
+
 class TenantAdmin(admin.ModelAdmin):
     model = Tenant
-    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'attendee_limit', 'meeting_limit']
+    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'recording_enabled', 'attendee_limit', 'meeting_limit']
     list_filter = [('cluster_group', admin.RelatedOnlyFieldListFilter)]
     search_fields = ['cluster_group', 'slug', 'description']
+    actions = [records_on, records_off]
 
 
 class Secret(models.Model):
@@ -345,6 +385,8 @@ class Secret(models.Model):
     secret2 = models.CharField(max_length=42, default="", blank=True, validators=[RegexValidator(r'^($|[a-zA-Z0-9]{42})$')])
     attendee_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of attendees (soft limit, 0 = unlimited).")
     meeting_limit = models.IntegerField(default=0, validators=[MinValueValidator(0)], help_text="Max. number of meetings (0 = unlimited).")
+    recording_enabled = models.BooleanField(default=True)
+    records_hold_time = models.IntegerField(default=14, validators=[MinValueValidator(0)], help_text="Days interval before deleting records.")
 
     class Meta(object):
         ordering = ['tenant__slug', 'sub_id']
@@ -360,11 +402,26 @@ class Secret(models.Model):
         else:
             return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
 
+    @property
+    def is_record_enabled(self):
+        if self.recording_enabled and self.tenant.recording_enabled:
+            return True
+        else:
+            return False
+
+    @property
+    def records_effective_hold_time(self):
+        if 0 in [self.records_hold_time, self.tenant.records_hold_time]:
+            return max(self.records_hold_time, self.tenant.records_hold_time)
+        else:
+            return min(self.records_hold_time, self.tenant.records_hold_time)
+
 
 class SecretAdmin(admin.ModelAdmin):
     model = Secret
-    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit', 'api_mate']
+    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit', 'recording_enabled', 'api_mate']
     list_filter = [('tenant', admin.RelatedOnlyFieldListFilter)]
+    actions = [records_on, records_off]
 
     def api_mate(self, obj):
         low_slug = str(obj.tenant.slug).lower()
@@ -511,7 +568,7 @@ class SecretMetricsListAdmin(admin.ModelAdmin):
 
 # meeting - tenant - node relation class
 class Meeting(models.Model):
-    id = models.CharField(max_length=100, primary_key=True)
+    id = models.CharField(max_length=MEETING_ID_LENGTH, primary_key=True)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
     node = models.ForeignKey(Node, on_delete=models.CASCADE)
     room_name = models.CharField(max_length=500)
@@ -536,6 +593,85 @@ class MeetingAdmin(admin.ModelAdmin):
     list_display = ['__str__', 'bbb_origin_server_name', 'node', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount', 'age', 'id']
     list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'node']
     search_fields = ['room_name']
+
+
+# Meeting - Secret - Recording relation class
+class RecordSet(models.Model):
+    UNKNOWN = "UNKNOWN"
+    UPLOADED = "UPLOADED"
+    RENDERED = "RENDERED"
+    DELETING = "DELETING"
+    DELETED = "DELETED"
+
+    STATUS_CHOICES = [
+        (UNKNOWN, "Record state is unknown"),
+        (UPLOADED, "Record files has been uploaded"),
+        (RENDERED, "Record files has been rendered to a video"),
+        (DELETING, "Record video will be deleted"),
+        (DELETED, "Record files have been deleted")
+    ]
+
+    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
+    secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
+    meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True)
+    meetingid = models.CharField(max_length=MEETING_ID_LENGTH, default="")
+    created_at = models.DateTimeField(default=timezone.now)
+    recording_archive = models.FileField(storage=get_storage)
+    recording_ready_origin_url = models.URLField(default="")
+    nonce = models.CharField(max_length=64, default=get_nonce, editable=False, unique=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
+    file_path = models.CharField(max_length=50)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        base32 = base64.b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
+        path = wrap(base32, settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH)[:settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT]
+        path.append(base32[settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH * settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
+        self.file_path = join(*path)
+
+# ToDo:
+#   -> admin action:
+#       * Rendern (neu) starten
+#       * Status setzen auf "DELETING"
+#   -> Celery Queues
+
+
+class RecordSetAdmin(admin.ModelAdmin):
+    model = RecordSet
+    list_display = ['uuid', 'secret', 'meeting_id', 'created_at']
+
+
+class RecordProfile(models.Model):
+    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
+    description = models.CharField(max_length=255)
+    name = models.CharField(max_length=32, unique=True)
+    command = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=32)
+    file_extension = models.CharField(max_length=10, default="mp4")
+
+    # ToDo:
+    #   -> ENV: place holder for input dir ("unzipped" tar), video filename, tenant, secret, ...
+
+    def __str__(self):
+        return self.name
+
+
+class RecordProfileAdmin(admin.ModelAdmin):
+    model = RecordProfile
+    list_display = ['uuid', 'name', 'description', 'file_extension', 'command']
+
+
+class Record(models.Model):
+    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
+    file = models.FileField(storage=get_storage)
+    profile = models.ForeignKey(RecordProfile, on_delete=models.PROTECT, null=True)
+    record_set = models.ForeignKey(RecordSet, on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(default=timezone.now)
+
+
+class RecordAdmin(admin.ModelAdmin):
+    model = Record
+    list_display = ['uuid', 'record_set', 'profile', 'file']
 
 
 class Stats(models.Model):
@@ -619,9 +755,12 @@ class Parameter(models.Model):
     WELCOME = "welcome"
     MAX_PARTICIPANTS = "maxParticipants"
     LOGOUT_URL = "logoutURL"
+    RECORD = "record"
     DISABLED_FEATURES = "disabledFeatures"
     DURATION = "duration"
     MODERATOR_ONLY_MESSAGE = "moderatorOnlyMessage"
+    AUTO_START_RECORDING = "autoStartRecording"
+    ALLOW_START_STOP_RECORDING = "allowStartStopRecording"
     WEBCAMS_ONLY_FOR_MODERATOR = "webcamsOnlyForModerator"
     LOGO = "logo"
     BANNER_TEXT = "bannerText"
@@ -671,7 +810,7 @@ class Parameter(models.Model):
     USERDATA_BBB_SKIP_CHECK_AUDIO = "userdata-bbb_skip_check_audio"
     USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN = "userdata-bbb_skip_check_audio_on_first_join"
     USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE = "userdata-bbb_override_default_locale"
-    
+
     # Join Parameters - Branding
     USERDATA_BBB_DISPLAY_BRANDING_AREA = "userdata-bbb_display_branding_area"
 
@@ -714,10 +853,12 @@ class Parameter(models.Model):
     BLOCK = "BLOCK"
     SET = "SET"
     OVERRIDE = "OVERRIDE"
-    
+
     PARAMETER_CHOICES = (
         # Create
         (ALLOW_MODS_TO_UNMUTE_USERS, ALLOW_MODS_TO_UNMUTE_USERS),
+        (ALLOW_START_STOP_RECORDING, ALLOW_START_STOP_RECORDING),
+        (AUTO_START_RECORDING, AUTO_START_RECORDING),
         (BANNER_COLOR, BANNER_COLOR),
         (BANNER_TEXT, BANNER_TEXT),
         (COPYRIGHT, COPYRIGHT),
@@ -828,6 +969,7 @@ class Parameter(models.Model):
         WELCOME: ANY_REGEX,
         MAX_PARTICIPANTS: NUMBER_REGEX,
         LOGOUT_URL: URL_REGEX,
+        RECORD: BOOLEAN_REGEX,
         DISABLED_FEATURES: ANY_REGEX,
         DURATION: NUMBER_REGEX,
         MODERATOR_ONLY_MESSAGE: ANY_REGEX,
@@ -846,6 +988,8 @@ class Parameter(models.Model):
         LOCK_SETTINGS_LOCKED_LAYOUT: BOOLEAN_REGEX,
         LOCK_SETTINGS_LOCK_ON_JOIN: BOOLEAN_REGEX,
         LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE: BOOLEAN_REGEX,
+        AUTO_START_RECORDING: BOOLEAN_REGEX,
+        ALLOW_START_STOP_RECORDING: BOOLEAN_REGEX,
         LOGO: URL_REGEX,
         GUEST_POLICY: POLICY_REGEX,
         GROUPS: ANY_REGEX,
@@ -914,23 +1058,76 @@ class Parameter(models.Model):
 
     }
 
-    PARAMETERS_CREATE = [ALLOW_MODS_TO_UNMUTE_USERS, BANNER_COLOR, BANNER_TEXT, COPYRIGHT, DURATION, END_WHEN_NO_MODERATOR,
-                         END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES, GUEST_POLICY, LOCK_SETTINGS_DISABLE_CAM, LOCK_SETTINGS_DISABLE_MIC,
-                         LOCK_SETTINGS_DISABLE_PRIVATE_CHAT, LOCK_SETTINGS_DISABLE_PUBLIC_CHAT, LOCK_SETTINGS_DISABLE_NOTE, LOCK_SETTINGS_HIDE_VIEWER_CURSOR,
-                         LOCK_SETTINGS_LOCK_ON_JOIN, LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE, LOCK_SETTINGS_LOCKED_LAYOUT, LOGO, LOGOUT_URL,
-                         MAX_PARTICIPANTS, META_FULLAUDIO_BRIDGE, MEETING_CAMERA_CAP, MEETING_EXPIRE_IF_NO_USER_JOINED_IN_MINUTES, MEETING_EXPIRE_WHEN_LAST_USER_LEFT_IN_MINUTES,
-                         MEETING_KEEP_EVENT, MODERATOR_ONLY_MESSAGE, MUTE_ON_START, WEBCAMS_ONLY_FOR_MODERATOR, WELCOME, MEETING_LAYOUT, LEARNING_DASHBOARD_CLEANUP_DELAY_IN_MINUTES,
-                         PRE_UPLOADED_PRESENTATION_OVERRIDE_DEFAULT]
+    PARAMETERS_CREATE = [
+        ALLOW_MODS_TO_UNMUTE_USERS,
+        ALLOW_START_STOP_RECORDING,
+        AUTO_START_RECORDING,
+        BANNER_COLOR,
+        BANNER_TEXT,
+        COPYRIGHT,
+        DURATION,
+        END_WHEN_NO_MODERATOR,
+        END_WHEN_NO_MODERATOR_DELAY_IN_MINUTES,
+        GUEST_POLICY,
+        LOCK_SETTINGS_DISABLE_CAM,
+        LOCK_SETTINGS_DISABLE_MIC,
+        LOCK_SETTINGS_DISABLE_PRIVATE_CHAT,
+        LOCK_SETTINGS_DISABLE_PUBLIC_CHAT,
+        LOCK_SETTINGS_DISABLE_NOTE,
+        LOCK_SETTINGS_HIDE_VIEWER_CURSOR,
+        LOCK_SETTINGS_LOCK_ON_JOIN,
+        LOCK_SETTINGS_LOCK_ON_JOIN_CONFIGURABLE,
+        LOCK_SETTINGS_LOCKED_LAYOUT,
+        LOGO, LOGOUT_URL,
+        MAX_PARTICIPANTS,
+        META_FULLAUDIO_BRIDGE,
+        MEETING_CAMERA_CAP,
+        MEETING_EXPIRE_IF_NO_USER_JOINED_IN_MINUTES,
+        MEETING_EXPIRE_WHEN_LAST_USER_LEFT_IN_MINUTES,
+        MEETING_KEEP_EVENT,
+        MODERATOR_ONLY_MESSAGE,
+        MUTE_ON_START,
+        WEBCAMS_ONLY_FOR_MODERATOR,
+        WELCOME,
+        MEETING_LAYOUT,
+        LEARNING_DASHBOARD_CLEANUP_DELAY_IN_MINUTES,
+        PRE_UPLOADED_PRESENTATION_OVERRIDE_DEFAULT
+    ]
 
-    PARAMETERS_JOIN = [USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT, USERDATA_BBB_AUTO_JOIN_AUDIO, USERDATA_BBB_CLIENT_TITLE, USERDATA_BBB_FORCE_LISTEN_ONLY,
-                       USERDATA_BBB_LISTEN_ONLY_MODE, USERDATA_BBB_SKIP_CHECK_AUDIO, USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN,
-                       USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE, USERDATA_BBB_DISPLAY_BRANDING_AREA, USERDATA_BBB_SHORTCUTS, USERDATA_BBB_AUTO_SHARE_WEBCAM,
-                       USERDATA_BBB_PREFFERED_CAMERA_PROFILE, USERDATA_BBB_ENABLE_SCREEN_SHARING, USERDATA_BBB_ENABLE_VIDEO, USERDATA_BBB_RECORD_VIDEO,
-                       USERDATA_BBB_SKIP_VIDEO_PREVIEW, USERDATA_BBB_SKIP_VIDEO_PREVIEW_ON_FIRST_JOIN, USERDATA_BBB_MIRROR_OWN_WEBCAM,
-                       USERDATA_BBB_FORCE_RESTORE_PRESENTATION_ON_NEW_EVENTS, USERDATA_BBB_MULTI_USER_PEN_ONLY, USERDATA_BBB_PRESENTER_TOOLS,
-                       USERDATA_BBB_MULTI_USER_TOOLS, USERDATA_BBB_CUSTOM_STYLE, USERDATA_BBB_CUSTOM_STYLE_URL, USERDATA_BBB_AUTO_SWAP_LAYOUT,
-                       USERDATA_BBB_HIDE_PRESENTATION, USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN, USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN,
-                       USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE, USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING, ROLE, EXCLUDE_FROM_DASHBOARD]
+    PARAMETERS_JOIN = [
+        USERDATA_BBB_ASK_FOR_FEEDBACK_ON_LOGOUT,
+        USERDATA_BBB_AUTO_JOIN_AUDIO,
+        USERDATA_BBB_CLIENT_TITLE,
+        USERDATA_BBB_FORCE_LISTEN_ONLY,
+        USERDATA_BBB_LISTEN_ONLY_MODE,
+        USERDATA_BBB_SKIP_CHECK_AUDIO,
+        USERDATA_BBB_SKIP_CHECK_AUDIO_ON_FIRST_JOIN,
+        USERDATA_BBB_OVERRIDE_DEFAULT_LOCALE,
+        USERDATA_BBB_DISPLAY_BRANDING_AREA,
+        USERDATA_BBB_SHORTCUTS,
+        USERDATA_BBB_AUTO_SHARE_WEBCAM,
+        USERDATA_BBB_PREFFERED_CAMERA_PROFILE,
+        USERDATA_BBB_ENABLE_SCREEN_SHARING,
+        USERDATA_BBB_ENABLE_VIDEO,
+        USERDATA_BBB_RECORD_VIDEO,
+        USERDATA_BBB_SKIP_VIDEO_PREVIEW,
+        USERDATA_BBB_SKIP_VIDEO_PREVIEW_ON_FIRST_JOIN,
+        USERDATA_BBB_MIRROR_OWN_WEBCAM,
+        USERDATA_BBB_FORCE_RESTORE_PRESENTATION_ON_NEW_EVENTS,
+        USERDATA_BBB_MULTI_USER_PEN_ONLY,
+        USERDATA_BBB_PRESENTER_TOOLS,
+        USERDATA_BBB_MULTI_USER_TOOLS,
+        USERDATA_BBB_CUSTOM_STYLE,
+        USERDATA_BBB_CUSTOM_STYLE_URL,
+        USERDATA_BBB_AUTO_SWAP_LAYOUT,
+        USERDATA_BBB_HIDE_PRESENTATION,
+        USERDATA_BBB_SHOW_PARTICIPIANTS_ON_LOGIN,
+        USERDATA_BBB_SHOW_PUBLIC_CHAT_ON_LOGIN,
+        USERDATA_BBB_OUTSIDE_TOGGLE_SELF_VOICE,
+        USERDATA_BBB_OUTSIDE_TOGGLE_RECORDING,
+        ROLE,
+        EXCLUDE_FROM_DASHBOARD
+    ]
 
     mode = models.CharField(max_length=10, choices=MODE_CHOICES)
     parameter = models.CharField(max_length=64, choices=PARAMETER_CHOICES)
