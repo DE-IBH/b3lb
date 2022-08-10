@@ -150,8 +150,6 @@ async def create(request, endpoint, params, node, secret):
         body = await sync_to_async(lb.get_slide_body_for_post)(secret)
         request.method = "POST"
 
-    response = await pass_through(request, endpoint, params, node, body=body)
-
     defaults = {
         "id": meeting_id,
         "secret": secret,
@@ -164,7 +162,7 @@ async def create(request, endpoint, params, node, secret):
     if created:
         await lb.update_create_metrics(secret, node)
 
-    return response
+    return await pass_through(request, endpoint, params, obj.node, body=body)
 
 
 # for endpoints without manipulations of b3lb
