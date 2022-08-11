@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 2.3.1 - 2022-08-11
+
+Fixes:
+- api: fix race condition on create code path
+
 ## 2.3.0 - 2022-08-09
 
 Changes:
