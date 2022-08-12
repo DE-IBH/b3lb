@@ -404,10 +404,7 @@ class Secret(models.Model):
 
     @property
     def is_record_enabled(self):
-        if self.recording_enabled and self.tenant.recording_enabled:
-            return True
-        else:
-            return False
+        return self.recording_enabled and self.tenant.recording_enabled
 
     @property
     def records_effective_hold_time(self):
@@ -574,12 +571,15 @@ class Meeting(models.Model):
     room_name = models.CharField(max_length=500)
     age = models.DateTimeField(default=timezone.now)
     attendees = models.SmallIntegerField(default=0)
+    end_callback_url = models.URLField(default="")
     listenerCount = models.SmallIntegerField(default=0)
+    nonce = models.CharField(max_length=64, default=get_nonce, editable=False, unique=True)
     voiceParticipantCount = models.SmallIntegerField(default=0)
     moderatorCount = models.SmallIntegerField(default=0)
     videoCount = models.SmallIntegerField(default=0)
     bbb_origin = models.CharField(max_length=255, default="")
     bbb_origin_server_name = models.CharField(max_length=255, default="")
+
 
     class Meta(object):
         ordering = ['secret__tenant', 'age']
