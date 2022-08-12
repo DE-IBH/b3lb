@@ -614,7 +614,7 @@ class RecordSet(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
     meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True)
-    meetingid = models.CharField(max_length=MEETING_ID_LENGTH, default="")
+    meeting_id = models.CharField(max_length=MEETING_ID_LENGTH, default="")
     created_at = models.DateTimeField(default=timezone.now)
     recording_archive = models.FileField(storage=get_storage)
     recording_ready_origin_url = models.URLField(default="")
@@ -629,28 +629,31 @@ class RecordSet(models.Model):
         path.append(base32[settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH * settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
         self.file_path = join(*path)
 
-# ToDo:
-#   -> admin action:
-#       * Rendern (neu) starten
-#       * Status setzen auf "DELETING"
-#   -> Celery Queues
+
+@admin.action(description="Set status for re-rendering")
+def records_rerender(modeladmin, request, queryset):
+    queryset.update(status=RecordSet.UPLOADED)
+
+
+@admin.action(description="Set status for deletion")
+def records_to_delete(modeladmin, request, queryset):
+    queryset.update(status=RecordSet.DELETING)
 
 
 class RecordSetAdmin(admin.ModelAdmin):
     model = RecordSet
-    list_display = ['uuid', 'secret', 'meeting_id', 'created_at']
+    list_display = ['uuid', 'secret', 'status', 'meeting_id', 'created_at']
+    list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'status', 'created_at']
+    actions = [records_rerender, records_to_delete]
 
 
 class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     description = models.CharField(max_length=255)
     name = models.CharField(max_length=32, unique=True)
-    command = models.CharField(max_length=255)
-    mime_type = models.CharField(max_length=32)
+    mime_type = models.CharField(max_length=32, default="video/mp4")
     file_extension = models.CharField(max_length=10, default="mp4")
-
-    # ToDo:
-    #   -> ENV: place holder for input dir ("unzipped" tar), video filename, tenant, secret, ...
+    is_default = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -658,7 +661,22 @@ class RecordProfile(models.Model):
 
 class RecordProfileAdmin(admin.ModelAdmin):
     model = RecordProfile
-    list_display = ['uuid', 'name', 'description', 'file_extension', 'command']
+    list_display = ['name', 'description', 'file_extension', 'is_default']
+
+
+class SecretRecordProfileRelation(models.Model):
+    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
+    secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
+    record_profile = models.ForeignKey(RecordProfile, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"{self.secret.__str__()}-{self.record_profile.__str__()}"
+
+
+class SecretRecordProfileRelationAdmin(admin.ModelAdmin):
+    model = SecretRecordProfileRelation
+    list_display = ['__str__', 'secret', 'record_profile']
+    list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'record_profile']
 
 
 class Record(models.Model):
@@ -672,6 +690,7 @@ class Record(models.Model):
 class RecordAdmin(admin.ModelAdmin):
     model = Record
     list_display = ['uuid', 'record_set', 'profile', 'file']
+    list_filter = [('record_set__secret__tenant', admin.RelatedOnlyFieldListFilter)]
 
 
 class Stats(models.Model):
