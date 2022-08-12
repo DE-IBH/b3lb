@@ -22,8 +22,8 @@ from django.db.utils import OperationalError
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from requests import get
 from rest.models import Asset, Cluster, Meeting, RecordSet, SecretMetricsList
-import requests
 import rest.b3lb.lb as lb
 import rest.b3lb.utils as utils
 import rest.b3lb.endpoints as ep
@@ -171,19 +171,17 @@ def backend_record_upload(request):
         try:
             record_set = RecordSet.objects.get(nonce=nonce)
         except RecordSet.DoesNotExist:
-            return HttpResponseBadRequest()
+            return HttpResponse(status=200)
 
         try:
-            record_set.recording_archive.save(name="{}/raw.tar".format(record_set.file_path), content=ContentFile(uploaded_file.read()))
+            record_set.recording_archive.save(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
         except:
             return HttpResponse("Error during file save", status=503)
 
         record_set.status = RecordSet.UPLOADED
         record_set.save()
 
-        return HttpResponse("File uploaded successfully", status=201)
-    else:
-        return HttpResponseBadRequest()
+    return HttpResponse(status=200)
 
 
 @require_http_methods(["GET"])
@@ -195,27 +193,27 @@ def backend_end_meeting_callback(request):
     if "nonce" in parameters and "meetingID" in parameters:
         try:
             meeting = Meeting.objects.get(id=parameters["meetingID"], nonce=parameters["nonce"])
-
-            if parameters["recordingmarks"] not in ["false", "true"]:
-                recording_marks = "false"
-            else:
-                recording_marks = parameters["recordingmarks"]
-
-            if meeting.end_callback_url:
-                url_suffix = "meetingID={}&recordingmarks={}".format(parameters["meetingID"], recording_marks)
-                if "?" in meeting.end_callback_url:
-                    url = "{}&{}".format(meeting.end_callback_url, url_suffix)
-                else:
-                    url = "{}?{}".format(meeting.end_callback_url, url_suffix)
-                requests.get(url)
-
-            if recording_marks == "false":
-                try:
-                    RecordSet.objects.get(meeting=meeting).delete()
-                except RecordSet.DoesNotExist:
-                    pass
-
-            meeting.delete()
         except Meeting.DoesNotExist:
             return HttpResponse(status=204)
+
+        if parameters["recordingmarks"] not in ["false", "true"]:
+            recording_marks = "false"
+        else:
+            recording_marks = parameters["recordingmarks"]
+
+        if meeting.end_callback_url:
+            url_suffix = f"meetingID={parameters['meetingID']}&recordingmarks={recording_marks}"
+            if "?" in meeting.end_callback_url:
+                get(f"{meeting.end_callback_url}&{url_suffix}")
+            else:
+                get(f"{meeting.end_callback_url}?{url_suffix}")
+
+        if recording_marks == "false":
+            try:
+                RecordSet.objects.get(meeting=meeting).delete()
+            except RecordSet.DoesNotExist:
+                pass
+
+        meeting.delete()
+
     return HttpResponse(status=204)

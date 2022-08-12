@@ -18,9 +18,10 @@
 import aiohttp
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
-from rest.models import Meeting, Metric, Stats, SecretMeetingList, Parameter
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from rest.models import Meeting, Metric, Parameter, RecordSet, Stats, SecretMeetingList
 import rest.b3lb.lb as lb
 import rest.b3lb.constants as constants
 import json
@@ -154,15 +155,33 @@ async def create(request, endpoint, params, node, secret):
         "id": meeting_id,
         "secret": secret,
         "node": node,
-        "room_name": params.get("name", "Unknown")
+        "room_name": params.get("name", "Unknown"),
+        "end_callback_url": params.get("meta_endCallbackUrl", "")
     }
 
-    obj, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
+    meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=meeting_id, secret=secret, defaults=defaults)
+
+    # check if records are enabled
+    if secret.is_record_enabled:
+        if "meta_bbb-recording-ready-url" in params:
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
+        else:
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
+        params["meta_recordset"] = record_set.nonce
+    else:
+        # record aren't enabled -> suppress any record related parameter
+        for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
+            params[param] = "false"
+
+    if "meta_bbb-recording-ready-url" in params:
+        params.pop("meta_bbb-recording-ready-url")
+
+    params["meta_endCallbackUrl"] = f"https://{secret.tenant.slug.lower()}-{str(secret.sub_id).zfill(3)}.{settings.B3LB_API_BASE_DOMAIN}/b3lb/b/meeting/end?nonce={meeting.nonce}"
 
     if created:
         await lb.update_create_metrics(secret, node)
 
-    return await pass_through(request, endpoint, params, obj.node, body=body)
+    return await pass_through(request, endpoint, params, meeting.node, body=body)
 
 
 # for endpoints without manipulations of b3lb
