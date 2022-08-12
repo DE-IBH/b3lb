@@ -651,6 +651,7 @@ class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     description = models.CharField(max_length=255)
     name = models.CharField(max_length=32, unique=True)
+    command = models.CharField(max_length=255)
     mime_type = models.CharField(max_length=32, default="video/mp4")
     file_extension = models.CharField(max_length=10, default="mp4")
     is_default = models.BooleanField(default=False)
