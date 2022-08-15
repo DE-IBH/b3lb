@@ -17,7 +17,7 @@
 
 FROM alpine:3.16 AS build
 
-RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel
+RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel tar
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH /usr/local/lib/python3.10/site-packages
