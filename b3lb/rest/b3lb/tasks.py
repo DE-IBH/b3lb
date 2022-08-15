@@ -20,7 +20,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
-from rest.models import Metric, Node, Meeting, Asset, Stats, Tenant, Secret, SecretMeetingList, NodeMeetingList, SecretMetricsList, AssetLogo, AssetSlide
+from rest.models import Asset, AssetLogo, AssetSlide, Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats, Tenant
+from tempfile import TemporaryDirectory
 import rest.b3lb.lb as lb
 import rest.b3lb.utils as utils
 import rest.b3lb.constants as constants
@@ -487,3 +488,15 @@ def update_metrics(secret_uuid):
         return "Create list with {} metrics for {}.".format(metric_count, secret_text)
     else:
         return "Update list with {} metrics for {}.".format(metric_count, secret_text)
+
+
+def render_record(record_profile: RecordProfile, record_set: RecordSet):
+    with TemporaryDirectory() as tempdir:
+        os.chdir(tempdir)
+        os.mkdir("IN")
+        os.mkdir("OUT")
+
+        with open("raw.tar", "wb") as raw:
+            raw.write(record_set.recording_archive.path)
+
+
