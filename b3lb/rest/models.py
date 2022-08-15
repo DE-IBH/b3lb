@@ -580,7 +580,6 @@ class Meeting(models.Model):
     bbb_origin = models.CharField(max_length=255, default="")
     bbb_origin_server_name = models.CharField(max_length=255, default="")
 
-
     class Meta(object):
         ordering = ['secret__tenant', 'age']
 
@@ -651,8 +650,10 @@ class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     description = models.CharField(max_length=255)
     name = models.CharField(max_length=32, unique=True)
+    backend_profile = models.CharField(max_length=32)
     command = models.CharField(max_length=255)
     mime_type = models.CharField(max_length=32, default="video/mp4")
+    celery_queue = models.CharField(max_length=32, default=settings.B3LB_RECORD_TASK_DEFAULT_QUEUE)
     file_extension = models.CharField(max_length=10, default="mp4")
     is_default = models.BooleanField(default=False)
 

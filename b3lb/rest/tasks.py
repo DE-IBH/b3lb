@@ -19,7 +19,7 @@ from celery.utils.log import get_task_logger
 from celery_singleton import Singleton
 from loadbalancer.celery import app
 import rest.b3lb.tasks as b3lbtasks
-from rest.models import Node, Tenant, Secret
+from rest.models import Node, RecordProfile, RecordSet, SecretRecordProfileRelation, Secret, Tenant
 
 logger = get_task_logger(__name__)
 
@@ -70,3 +70,8 @@ def update_statistic():
     for tenant in Tenant.objects.all():
         update_tenant_statistic.si(str(tenant.uuid)).apply_async()
     return True
+
+
+@app.task(ignore_result=True)
+def render_record(record_profile_uuid: str, record_set_uuid: str):
+    b3lbtasks.render_record(RecordProfile.objects.get(uuid=record_profile_uuid), RecordSet.objects.get(uuid=record_set_uuid))
