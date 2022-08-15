@@ -30,7 +30,7 @@ RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 FROM alpine:3.16
 
-RUN apk --no-cache add python3 postgresql-libs libffi py3-pip
+RUN apk --no-cache add python3 postgresql-libs libffi py3-pip tar
 
 ARG B3LBUID=8318
 ENV PYTHONUNBUFFERED 1

@@ -20,16 +20,18 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.db import transaction
 from django.conf import settings
+from jinja2 import Template
 from rest.models import Asset, AssetLogo, AssetSlide, Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats, Tenant
 from tempfile import TemporaryDirectory
+import json
+import os
+import requests as rq
+import rest.b3lb.constants as constants
 import rest.b3lb.lb as lb
 import rest.b3lb.utils as utils
-import rest.b3lb.constants as constants
-import os
+import subprocess as sp
 import xml.etree.ElementTree as ElementTree
-import requests as rq
-import json
-from jinja2 import Template
+
 
 
 #
@@ -496,7 +498,27 @@ def render_record(record_profile: RecordProfile, record_set: RecordSet):
         os.mkdir("IN")
         os.mkdir("OUT")
 
+        # download raw.tar
         with open("raw.tar", "wb") as raw:
             raw.write(record_set.recording_archive.path)
 
+        # unpack tar to IN folder
+        sp.Popen(["tar", "-xf", "raw.tar", "-C", "IN/"], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True)
 
+        # render with given profile
+        sp.Popen(["docker-compose", "up", "-f", f"{settings.B3LB_RECORD_TASK_TEMPLATE_FOLDER}{record_profile.backend_profile}"])
+
+        # check result
+        if not os.path.isfile(f"OUT/video.{record_profile.file_extension}"):
+            raise Exception("No video output")
+
+        # create record entry
+        record = Record()
+        with open(f"OUT/video.{record_profile.file_extension}", "rb") as video_file:
+            record.file.save(name=f"{record_set.file_path}/{record_profile.name}.{record_profile.file_extension}", content=video_file.read())
+        record.record_set = record_set
+        record.profile = record_profile
+        record.save()
+
+        record_set.status = record_set.RENDERED
+        record_set.save()
