@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.db.utils import OperationalError
@@ -23,7 +23,8 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from requests import get
-from rest.models import Asset, Cluster, Meeting, RecordSet, SecretMetricsList
+from rest.models import Asset, Cluster, Meeting, RecordSet, SecretMetricsList, SecretRecordProfileRelation
+from rest.tasks import render_record
 import rest.b3lb.lb as lb
 import rest.b3lb.utils as utils
 import rest.b3lb.endpoints as ep
@@ -180,6 +181,15 @@ def backend_record_upload(request):
 
         record_set.status = RecordSet.UPLOADED
         record_set.save()
+
+        secret_record_profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
+        for secret_record_profile_relation in secret_record_profile_relations:
+            render_record.apply_async(args=[record_set.uuid, secret_record_profile_relation.record_profile.uuid], queue=secret_record_profile_relation.record_profile.celery_queue)
+
+        record_set.refresh_from_db()
+        if record_set.status == record_set.UPLOADED:
+            record_set.status = record_set.RENDERED
+            record_set.save()
 
     return HttpResponse(status=200)
 
