@@ -519,6 +519,3 @@ def render_record(record_profile: RecordProfile, record_set: RecordSet):
         record.record_set = record_set
         record.profile = record_profile
         record.save()
-
-        record_set.status = record_set.RENDERED
-        record_set.save()
