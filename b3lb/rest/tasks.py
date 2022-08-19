@@ -17,6 +17,7 @@
 
 from celery.utils.log import get_task_logger
 from celery_singleton import Singleton
+from django.conf import settings
 from loadbalancer.celery import app
 import rest.b3lb.tasks as b3lbtasks
 from rest.models import Node, RecordProfile, RecordSet, Secret, Tenant
@@ -24,22 +25,22 @@ from rest.models import Node, RecordProfile, RecordSet, Secret, Tenant
 logger = get_task_logger(__name__)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def check_node(node_uuid):
     return b3lbtasks.run_check_node(node_uuid)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def update_secret_meetings_lists(secret_uuid):
     return b3lbtasks.update_get_meetings_xml(secret_uuid)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def update_secret_metrics_list(secret_uuid):
     return b3lbtasks.update_metrics(secret_uuid)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def update_secrets_lists():
     update_secret_metrics_list.si(None).apply_async()
     for secret in Secret.objects.all():
@@ -48,30 +49,31 @@ def update_secrets_lists():
     return True
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def check_status():
     for node in Node.objects.all():
-        check_node.si(str(node.uuid)).apply_async()
+        check_node.si(str(node.uuid)).apply_async(queue="b3lb")
     return True
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def cleanup_assets():
     return b3lbtasks.cleanup_assets()
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def update_tenant_statistic(tenant_uuid):
     return b3lbtasks.fill_statistic_by_tenant(tenant_uuid)
 
 
-@app.task(ignore_result=True, base=Singleton)
+@app.task(ignore_result=True, base=Singleton, queue="b3lb")
 def update_statistic():
     for tenant in Tenant.objects.all():
-        update_tenant_statistic.si(str(tenant.uuid)).apply_async()
+        update_tenant_statistic.si(str(tenant.uuid)).apply_async(queue="b3lb")
     return True
 
 
-@app.task(ignore_result=True)
+@app.task(ignore_result=True, queue=settings.B3LB_RECORD_TASK_DEFAULT_QUEUE)
 def render_record(record_profile_uuid: str, record_set_uuid: str):
+    print(record_profile_uuid)
     b3lbtasks.render_record(RecordProfile.objects.get(uuid=record_profile_uuid), RecordSet.objects.get(uuid=record_set_uuid))

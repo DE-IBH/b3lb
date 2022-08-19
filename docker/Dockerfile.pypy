@@ -29,9 +29,10 @@ RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 FROM pypy:3.9-7-slim
 
-RUN apt-get update && apt-get install -y libpq5 tar
+RUN apt-get update && apt-get install -y libpq5 tar docker-compose docker docker.io
 
 ARG B3LBUID=8318
+ARG ENV_FILE=.env.dev
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH /usr/local/lib/pypy3.9/site-packages
 
@@ -47,12 +48,14 @@ COPY b3lb/manage.py \
 COPY b3lb/loadbalancer ./loadbalancer
 COPY b3lb/rest ./rest
 
-RUN addgroup --gid $B3LBUID b3lb && \
-    adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
-    ln -s $(which pypy3) /usr/local/bin/python3 && \
-    ENV_FILE=.env.dev ./manage.py check --force-color && \
+#RUN addgroup --gid $B3LBUID b3lb && \
+#    adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
+#    ln -s $(which pypy3) /usr/local/bin/python3 && \
+#    ENV_FILE=.env.dev ./manage.py check --force-color && \
+#    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
+RUN ./manage.py check --force-color && \
     ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
 
-USER b3lb:b3lb
+# USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 CMD ["uvicorn", "--host", "0.0.0.0", "--ws", "none", "--no-access-log", "--use-colors"]

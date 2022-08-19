@@ -1,0 +1,15 @@
+# This is a bbb-render example.
+
+version: "3.1"
+
+services:
+  render:
+    image: "b3lb-render"
+    volumes:
+      - b3lb-render:/data
+    # ToDo: Improve escaping
+    command: {{ [tmpdir, extension] + commands }}
+
+volumes:
+  b3lb-render:
+    external: true
