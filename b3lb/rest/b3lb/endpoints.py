@@ -164,9 +164,9 @@ async def create(request, endpoint, params, node, secret):
     # check if records are enabled
     if secret.is_record_enabled:
         if "meta_bbb-recording-ready-url" in params:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, id_meeting=meeting.id, recording_ready_origin_url=params["meta_meta_bbb-recording-ready-url"])
         else:
-            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting)
+            record_set = await sync_to_async(RecordSet.objects.create)(secret=secret, meeting=meeting, id_meeting=meeting.id)
         params["meta_recordset"] = record_set.nonce
     else:
         # record aren't enabled -> suppress any record related parameter

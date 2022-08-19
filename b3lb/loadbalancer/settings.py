@@ -139,6 +139,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configure Celery to use the django-celery-results backend.
 
+CELERY_IGNORE_RESULT = True
+
 CELERY_RESULT_BACKEND = 'django-db'
 
 # Expire task results after 1h
@@ -224,12 +226,32 @@ B3LB_API_MATE_BASE_URL = env.str('B3LB_API_MATE_BASE_URL', default='https://mcon
 B3LB_API_MATE_PW_LENGTH = env.int('B3LB_API_MATE_PW_LENGTH', default=13)
 
 ######
+# B3LB Storage Setting
+######
+
+# MEDIA_ROOT for local storage
+MEDIA_ROOT = env.path("B3LB_MEDIA_ROOT", default="/media_root")
+B3LB_RECORD_STORAGE = env.str('B3LB_RECORD_STORAGE', default='local')
+B3LB_S3_ACCESS_KEY = env.str('B3LB_S3_ACCESS_KEY', default=env.str('AWS_S3_ACCESS_KEY_ID', default=env.str('AWS_S3_SECRET_ACCESS_KEY', default='')))
+B3LB_S3_BUCKET_NAME = env.str('B3LB_S3_BUCKET_NAME', 'raw')
+B3LB_S3_ENDPOINT_URL = env.str('B3LB_S3_ENDPOINT_URL', default=env.str('AWS_S3_ENDPOINT_URL', default=''))
+B3LB_S3_SECRET_KEY = env.str('B3LB_S3_SECRET_KEY', default=env.str('AWS_ACCESS_KEY_ID', default=env.str('AWS_SECRET_ACCESS_KEY', default='')))
+B3LB_S3_URL_PROTOCOL = env.str('B3LB_S3_URL_PROTOCOL', default=env.str('AWS_S3_URL_PROTOCOL', default='https:'))
+
+# Filesystem configuration
+# max len is 26
+# HIERARCHY_LEN * HIERARCHY_DEPHT < 26
+B3LB_RECORD_PATH_HIERARCHY_WIDTH = env.int('B3LB_RECORD_PATH_HIERARCHY_WIDTH', default=2)
+B3LB_RECORD_PATH_HIERARCHY_DEPHT = env.int('B3LB_RECORD_PATH_HIERARCHY_DEPHT', default=3)
+
+######
 # B3LB Celery Settings
 ######
+
 
 B3LB_SCHEDULE_TASK_CHECK_NODES_QUEUE = env.str("B3LB_SCHEDULE_TASK_CHECK_NODES_QUEUE", default="b3lb")
 B3LB_SCHEDULE_TASK_CLEANUP_ASSETS_QUEUE = env.str("B3LB_SCHEDULE_TASK_CLEANUP_ASSETS_QUEUE", default="b3lb")
 B3LB_SCHEDULE_TASK_UPDATE_SECRET_LISTS_QUEUE = env.str("B3LB_SCHEDULE_TASK_UPDATE_SECRET_LISTS_QUEUE", default="b3lb")
 B3LB_SCHEDULE_TASK_UPDATE_STATISTICS_QUEUE = env.str("B3LB_SCHEDULE_TASK_UPDATE_STATISTICS_QUEUE", default="b3lb")
 B3LB_RECORD_TASK_DEFAULT_QUEUE = env.str("B3LB_RECORD_TASK_QUEUE", default="b3lb")
-B3LB_RECORD_TASK_TEMPLATE_FOLDER = env.path("B3LB_RECORD_TASK_TEMPLATE_FOLDER", default="/templates/").root
+B3LB_RECORD_TASK_TEMPLATE_FOLDER = env.path("B3LB_RECORD_TASK_TEMPLATE_FOLDER", default="/templates").root

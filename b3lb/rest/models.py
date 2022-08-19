@@ -612,8 +612,8 @@ class RecordSet(models.Model):
 
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
-    meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True)
-    meeting_id = models.CharField(max_length=MEETING_ID_LENGTH, default="")
+    meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True, blank=True)
+    id_meeting = models.CharField(max_length=MEETING_ID_LENGTH, default="")
     created_at = models.DateTimeField(default=timezone.now)
     recording_archive = models.FileField(storage=get_storage)
     recording_ready_origin_url = models.URLField(default="")
@@ -641,7 +641,7 @@ def records_to_delete(modeladmin, request, queryset):
 
 class RecordSetAdmin(admin.ModelAdmin):
     model = RecordSet
-    list_display = ['uuid', 'secret', 'status', 'meeting_id', 'created_at']
+    list_display = ['uuid', 'secret', 'status', 'id_meeting', 'created_at']
     list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'status', 'created_at']
     actions = [records_rerender, records_to_delete]
 
@@ -650,8 +650,8 @@ class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     description = models.CharField(max_length=255)
     name = models.CharField(max_length=32, unique=True)
-    backend_profile = models.CharField(max_length=32)
-    command = models.CharField(max_length=255)
+    backend_profile = models.CharField(max_length=32, default="default.yml.jinja2")
+    command = models.CharField(max_length=255, null=True, blank=True)
     mime_type = models.CharField(max_length=32, default="video/mp4")
     celery_queue = models.CharField(max_length=32, default=settings.B3LB_RECORD_TASK_DEFAULT_QUEUE)
     file_extension = models.CharField(max_length=10, default="mp4")
@@ -663,7 +663,7 @@ class RecordProfile(models.Model):
 
 class RecordProfileAdmin(admin.ModelAdmin):
     model = RecordProfile
-    list_display = ['name', 'description', 'file_extension', 'is_default']
+    list_display = ['name', 'description', 'backend_profile', 'file_extension', 'celery_queue', 'is_default']
 
 
 class SecretRecordProfileRelation(models.Model):

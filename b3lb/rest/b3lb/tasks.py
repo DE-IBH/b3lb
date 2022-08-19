@@ -22,6 +22,7 @@ from django.db import transaction
 from django.conf import settings
 from jinja2 import Template
 from rest.models import Asset, AssetLogo, AssetSlide, Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats, Tenant
+from shlex import split
 from tempfile import TemporaryDirectory
 import json
 import os
@@ -341,8 +342,9 @@ def fill_statistic_by_tenant(tenant_uuid):
     return result
 
 
+# ToDo: Use django-template instead of jinja2
 def load_template(file_name):
-    with open("rest/templates/{}".format(file_name)) as template_file:
+    with open(f"rest/templates/{file_name}") as template_file:
         return Template(template_file.read())
 
 
@@ -492,30 +494,37 @@ def update_metrics(secret_uuid):
         return "Update list with {} metrics for {}.".format(metric_count, secret_text)
 
 
+# ToDo: S3 Test
 def render_record(record_profile: RecordProfile, record_set: RecordSet):
-    with TemporaryDirectory() as tempdir:
+    with TemporaryDirectory(dir="/data") as tempdir:
         os.chdir(tempdir)
-        os.mkdir("IN")
-        os.mkdir("OUT")
+        os.mkdir("in")
+        os.mkdir("out")
 
-        # download raw.tar
+        template = load_template(f"render/{record_profile.backend_profile}")
+
+        # generate backend profile (docker-compose.yml) in tmpdir
+        with open("docker-compose.yml", "w") as docker_file:
+            docker_file.write(template.render({"tmpdir": tempdir, "extension": record_profile.file_extension, "commands": split(record_profile.command)}))
+
+        # download raw.tar. ToDo: testing for local storage
         with open("raw.tar", "wb") as raw:
-            raw.write(record_set.recording_archive.path)
+            raw.write(record_set.recording_archive.file.read())
 
         # unpack tar to IN folder
-        sp.Popen(["tar", "-xf", "raw.tar", "-C", "IN/"], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True)
+        sp.Popen(["tar", "-xf", "raw.tar", "-C", "in/"], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True)
 
         # render with given profile
-        sp.Popen(["docker-compose", "up", "-f", f"{settings.B3LB_RECORD_TASK_TEMPLATE_FOLDER}{record_profile.backend_profile}"])
+        sp.Popen(["docker-compose", "up"])
 
         # check result
-        if not os.path.isfile(f"OUT/video.{record_profile.file_extension}"):
+        if not os.path.isfile(f"outdir/video.{record_profile.file_extension}"):
             raise Exception("No video output")
 
         # create record entry
         record = Record()
-        with open(f"OUT/video.{record_profile.file_extension}", "rb") as video_file:
-            record.file.save(name=f"{record_set.file_path}/{record_profile.name}.{record_profile.file_extension}", content=video_file.read())
+        with open(f"out/video.{record_profile.file_extension}", "rb") as video_file:
+            record.file.save(name=f"{record_set.file_path}/{record_profile.name}.{record_profile.file_extension}", content=video_file)
         record.record_set = record_set
         record.profile = record_profile
         record.save()
