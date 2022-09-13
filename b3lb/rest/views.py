@@ -227,3 +227,7 @@ def backend_end_meeting_callback(request):
         meeting.delete()
 
     return HttpResponse(status=204)
+
+
+# ToDo Add endpoint for record download.
+# ..

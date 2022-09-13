@@ -35,6 +35,7 @@ case "$CMD" in
         ;;
     loadbalancer)
         /usr/bin/env python3 ./manage.py migrate --no-input --force-color
+        mkdir -p /media_root/record
         exec /usr/bin/env python3 ./manage.py $@
         ;;
     gunicorn)
