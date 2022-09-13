@@ -65,6 +65,7 @@ def get_storage():
         used_storage = default_storage
     return used_storage
 
+
 #
 # ADMIN ACTIONS
 #
@@ -626,7 +627,7 @@ class RecordSet(models.Model):
         base32 = base64.b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
         path = wrap(base32, settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH)[:settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT]
         path.append(base32[settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH * settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
-        self.file_path = join(*path)
+        self.file_path = join("record", *path)
 
 
 @admin.action(description="Set status for re-rendering")

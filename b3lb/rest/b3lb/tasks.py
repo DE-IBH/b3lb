@@ -496,35 +496,33 @@ def update_metrics(secret_uuid):
 
 # ToDo: S3 Test
 def render_record(record_profile: RecordProfile, record_set: RecordSet):
+    record, created = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
     with TemporaryDirectory(dir="/data") as tempdir:
-        os.chdir(tempdir)
-        os.mkdir("in")
-        os.mkdir("out")
-
         template = load_template(f"render/{record_profile.backend_profile}")
+        os.mkdir(f"{tempdir}/in")
+        os.mkdir(f"{tempdir}/out")
 
         # generate backend profile (docker-compose.yml) in tmpdir
-        with open("docker-compose.yml", "w") as docker_file:
-            docker_file.write(template.render({"tmpdir": tempdir, "extension": record_profile.file_extension, "commands": split(record_profile.command)}))
+        with open(f"{tempdir}/docker-compose.yml", "w") as docker_file:
+            docker_file.write(template.render({"tmpdir": f"{tempdir}", "extension": record_profile.file_extension, "commands": split(record_profile.command)}))
 
         # download raw.tar. ToDo: testing for local storage
-        with open("raw.tar", "wb") as raw:
+        with open(f"{tempdir}/raw.tar", "wb") as raw:
             raw.write(record_set.recording_archive.file.read())
 
         # unpack tar to IN folder
-        sp.Popen(["tar", "-xf", "raw.tar", "-C", "in/"], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True)
+        sp.Popen(["tar", "-xf", f"{tempdir}/raw.tar", "-C", f"{tempdir}/in/"], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True).wait()
 
         # render with given profile
-        sp.Popen(["docker-compose", "up"])
+        sp.Popen(["docker-compose", "-f", f"{tempdir}/docker-compose.yml", "up"]).wait()
 
         # check result
-        if not os.path.isfile(f"outdir/video.{record_profile.file_extension}"):
+        if not os.path.isfile(f"{tempdir}/out/video.{record_profile.file_extension}"):
             raise Exception("No video output")
 
         # create record entry
-        record = Record()
-        with open(f"out/video.{record_profile.file_extension}", "rb") as video_file:
+        with open(f"{tempdir}/out/video.{record_profile.file_extension}", "rb") as video_file:
+            if not created:
+                record.file.delete()
             record.file.save(name=f"{record_set.file_path}/{record_profile.name}.{record_profile.file_extension}", content=video_file)
-        record.record_set = record_set
-        record.profile = record_profile
         record.save()
