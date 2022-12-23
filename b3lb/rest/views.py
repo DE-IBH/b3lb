@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2022 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -15,153 +15,150 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
+from django.db import connection
 from django.db.utils import OperationalError
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from requests import get
-from rest.models import Asset, Cluster, Meeting, RecordSet, SecretMetricsList, SecretRecordProfileRelation
+from rest.classes.api import B3LBRequest
+from rest.classes.storage import DBStorage
+from rest.models import Asset, Meeting, RecordSet, SecretMetricsList, SecretRecordProfileRelation
 from rest.tasks import render_record
-import rest.b3lb.lb as lb
-import rest.b3lb.utils as utils
-import rest.b3lb.endpoints as ep
-import rest.b3lb.constants as ct
-from datetime import datetime
 
 
-async def api_pass_through(request, endpoint="", slug=None, sub_id=0):
+async def bbb_entrypoint(request: HttpRequest, endpoint: str = "", slug: str = "", sub_id: int = 0) -> HttpResponse:
+    """
+    Entrypoint for 'official' BigBlueButton API endpoints.
+    """
+    b3lb = B3LBRequest(request, endpoint)
+
     # async: workaround for @require_http_methods decorator
-    if request.method not in ["GET", "POST"]:
-        return HttpResponseNotAllowed(["GET", "POST"])
+    if not b3lb.is_allowed_method():
+        return HttpResponseNotAllowed(b3lb.allowed_methods())
 
-    parameters = request.GET
+    await sync_to_async(b3lb.set_secret_by_slug_and_slug_id)(slug, sub_id)
 
-    params = {}
-    for param in parameters:
-        params[param] = parameters[param]
-
-    if "checksum" in params:
-        checksum = params["checksum"]
-        del params["checksum"]
-    else:
+    if not await sync_to_async(b3lb.is_authorized)():
         return HttpResponse("Unauthorized", status=401)
 
-    secret = await sync_to_async(lb.get_request_secret)(request, slug, sub_id)
-    if not secret:
-        return HttpResponse("Unauthorized", status=401)
+    return await b3lb.endpoint_delegation()
+    # if endpoint in LEGAL_ENDPOINTS:
+    #     if endpoint in WHITELISTED_ENDPOINTS:
+    #         return await requested_endpoint(b3lb)
+    #     elif endpoint == "getRecordingTextTracks":
+    #         return HttpResponse(ct.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON)
+    #     elif endpoint == "getRecordings":
+    #         return HttpResponse(ct.RETURN_STRING_GET_RECORDING_NO_RECORDINGS)
+    #     else:
+    #         response = HttpResponse()
+    #         response.status_code = 403
+    #         return response
+    # else:
+    #     return HttpResponseForbidden()
 
-    if not (lb.check_tenant(secret.secret, checksum, endpoint, request.META.get("QUERY_STRING", "")) or lb.check_tenant(secret.secret2, checksum, endpoint, request.META.get("QUERY_STRING", ""))):
-        return HttpResponse("Unauthorized", status=401)
-
-    if endpoint in ep.LEGAL_ENDPOINTS:
-        if endpoint in ep.WHITELISTED_ENDPOINTS:
-            return await ep.requested_endpoint(secret, endpoint, request, params)
-        else:
-            response = HttpResponse()
-
-            if endpoint == "getRecordingTextTracks":
-                response.write(ct.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON)
-            elif endpoint == "getRecordings":
-                response.write(ct.RETURN_STRING_GET_RECORDING_NO_RECORDINGS)
-            else:
-                response.status_code = 403
-
-            return response
-    else:
-        return HttpResponseForbidden()
-
-# async: workaround for @csrf_excempt decorator
-api_pass_through.csrf_exempt = True
+# async: workaround for @csrf_exempt decorator
+bbb_entrypoint.csrf_exempt = True
 
 
 @require_http_methods(["GET"])
-def ping(request):
+def ping(request: HttpRequest):
     # ping function for monitoring checks
     try:
-        Cluster.objects.get(name="{}".format(datetime.now().strftime("%H%M%S")))
-    except ObjectDoesNotExist:
+        connection.ensure_connection()
         return HttpResponse('OK!', content_type="text/plain")
     except OperationalError:
         return HttpResponse('Doh!', content_type="text/plain", status=503)
 
 
 # Statistic endpoint for tenants
-# secured via auth token
+# secured via tenant auth token
 @require_http_methods(["GET"])
-def stats(request, slug=None, sub_id=0):
-    auth_token = request.headers.get('Authorization')
-    tenant = lb.get_request_tenant(request, slug, sub_id)
+def stats(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
+    b3lb = B3LBRequest(request, "")
+    b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
+    auth_token = request.headers.get("Authorization", "")
 
-    if auth_token and tenant and auth_token == str(tenant.stats_token):
-        return HttpResponse(ep.tenant_stats(tenant), content_type='application/json')
+    if auth_token and b3lb.secret and b3lb.secret.tenant and auth_token == str(b3lb.secret.tenant.stats_token):
+        return HttpResponse(b3lb.get_tenant_statistic(), content_type='application/json')
     else:
         return HttpResponse("Unauthorized", status=401)
 
 
 # Metric endpoint for tenants
-# secured via auth token
+# secured via tenant auth token
 @require_http_methods(["GET"])
-def metrics(request, slug=None, sub_id=0):
-    forwarded_host = utils.get_forwarded_host(request)
-    auth_token = request.headers.get('Authorization')
-    secret = lb.get_request_secret(request, slug, sub_id)
+def metrics(request, slug: str = "", sub_id: int = 0) -> HttpResponse:
+    b3lb = B3LBRequest(request, "")
+    b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
+    auth_token = b3lb.request.headers.get('Authorization', "")
 
-    if forwarded_host == settings.B3LB_API_BASE_DOMAIN and slug is None:
+    print(auth_token)
+    if b3lb.get_forwarded_host() == settings.B3LB_API_BASE_DOMAIN and slug is None:
         return HttpResponse(SecretMetricsList.objects.get(secret=None).metrics, content_type='text/plain')
-    elif auth_token and secret and auth_token == str(secret.tenant.stats_token):
-        return HttpResponse(SecretMetricsList.objects.get(secret=secret).metrics, content_type='text/plain')
+    elif auth_token and b3lb.secret and auth_token == str(b3lb.secret.tenant.stats_token):
+        return HttpResponse(SecretMetricsList.objects.get(secret=b3lb.secret).metrics, content_type='text/plain')
     else:
         return HttpResponse("Unauthorized", status=401)
 
 
-# Endpoint for getting slides
+# Endpoint for getting slides for meeting
+# no default security
 @require_http_methods(['GET'])
-def slide(request, slug=None):
+def slide(request: HttpRequest, slug: str = "") -> HttpResponse:
     try:
         asset = Asset.objects.get(tenant__slug=slug.upper())
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
     if asset.slide:
-        return utils.get_file_response_from_storage(asset.slide.name)
+        storage = DBStorage()
+        return storage.get_response(asset.slide.name)
     else:
         return HttpResponseNotFound()
 
 
-# Endpoint for getting logos
+# Endpoint for getting logos for meeting
+# no default security
 @require_http_methods(['GET'])
-def logo(request, slug=None):
+def logo(request: HttpRequest, slug=None) -> HttpResponse:
     try:
         asset = Asset.objects.get(tenant__slug=slug.upper())
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
     if asset.logo:
-        return utils.get_file_response_from_storage(asset.logo.name)
+        storage = DBStorage()
+        return storage.get_response(asset.logo.name)
     else:
         return HttpResponseNotFound()
 
 
-# Endpoint for getting custom CSS file
+
 @require_http_methods(['GET'])
-def custom_css(request, slug=None):
+def custom_css(request: HttpRequest, slug: str = "") -> HttpResponse:
+    """
+    Endpoint for getting custom CSS file for meeting.
+    No default security.
+    """
     try:
         asset = Asset.objects.get(tenant__slug=slug.upper())
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
     if asset.custom_css:
-        return utils.get_file_response_from_storage(asset.custom_css.name)
+        storage = DBStorage()
+        return storage.get_response(asset.custom_css.name)
     else:
         return HttpResponseNotFound()
 
 
 @require_http_methods(["POST"])
 @csrf_exempt
-def backend_record_upload(request):
+def backend_record_upload(request: HttpRequest) -> HttpResponse:
     """
     Upload for BBB record files.
     Saves file to given Storage (default, local or S3)
@@ -173,7 +170,6 @@ def backend_record_upload(request):
             record_set = RecordSet.objects.get(nonce=nonce)
         except RecordSet.DoesNotExist:
             return HttpResponse(status=200)
-
         try:
             record_set.recording_archive.save(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
         except:
@@ -195,7 +191,7 @@ def backend_record_upload(request):
 
 
 @require_http_methods(["GET"])
-def backend_end_meeting_callback(request):
+def backend_end_meeting_callback(request: HttpRequest) -> HttpResponse:
     """
     Custom callback URL for end meeting.
     """
@@ -206,13 +202,13 @@ def backend_end_meeting_callback(request):
         except Meeting.DoesNotExist:
             return HttpResponse(status=204)
 
-        if parameters["recordingmarks"] not in ["false", "true"]:
+        if parameters.get("recordingmarks") not in ["false", "true"]:
             recording_marks = "false"
         else:
-            recording_marks = parameters["recordingmarks"]
+            recording_marks = parameters.get("recordingmarks")
 
         if meeting.end_callback_url:
-            url_suffix = f"meetingID={parameters['meetingID']}&recordingmarks={recording_marks}"
+            url_suffix = f"meetingID={parameters.get('meetingID')}&recordingmarks={recording_marks}"
             if "?" in meeting.end_callback_url:
                 get(f"{meeting.end_callback_url}&{url_suffix}")
             else:

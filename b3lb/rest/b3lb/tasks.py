@@ -15,21 +15,23 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
+from django.db import transaction
+from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-from django.db import transaction
-from django.conf import settings
 from jinja2 import Template
-from rest.models import Asset, AssetLogo, AssetSlide, Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats, Tenant
+from json import dumps
+from requests import get
+from rest.b3lb.metrics import incr_metric, set_metric
+from rest.b3lb.utils import xml_escape
+from rest.classes.api import RETURN_STRING_GET_MEETINGS_NO_MEETINGS
+from rest.classes.checks import NodeCheck
+from rest.classes.statistics import MeetingStats
+from rest.models import Asset, AssetLogo, AssetSlide, Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats, Tenant
 from shlex import split
 from tempfile import TemporaryDirectory
-import json
 import os
-import requests as rq
-import rest.b3lb.constants as constants
-import rest.b3lb.lb as lb
-import rest.b3lb.utils as utils
 import subprocess as sp
 import xml.etree.ElementTree as ElementTree
 
@@ -66,43 +68,26 @@ def cleanup_assets():
 
 
 def run_check_node(uuid):
-    meeting_dict = {}
-    parameter_list_int = [
-        "participantCount",
-        "listenerCount",
-        "voiceParticipantCount",
-        "videoCount",
-        "moderatorCount"
-    ]
-
-    parameter_list_str = ["bbb-origin", "bbb-origin-server-name"]
-
-    node = Node.objects.get(uuid=uuid)
-
+    check = NodeCheck(uuid)
     try:
-        response = rq.get(node.load_base_url, timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
+        response = get(check.node.load_base_url, timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
         if response.status_code == 200:
             if response.text.find('\n') != -1:
                 with transaction.atomic():
-                    node_temporary = Node.objects.select_for_update().get(uuid=uuid)
-                    node_temporary.cpu_load = int(response.text.split('\n')[0])
-                    node_temporary.save()
+                    node = Node.objects.select_for_update().get(uuid=uuid)
+                    node.cpu_load = int(response.text.split('\n')[0])
+                    node.save()
     except:
         # Do nothing and keep last cpu load value
         pass
 
-    url = node.api_base_url + lb.get_endpoint_str("getMeetings", {}, node.secret)
-    has_errors = True
-    attendees = 0
-    meetings = 0
-
     try:
-        response = rq.get(url, timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
+        response = get(check.get_meetings_url(), timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
         if response.status_code == 200:
             get_meetings_text = response.content.decode('utf-8')
             cache.set(settings.B3LB_CACHE_NML_PATTERN.format(uuid), get_meetings_text, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
             with transaction.atomic():
-                NodeMeetingList.objects.update_or_create(node=node, defaults={'xml': get_meetings_text})
+                NodeMeetingList.objects.update_or_create(node=check.node, defaults={'xml': get_meetings_text})
 
             xml = ElementTree.fromstring(get_meetings_text)
 
@@ -119,48 +104,40 @@ def run_check_node(uuid):
                             for meeting_element in meeting:
                                 if meeting_element.tag == "meetingID":
                                     meeting_id = meeting_element.text
-                                    meeting_dict[meeting_id] = {
-                                        "participantCount": 0,
-                                        "listenerCount": 0,
-                                        "voiceParticipantCount": 0,
-                                        "videoCount": 0,
-                                        "moderatorCount": 0,
-                                        "bbb-origin": "",
-                                        "bbb-origin-server-name": ""
-                                    }
+                                    check.add_meeting_to_stats(meeting_id)
                             for meeting_element in meeting:
-                                if meeting_element.tag in parameter_list_int:
-                                    meeting_dict[meeting_id][meeting_element.tag] = int(meeting_element.text)
+                                if meeting_element.tag in check.PARAMETERS_INT:
+                                    check.meeting_stats[meeting_id][meeting_element.tag] = int(meeting_element.text)
                                 if meeting_element.tag == "participantCount":
                                     attendee_dummy = int(meeting_element.text)
                                 elif meeting_element.tag == "isBreakout":
                                     if meeting_element.text == "false":
-                                        meetings += 1
+                                        check.meetings += 1
                                     else:
                                         attendee_dummy = 0
                                 elif meeting_element.tag == "metadata":
                                     for cell in meeting_element:
-                                        if cell.tag in parameter_list_str:
-                                            meeting_dict[meeting_id][cell.tag] = cell.text
-                            attendees += attendee_dummy
-            has_errors = False
+                                        if cell.tag in check.PARAMETERS_STR:
+                                            check.meeting_stats[meeting_id][cell.tag] = cell.text
+                            check.attendees += attendee_dummy
+            check.has_errors = False
     except:
         pass
 
-    if has_errors:
-        cache.set(settings.B3LB_CACHE_NML_PATTERN.format(uuid), constants.RETURN_STRING_GET_MEETINGS_NO_MEETINGS, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
+    if check.has_errors:
+        cache.set(settings.B3LB_CACHE_NML_PATTERN.format(uuid), RETURN_STRING_GET_MEETINGS_NO_MEETINGS, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
         with transaction.atomic():
-            NodeMeetingList.objects.update_or_create(node=node, defaults={'xml': constants.RETURN_STRING_GET_MEETINGS_NO_MEETINGS})
+            NodeMeetingList.objects.update_or_create(node=check.node, defaults={'xml': RETURN_STRING_GET_MEETINGS_NO_MEETINGS})
 
     with transaction.atomic():
-        node_temporary = Node.objects.select_for_update().get(uuid=node.uuid)
-        node_temporary.has_errors = has_errors
-        node_temporary.attendees = attendees
-        node_temporary.meetings = meetings
-        node_temporary.save()
-        load = node_temporary.load
+        node = Node.objects.select_for_update().get(uuid=check.node.uuid)
+        node.has_errors = check.has_errors
+        node.attendees = check.attendees
+        node.meetings = check.meetings
+        node.save()
+        load = node.load
 
-    if not has_errors:
+    if not check.has_errors:
         metrics = {}
         metric_keys = [
             Metric.ATTENDEES,
@@ -170,30 +147,30 @@ def run_check_node(uuid):
             Metric.MEETINGS,
         ]
 
-        for meeting in Meeting.objects.filter(node=node):
-            if meeting.id in meeting_dict:
+        for meeting in Meeting.objects.filter(node=check.node):
+            if meeting.id in check.meeting_stats:
                 if meeting.secret not in metrics:
                     metrics[meeting.secret] = {k: 0 for k in metric_keys}
                 m = metrics[meeting.secret]
 
                 m[Metric.MEETINGS] += 1
 
-                meeting.attendees = meeting_dict[meeting.id]["participantCount"]
-                m[Metric.ATTENDEES] += meeting_dict[meeting.id]["participantCount"]
+                meeting.attendees = check.meeting_stats[meeting.id]["participantCount"]
+                m[Metric.ATTENDEES] += check.meeting_stats[meeting.id]["participantCount"]
 
-                meeting.listenerCount = meeting_dict[meeting.id]["listenerCount"]
-                m[Metric.LISTENERS] += meeting_dict[meeting.id]["listenerCount"]
+                meeting.listenerCount = check.meeting_stats[meeting.id]["listenerCount"]
+                m[Metric.LISTENERS] += check.meeting_stats[meeting.id]["listenerCount"]
 
-                meeting.voiceParticipantCount = meeting_dict[meeting.id]["voiceParticipantCount"]
-                m[Metric.VOICES] += meeting_dict[meeting.id]["voiceParticipantCount"]
+                meeting.voiceParticipantCount = check.meeting_stats[meeting.id]["voiceParticipantCount"]
+                m[Metric.VOICES] += check.meeting_stats[meeting.id]["voiceParticipantCount"]
 
-                meeting.videoCount = meeting_dict[meeting.id]["videoCount"]
-                m[Metric.VIDEOS] += meeting_dict[meeting.id]["videoCount"]
+                meeting.videoCount = check.meeting_stats[meeting.id]["videoCount"]
+                m[Metric.VIDEOS] += check.meeting_stats[meeting.id]["videoCount"]
 
-                meeting.moderatorCount = meeting_dict[meeting.id]["moderatorCount"]
+                meeting.moderatorCount = check.meeting_stats[meeting.id]["moderatorCount"]
 
-                meeting.bbb_origin = meeting_dict[meeting.id]["bbb-origin"]
-                meeting.bbb_origin_server_name = meeting_dict[meeting.id]["bbb-origin-server-name"]
+                meeting.bbb_origin = check.meeting_stats[meeting.id]["bbb-origin"]
+                meeting.bbb_origin_server_name = check.meeting_stats[meeting.id]["bbb-origin-server-name"]
                 meeting.save()
             else:
                 mci_lifetime = (timezone.now() - meeting.age).seconds
@@ -201,8 +178,8 @@ def run_check_node(uuid):
                     # delete meeting and update duration metric only for non-zombie meetings
                     # (duration < 12h)
                     if mci_lifetime < 43200:
-                        lb.incr_metric(Metric.DURATION_COUNT, meeting.secret, node)
-                        lb.incr_metric(Metric.DURATION_SUM, meeting.secret, node, mci_lifetime)
+                        incr_metric(Metric.DURATION_COUNT, meeting.secret, check.node)
+                        incr_metric(Metric.DURATION_SUM, meeting.secret, check.node, mci_lifetime)
                     meeting.delete()
 
         with transaction.atomic():
@@ -210,41 +187,15 @@ def run_check_node(uuid):
                 if secret in metrics:
                     for name in metric_keys:
                         if name in Metric.GAUGES:
-                            lb.set_metric(name, secret, node, metrics[secret][name])
+                            set_metric(name, secret, check.node, metrics[secret][name])
                         else:
-                            lb.incr_metric(name, secret, node, metrics[secret][name])
+                            incr_metric(name, secret, check.node, metrics[secret][name])
                 else:
                     for name in metric_keys:
                         if name in Metric.GAUGES:
-                            lb.set_metric(name, secret, node, 0)
+                            set_metric(name, secret, check.node, 0)
 
-    return json.dumps([node.slug, load, meetings, attendees])
-
-
-def run_check_slides():
-    slide_dir = "rest/slides/"
-    slide_files = os.listdir(slide_dir)
-    slide_files.append(settings.B3LB_NO_SLIDES_TEXT)
-    slides = {}
-
-    # check for new slide files
-    for slide_file in slide_files:
-        try:
-            Asset.objects.get(name=slide_file)
-        except ObjectDoesNotExist:
-            slide = Asset(name=slide_file)
-            slide.save()
-            slides[slide_file] = "added"
-
-    # check for deleted slide files
-    for slide in Asset.objects.all():
-        if slide.name not in slide_files:
-            slide.delete()
-            slides[slide.name] = "deleted"
-        else:
-            slides[slide.name] = "keeping"
-
-    return slides
+    return dumps([check.node.slug, load, check.meetings, check.attendees])
 
 
 def fill_statistic_by_tenant(tenant_uuid):
@@ -258,41 +209,26 @@ def fill_statistic_by_tenant(tenant_uuid):
 
     stats = Stats.objects.filter(tenant=tenant)
     meetings_all = Meeting.objects.filter(secret__tenant=tenant)
+    statistics = MeetingStats()
 
     # update existing stats
     for stat in stats:
         meetings_filter = meetings_all.filter(bbb_origin=stat.bbb_origin, bbb_origin_server_name=stat.bbb_origin_server_name)
         stats_combination.append([stat.bbb_origin, stat.bbb_origin_server_name])
 
-        attendees = 0
-        meetings = 0
-        listener_count = 0
-        voice_participant_count = 0
-        moderator_count = 0
-        video_count = 0
+        statistics.reinit()
 
         for meeting in meetings_filter:
             if not meeting.node.has_errors:
-                attendees += meeting.attendees
-                meetings += 1
-                listener_count += meeting.listenerCount
-                voice_participant_count += meeting.voiceParticipantCount
-                moderator_count += meeting.moderatorCount
-                video_count += meeting.videoCount
+                statistics.add_meeting_stats(meeting.attendees, meeting.listenerCount, meeting.voiceParticipantCount, meeting.moderatorCount, meeting.videoCount)
             meetings_all = meetings_all.exclude(id=meeting.id)
 
-        stat.attendees = attendees
-        stat.meetings = meetings
-        stat.listenerCount = listener_count
-        stat.voiceParticipantCount = voice_participant_count
-        stat.moderatorCount = moderator_count
-        stat.videoCount = video_count
-        stat.save()
+        stat.update_values(statistics)
 
         if stat.bbb_origin_server_name not in result[tenant.slug]:
             result[tenant.slug][stat.bbb_origin_server_name] = {}
             if stat.bbb_origin not in result[tenant.slug][stat.bbb_origin_server_name]:
-                result[tenant.slug][stat.bbb_origin_server_name][stat.bbb_origin] = [meetings, attendees, listener_count, voice_participant_count, moderator_count, video_count]
+                result[tenant.slug][stat.bbb_origin_server_name][stat.bbb_origin] = statistics.get_values()
 
     # add new stats combinations
     new_combinations = []
@@ -310,39 +246,23 @@ def fill_statistic_by_tenant(tenant_uuid):
         stat = Stats.objects.get(tenant=tenant, bbb_origin=bbb_origin, bbb_origin_server_name=bbb_origin_server_name)
         meetings_filter = meetings_all.filter(bbb_origin=stat.bbb_origin, bbb_origin_server_name=stat.bbb_origin_server_name)
 
-        attendees = 0
-        meetings = 0
-        listener_count = 0
-        voice_participant_count = 0
-        moderator_count = 0
-        video_count = 0
+        statistics.reinit()
 
         for meeting in meetings_filter:
             if not meeting.node.has_errors:
-                attendees += meeting.attendees
-                meetings += 1
-                listener_count += meeting.listenerCount
-                voice_participant_count += meeting.voiceParticipantCount
-                moderator_count += meeting.moderatorCount
-                video_count += meeting.videoCount
+                statistics.add_meeting_stats(meeting.attendees, meeting.listenerCount, meeting.voiceParticipantCount, meeting.moderatorCount, meeting.videoCount)
 
-        stat.attendees = attendees
-        stat.meetings = meetings
-        stat.listenerCount = listener_count
-        stat.voiceParticipantCount = voice_participant_count
-        stat.moderatorCount = moderator_count
-        stat.videoCount = video_count
-        stat.save()
+        stat.update_values(statistics)
 
         if stat.bbb_origin_server_name not in result[tenant.slug]:
             result[tenant.slug][stat.bbb_origin_server_name] = {}
             if stat.bbb_origin not in result[tenant.slug][stat.bbb_origin_server_name]:
-                result[tenant.slug][stat.bbb_origin_server_name][stat.bbb_origin] = [meetings, attendees, listener_count, voice_participant_count, moderator_count, video_count]
+                result[tenant.slug][stat.bbb_origin_server_name][stat.bbb_origin] = statistics.get_values()
 
     return result
 
 
-# ToDo: Use django-template instead of jinja2
+# ToDo: Use django-template instead of jinja2 -> Needs to update the templates, because of DjangoTemplateErrors
 def load_template(file_name):
     with open(f"rest/templates/{file_name}") as template_file:
         return Template(template_file.read())
@@ -360,11 +280,10 @@ def update_get_meetings_xml(secret_uuid):
     for mci in mcis:
         meeting_ids.append(mci.id)
 
-    nodes = Node.objects.all()
     context = {"meetings": []}
     template = load_template("getMeetings.xml")
 
-    for node in nodes:
+    for node in Node.objects.all():
         try:
             try:
                 node_meeting = cache.get(settings.B3LB_CACHE_NML_PATTERN.format(node.uuid))
@@ -387,14 +306,14 @@ def update_get_meetings_xml(secret_uuid):
                                         if ssub_cat.tag == "attendee":
                                             element_json = {}
                                             for element in ssub_cat:
-                                                element_json[element.tag] = utils.xml_escape(element.text)
+                                                element_json[element.tag] = xml_escape(element.text)
                                             meeting_json["attendees"].append(element_json)
                                 elif sub_cat.tag == "metadata":
                                     meeting_json["metadata"] = {}
                                     for ssub_cat in sub_cat:
-                                        meeting_json["metadata"][ssub_cat.tag] = utils.xml_escape(ssub_cat.text)
+                                        meeting_json["metadata"][ssub_cat.tag] = xml_escape(ssub_cat.text)
                                 else:
-                                    meeting_json[sub_cat.tag] = utils.xml_escape(sub_cat.text)
+                                    meeting_json[sub_cat.tag] = xml_escape(sub_cat.text)
 
                                 if sub_cat.tag == "meetingID":
                                     if sub_cat.text not in meeting_ids:
@@ -408,15 +327,15 @@ def update_get_meetings_xml(secret_uuid):
     if context["meetings"]:
         response = template.render(context)
     else:
-        response = constants.RETURN_STRING_GET_MEETINGS_NO_MEETINGS
+        response = RETURN_STRING_GET_MEETINGS_NO_MEETINGS
 
     with transaction.atomic():
         obj, created = SecretMeetingList.objects.update_or_create(secret=secret, defaults={'xml': response})
 
+    mode = "updated"
     if created:
-        return "{} MeetingListXML created.".format(secret.__str__())
-    else:
-        return "{} MeetingListXML updated.".format(secret.__str__())
+        mode = "created"
+    return f"{secret.__str__()} MeetingListXML {mode}."
 
 
 def update_metrics(secret_uuid):
@@ -488,10 +407,10 @@ def update_metrics(secret_uuid):
         with transaction.atomic():
             obj, created = SecretMetricsList.objects.update_or_create(secret=None, defaults={'metrics': template.render(context)})
 
+    mode = "Update"
     if created:
-        return "Create list with {} metrics for {}.".format(metric_count, secret_text)
-    else:
-        return "Update list with {} metrics for {}.".format(metric_count, secret_text)
+        mode = "Create"
+    return f"{mode} list with {metric_count} metrics for {secret_text}."
 
 
 # ToDo: S3 Test
