@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2022 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -14,50 +14,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-# This function file contains functions without import of b3lb files to prevent circular imports
-from db_file_storage.storage import DatabaseFileStorage
-from django.http import HttpResponse
-from django.db import models
-from wsgiref.util import FileWrapper
-import re
-
-storage = DatabaseFileStorage()
-forwarded_host_regex = re.compile(r'([^:]+)(:\d+)?$')
-
-
-def get_file_response_from_storage(file_name):
-    try:
-        stored_file = storage.open(file_name)
-    except models.Model.DoesNotExist:
-        return HttpResponse("Not Found", status=404)
-
-    response = HttpResponse(FileWrapper(stored_file), content_type=stored_file.mimetype)
-    response['Content-Length'] = stored_file.tell()
-
-    return response
-
-
-def get_file_from_storage(file_name):
-    try:
-        return storage.open(file_name).file.read()
-    except models.Model.DoesNotExist:
-        return None
-
-
-def get_forwarded_host(request):
-    forwarded_host = request.META.get('HTTP_X_FORWARDED_HOST', request.META.get('HTTP_HOST'))
-    return forwarded_host_regex.sub(r'\1', forwarded_host)
-
+# This utils file contains functions without import of b3lb files to prevent circular imports
 
 def xml_escape(string):
     if isinstance(string, str):
-        escape_symbols = [
-            ("&", "&amp;"),
-            ("<", "&lt;"),
-            (">", "&gt;"),
-            ("'", "&apos;"),
-            ('"', "&quot;")
-        ]
+        escape_symbols = [("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ("'", "&apos;"), ('"', "&quot;") ]
         for symbol, escape in escape_symbols:
             string = string.replace(symbol, escape)
         return string

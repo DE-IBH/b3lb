@@ -1,21 +1,20 @@
 # ToDo: v3.1 - Delay update to Django 4.x
-Django==3.2.15
-django-extensions==3.2.0
+Django==3.2.16
+django-extensions==3.2.1
 requests==2.28.1
-boto3==1.24.53
+boto3==1.26.35
 celery==5.2.7
 celery-singleton==0.3.1
 django-cacheops==6.1
 # ToDo: v3.1 - TBD for Django 4.x
 django-db-file-storage==0.5.5
 django-celery-admin==0.1
-django-celery-beat==2.3.0
+django-celery-beat==2.4.0
 django-celery-results==2.4.0
 django-environ==0.9.0
 django-redis==5.2.0
-django-split-settings==1.1.0
 django-storages==1.13.1
 psycopg2cffi==2.9.0
-uvicorn[standard]==0.18.2
-aiohttp==3.8.1
+uvicorn[standard]==0.20.0
+aiohttp==3.8.3
 jinja2==3.1.2

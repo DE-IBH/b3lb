@@ -15,6 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
+from base64 import b32encode
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage, default_storage
@@ -28,12 +29,12 @@ from django.utils.http import urlencode
 from django.urls import reverse
 from math import pow
 from os.path import join
-from rest.b3lb.utils import xml_escape, get_file_from_storage
+from re import match
+from rest.b3lb.utils import xml_escape
+from rest.classes.statistics import MeetingStats
+from rest.classes.storage import DBStorage
 from storages.backends.s3boto3 import S3Boto3Storage
 from textwrap import wrap
-import base64
-import re
-import rest.b3lb.constants as ct
 import uuid as uid
 
 #
@@ -397,18 +398,18 @@ class Secret(models.Model):
         return "{}-{}".format(self.tenant.slug, str(self.sub_id).zfill(3))
 
     @property
-    def endpoint(self):
+    def endpoint(self) -> str:
         if self.sub_id == 0:
-            return "{}.{}".format(str(self.tenant.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
+            return f"{self.tenant.slug.lower()}.{settings.B3LB_API_BASE_DOMAIN}"
         else:
-            return "{}-{}.{}".format(str(self.tenant.slug).lower(), str(self.sub_id).zfill(3), settings.B3LB_API_BASE_DOMAIN)
+            return f"{self.tenant.slug.lower()}-{str(self.sub_id).zfill(3)}.{settings.B3LB_API_BASE_DOMAIN}"
 
     @property
-    def is_record_enabled(self):
+    def is_record_enabled(self) -> bool:
         return self.recording_enabled and self.tenant.recording_enabled
 
     @property
-    def records_effective_hold_time(self):
+    def records_effective_hold_time(self) -> int:
         if 0 in [self.records_hold_time, self.tenant.records_hold_time]:
             return max(self.records_hold_time, self.tenant.records_hold_time)
         else:
@@ -505,26 +506,22 @@ class Asset(models.Model):
             return ""
 
     @property
-    def custom_css_url(self):
-        return "https://{}/b3lb/t/{}/css".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+    def custom_css_url(self) -> str:
+        return f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{self.tenant.slug.lower()}/css"
 
     @property
-    def logo_url(self):
-        return "https://{}/b3lb/t/{}/logo".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+    def logo_url(self) -> str:
+        return f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{self.tenant.slug.lower()}/logo"
 
     @property
-    def slide_url(self):
-        return "https://{}/b3lb/t/{}/slide".format(settings.B3LB_API_BASE_DOMAIN, self.tenant.slug.lower())
+    def slide_url(self) -> str:
+        return f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{self.tenant.slug.lower()}/slide"
 
     @property
-    def slide_base64(self):
+    def slide_base64(self) -> str:
         if self.slide:
-            stored_file = get_file_from_storage(self.slide.name)
-            if len(stored_file) <= ct.MAX_SLIDE_SIZE_IN_POST:
-                based_64 = base64.b64encode(stored_file).decode()
-                if len(based_64) <= ct.MAX_BASE64_SLIDE_SIZE_IN_POST:
-                    return based_64
-        return None
+            return DBStorage().get_base64(self.slide.name)
+        return ""
 
     class Meta(object):
         ordering = ['tenant__slug']
@@ -624,7 +621,7 @@ class RecordSet(models.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        base32 = base64.b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
+        base32 = b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
         path = wrap(base32, settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH)[:settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT]
         path.append(base32[settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH * settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
         self.file_path = join("record", *path)
@@ -710,6 +707,14 @@ class Stats(models.Model):
 
     class Meta(object):
         ordering = ['tenant']
+
+    def update_values(self, meeting: MeetingStats):
+        self.attendees = meeting.attendees
+        self.meetings = meeting.meetings
+        self.listenerCount = meeting.listener_count
+        self.moderatorCount = meeting.moderator_count
+        self.videoCount = meeting.video_count
+        self.save()
 
     def __str__(self):
         return "{}: {} ({})".format(self.tenant.slug, self.bbb_origin_server_name, self.bbb_origin)
@@ -1158,13 +1163,11 @@ class Parameter(models.Model):
 
     def clean_fields(self, exclude=None):
         if self.mode in [self.SET, self.OVERRIDE]:
-            if not re.match(self.PARAMETER_REGEXES[self.parameter], self.value):
-                raise ValidationError('Value must have the format "{}"!'.format(self.PARAMETER_REGEXES[self.parameter]), params={'value': self.value})
+            if not match(self.PARAMETER_REGEXES[self.parameter], self.value):
+                raise ValidationError(f'Value must have the format "{self.PARAMETER_REGEXES[self.parameter]}"!', params={'value': self.value})
 
     class Meta(object):
-        constraints = [
-            models.UniqueConstraint(fields=['parameter', 'tenant'], name="unique_parameter")
-        ]
+        constraints = [models.UniqueConstraint(fields=['parameter', 'tenant'], name="unique_parameter")]
 
 
 class ParameterAdmin(admin.ModelAdmin):

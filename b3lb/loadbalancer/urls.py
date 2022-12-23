@@ -22,13 +22,13 @@ from rest import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    url(r'^bigbluebutton/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.api_pass_through),
+    url(r'^bigbluebutton/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.bbb_entrypoint),
     path('b3lb/stats', views.stats),
     path('b3lb/metrics', views.metrics),
     path('b3lb/ping', views.ping),
     path('b3lb/b/meeting/end', views.backend_end_meeting_callback),
     path('b3lb/b/record/upload', views.backend_record_upload),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.api_pass_through),
+    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.bbb_entrypoint),
     url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/stats', views.stats),
     url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/metrics', views.metrics),
     url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/logo', views.logo),
