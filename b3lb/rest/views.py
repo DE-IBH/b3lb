@@ -15,18 +15,16 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest, HttpResponseForbidden
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.db import connection
 from django.db.utils import OperationalError
-from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from requests import get
-from rest.classes.api import B3LBRequest
+from rest.classes.api import ClientB3lbRequest, NodeB3lbRequest
 from rest.classes.storage import DBStorage
-from rest.models import Asset, Meeting, RecordSet, SecretMetricsList, SecretRecordProfileRelation
+from rest.models import Asset, RecordSet, SecretRecordProfileRelation
 from rest.tasks import render_record
 
 
@@ -34,7 +32,7 @@ async def bbb_entrypoint(request: HttpRequest, endpoint: str = "", slug: str = "
     """
     Entrypoint for 'official' BigBlueButton API endpoints.
     """
-    b3lb = B3LBRequest(request, endpoint)
+    b3lb = ClientB3lbRequest(request, endpoint)
 
     # async: workaround for @require_http_methods decorator
     if not b3lb.is_allowed_method():
@@ -60,11 +58,13 @@ def ping(request: HttpRequest):
         return HttpResponse('Doh!', content_type="text/plain", status=503)
 
 
+# ToDo: overwork allowed_method
+
 # Statistic endpoint for tenants
 # secured via tenant auth token
 @require_http_methods(["GET"])
 async def stats(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
-    b3lb = B3LBRequest(request, "b3lb_stats")
+    b3lb = ClientB3lbRequest(request, "b3lb_stats")
     b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
     return await b3lb.endpoint_delegation()
 
@@ -72,7 +72,7 @@ async def stats(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpRe
 # secured via tenant auth token
 @require_http_methods(["GET"])
 async def metrics(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
-    b3lb = B3LBRequest(request, "b3lb_metrics")
+    b3lb = ClientB3lbRequest(request, "b3lb_metrics")
     b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
     return await b3lb.endpoint_delegation()
 
@@ -162,40 +162,22 @@ def backend_record_upload(request: HttpRequest) -> HttpResponse:
     return HttpResponse(status=200)
 
 
-@require_http_methods(["GET"])
-def backend_end_meeting_callback(request: HttpRequest) -> HttpResponse:
+async def backend_endpoint(request: HttpRequest, backend: str, endpoint: str) -> HttpResponse:
     """
-    Custom callback URL for end meeting.
+    Entrypoint for backend API endpoints.
     """
-    parameters = request.GET
-    if "nonce" in parameters and "meetingID" in parameters:
-        try:
-            meeting = Meeting.objects.get(id=parameters["meetingID"], nonce=parameters["nonce"])
-        except Meeting.DoesNotExist:
-            return HttpResponse(status=204)
+    b3lb = NodeB3lbRequest(request, backend, endpoint)
 
-        if parameters.get("recordingmarks") not in ["false", "true"]:
-            recording_marks = "false"
-        else:
-            recording_marks = parameters.get("recordingmarks")
+    if not b3lb.is_allowed_endpoint():
+        return HttpResponseForbidden()
 
-        if meeting.end_callback_url:
-            url_suffix = f"meetingID={parameters.get('meetingID')}&recordingmarks={recording_marks}"
-            if "?" in meeting.end_callback_url:
-                get(f"{meeting.end_callback_url}&{url_suffix}")
-            else:
-                get(f"{meeting.end_callback_url}?{url_suffix}")
+    # async: workaround for @require_http_methods decorator
+    if not b3lb.is_allowed_method():
+        return HttpResponseNotAllowed(b3lb.allowed_methods())
+    return await b3lb.endpoint_delegation()
 
-        if recording_marks == "false":
-            try:
-                RecordSet.objects.get(meeting=meeting).delete()
-            except RecordSet.DoesNotExist:
-                pass
-
-        meeting.delete()
-
-    return HttpResponse(status=204)
-
+# async: workaround for @csrf_exempt decorator
+backend_endpoint.csrf_exempt = True
 
 # ToDo Add endpoint for record download.
 # ..
