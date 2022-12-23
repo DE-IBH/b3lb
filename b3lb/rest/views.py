@@ -41,24 +41,9 @@ async def bbb_entrypoint(request: HttpRequest, endpoint: str = "", slug: str = "
         return HttpResponseNotAllowed(b3lb.allowed_methods())
 
     await sync_to_async(b3lb.set_secret_by_slug_and_slug_id)(slug, sub_id)
-
     if not await sync_to_async(b3lb.is_authorized)():
         return HttpResponse("Unauthorized", status=401)
-
     return await b3lb.endpoint_delegation()
-    # if endpoint in LEGAL_ENDPOINTS:
-    #     if endpoint in WHITELISTED_ENDPOINTS:
-    #         return await requested_endpoint(b3lb)
-    #     elif endpoint == "getRecordingTextTracks":
-    #         return HttpResponse(ct.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON)
-    #     elif endpoint == "getRecordings":
-    #         return HttpResponse(ct.RETURN_STRING_GET_RECORDING_NO_RECORDINGS)
-    #     else:
-    #         response = HttpResponse()
-    #         response.status_code = 403
-    #         return response
-    # else:
-    #     return HttpResponseForbidden()
 
 # async: workaround for @csrf_exempt decorator
 bbb_entrypoint.csrf_exempt = True
@@ -67,6 +52,7 @@ bbb_entrypoint.csrf_exempt = True
 @require_http_methods(["GET"])
 def ping(request: HttpRequest):
     # ping function for monitoring checks
+    # using django db connection check for validation
     try:
         connection.ensure_connection()
         return HttpResponse('OK!', content_type="text/plain")
@@ -77,32 +63,18 @@ def ping(request: HttpRequest):
 # Statistic endpoint for tenants
 # secured via tenant auth token
 @require_http_methods(["GET"])
-def stats(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
-    b3lb = B3LBRequest(request, "")
+async def stats(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
+    b3lb = B3LBRequest(request, "b3lb_stats")
     b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
-    auth_token = request.headers.get("Authorization", "")
-
-    if auth_token and b3lb.secret and b3lb.secret.tenant and auth_token == str(b3lb.secret.tenant.stats_token):
-        return HttpResponse(b3lb.get_tenant_statistic(), content_type='application/json')
-    else:
-        return HttpResponse("Unauthorized", status=401)
-
+    return await b3lb.endpoint_delegation()
 
 # Metric endpoint for tenants
 # secured via tenant auth token
 @require_http_methods(["GET"])
-def metrics(request, slug: str = "", sub_id: int = 0) -> HttpResponse:
-    b3lb = B3LBRequest(request, "")
+async def metrics(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
+    b3lb = B3LBRequest(request, "b3lb_metrics")
     b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
-    auth_token = b3lb.request.headers.get('Authorization', "")
-
-    print(auth_token)
-    if b3lb.get_forwarded_host() == settings.B3LB_API_BASE_DOMAIN and slug is None:
-        return HttpResponse(SecretMetricsList.objects.get(secret=None).metrics, content_type='text/plain')
-    elif auth_token and b3lb.secret and auth_token == str(b3lb.secret.tenant.stats_token):
-        return HttpResponse(SecretMetricsList.objects.get(secret=b3lb.secret).metrics, content_type='text/plain')
-    else:
-        return HttpResponse("Unauthorized", status=401)
+    return await b3lb.endpoint_delegation()
 
 
 # Endpoint for getting slides for meeting

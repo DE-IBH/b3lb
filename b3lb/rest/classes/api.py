@@ -10,7 +10,7 @@ from hashlib import sha1, sha256
 from random import randint
 from re import compile, escape
 from rest.b3lb.metrics import incr_metric, update_create_metrics
-from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, Stats
+from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal
 from urllib.parse import urlencode
 
@@ -35,6 +35,7 @@ class B3LBRequest:
     body: str
     endpoint: str
     checksum: str
+    stats_token: str
     node: Node
     secret: Secret
     ENDPOINTS_PASS_THROUGH: List[str]
@@ -129,10 +130,10 @@ class B3LBRequest:
         """
         return HttpResponse(RETURN_STRING_VERSION, content_type=CONTENT_TYPE)
 
-    #### Own Routines ####
+    #### Own Routines & Endpoints ####
     async def endpoint_delegation(self) -> HttpResponse:
         """
-        Check for right endpoint and return response.
+        Check for right bbb endpoint and return response.
         """
         if self.endpoint in self.ENDPOINTS:
             return await self.ENDPOINTS[self.endpoint]()
@@ -141,6 +142,23 @@ class B3LBRequest:
         else:
             return HttpResponseForbidden()
 
+    async def metrics(self) -> HttpResponse:
+        """
+        Return cached prometheus metrics.
+        Must be authorized by stats_token
+        """
+        if self.get_forwarded_host() == settings.B3LB_API_BASE_DOMAIN or (self.stats_token and self.secret and self.stats_token == str(self.secret.tenant.stats_token)):
+            return HttpResponse(await sync_to_async(self.get_secret_metrics)() , content_type='text/plain')
+        else:
+            return HttpResponse("Unauthorized", status=401)
+
+    async def stats(self) -> HttpResponse:
+        if self.stats_token and self.secret and self.secret.tenant and self.stats_token == str(self.secret.tenant.stats_token):
+            return HttpResponse(await sync_to_async(self.get_tenant_statistic)(), content_type='application/json')
+        else:
+            return HttpResponse("Unauthorized", status=401)
+
+    #### Class Routines ####
     @staticmethod
     def allowed_methods() -> List[Literal["GET", "POST", "DELETE", "PATCH", "PUT"]]:
         return ["GET", "POST"]
@@ -302,6 +320,9 @@ class B3LBRequest:
         query_string = query_string.replace("checksum=" + self.checksum, "")
         return query_string
 
+    def get_secret_metrics(self) -> str:
+        return SecretMetricsList.objects.get(secret=self.secret).metrics
+
     def get_tenant_statistic(self) -> str:
         statistic = {}
         for stat in Stats.objects.filter(tenant=self.secret.tenant):
@@ -368,6 +389,7 @@ class B3LBRequest:
 
         self.meeting_id = self.parameters.get("meetingID", "")
         self.checksum = self.parameters.pop("checksum", "")
+        self.stats_token = self.request.headers.get("Authorization", "")
 
         self.secret = None
         self.node = None
@@ -379,5 +401,7 @@ class B3LBRequest:
             "isMeetingRunning": self.is_meeting_running,
             "getMeetings": self.get_meetings,
             "getRecordingTextTracks": self.get_recording_text_tracks,
-            "getRecordings": self.get_recordings
+            "getRecordings": self.get_recordings,
+            "b3lb_metrics": self.metrics,
+            "b3lb_stats": self.stats
         }
