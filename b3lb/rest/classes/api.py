@@ -1,6 +1,7 @@
 from aiohttp import ClientSession
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
+from asyncio import create_task
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
@@ -9,6 +10,7 @@ from json import dumps
 from hashlib import sha1, sha256
 from random import randint
 from re import compile, escape
+from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal
@@ -28,7 +30,10 @@ RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</
 RETURN_STRING_MISSING_MEETING_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamMeetingID</messageKey>\r\n<message>You must specify a meeting ID for the meeting.</message>\r\n</response>'
 
 
-class B3LBRequest:
+class ClientB3lbRequest:
+    """
+    Class for client to BigBlueButton node communication.
+    """
     request: HttpRequest
     parameters: Dict[str, Any]
     meeting_id: str
@@ -225,11 +230,7 @@ class B3LBRequest:
 
             # check if records are enabled
             if self.secret.is_record_enabled:
-                ready_url = self.parameters.pop("meta_bbb-recording-ready-url", "")
-                if ready_url:
-                    record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, id_meeting=meeting.id, recording_ready_origin_url=ready_url)
-                else:
-                    record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, id_meeting=meeting.id)
+                record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, id_meeting=meeting.id, recording_ready_origin_url=self.parameters.pop("meta_bbb-recording-ready-url", ""), nonce=meeting.nonce)
                 self.parameters["meta_recordset"] = record_set.nonce
             else:
                 # record aren't enabled -> suppress any record related parameter
@@ -378,7 +379,7 @@ class B3LBRequest:
             except ObjectDoesNotExist:
                 pass
 
-    ## Python class specific routines ##
+    ## INIT ##
     def __init__(self, request: HttpRequest, endpoint: str):
         self.request = request
         self.endpoint = endpoint
@@ -404,4 +405,85 @@ class B3LBRequest:
             "getRecordings": self.get_recordings,
             "b3lb_metrics": self.metrics,
             "b3lb_stats": self.stats
+        }
+
+
+class NodeB3lbRequest:
+    """
+    Class for node to B3LB backend communication.
+    """
+    BACKENDS: Dict[str, Dict[Literal["methods", "function"], Any]]
+    request: HttpRequest
+    meeting: Meeting
+    backend: str
+    endpoint: str
+    meeting_id: str
+    nonce: str
+    recording_marks: str
+
+    def is_allowed_endpoint(self) -> bool:
+        if self.full_endpoint() in self.BACKENDS:
+            return True
+        return False
+
+    def allowed_methods(self) -> List[str]:
+        return self.BACKENDS[self.full_endpoint()]["methods"]
+
+    def is_allowed_method(self) -> bool:
+        if self.full_endpoint() in self.BACKENDS and self.request.method in self.BACKENDS[self.full_endpoint()]["methods"]:
+            return True
+        return False
+
+    def is_meeting(self) -> bool:
+        if self.meeting_id and self.nonce:
+            try:
+                self.meeting = Meeting.objects.get(id=self.meeting_id, nonce=self.nonce)
+                return True
+            except ObjectDoesNotExist:
+                return False
+        return False
+
+    async def end_meeting(self) -> HttpResponse:
+        """
+        Run end meeting routines and destroy meeting database object.
+        """
+        if await sync_to_async(self.is_meeting)():
+            # fire and forget request to meeting creator system/client
+            create_task(self.send_end_callback())
+            if self.recording_marks == "false":
+                try:
+                    await sync_to_async(RecordSet.objects.get)(meeting=self.meeting, nonce=self.nonce)
+                except ObjectDoesNotExist:
+                    pass
+            self.meeting.delete()
+        return HttpResponse(status=204)
+
+    async def endpoint_delegation(self) -> HttpResponse:
+        if self.full_endpoint() in self.BACKENDS:
+            return await self.BACKENDS[self.full_endpoint()]["function"]()
+        return HttpResponseForbidden()
+
+    def full_endpoint(self) -> str:
+        return f"{self.backend}/{self.endpoint}"
+
+    async def send_end_callback(self):
+        """
+        Send async end callback (fire and forget).
+        """
+        if "?" in self.meeting.end_callback_url:
+            url = f"{self.meeting.end_callback_url}&meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
+        else:
+            url = f"{self.meeting.end_callback_url}?meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
+        get(url)
+
+    def __init__(self, request: HttpRequest, backend: str, endpoint: str):
+        self.request = request
+        self.meeting = None
+        self.backend = backend
+        self.endpoint = endpoint
+        self.meeting_id = self.request.GET.get("meetingID", "")
+        self.nonce = self.request.GET.get("nonce", "")
+        self.recording_marks = self.request.GET.get("recordingmarks", "false")
+        self.BACKENDS = {
+            "meeting/end": {"methods": ["GET"], "function": self.end_meeting},
         }
