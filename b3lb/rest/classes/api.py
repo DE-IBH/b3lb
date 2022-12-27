@@ -167,8 +167,9 @@ class ClientB3lbRequest:
             return HttpResponse("Unauthorized", status=401)
 
     #### Class Routines ####
-    @staticmethod
-    def allowed_methods() -> List[Literal["GET", "POST", "DELETE", "PATCH", "PUT"]]:
+    def allowed_methods(self) -> List[Literal["GET", "POST", "DELETE", "PATCH", "PUT"]]:
+        if self.endpoint in ["b3lb_metrics", "b3lb_stats"]:
+            return ["GET"]
         return ["GET", "POST"]
 
     ## Check Routines ##
