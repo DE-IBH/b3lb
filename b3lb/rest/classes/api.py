@@ -7,19 +7,22 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
 from django.db.models import Sum
 from json import dumps
-from hashlib import sha1, sha256
+from hashlib import sha1, sha256, sha384, sha512
 from random import randint
 from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
-from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
-from typing import Any, Dict, List, Literal
+from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
+from typing import Any, Dict, List, Literal, Tuple
 from urllib.parse import urlencode
 
 
 HOST_REGEX = compile(r'([^:]+)(:\d+)?$')
 SLUG_REGEX = compile(r'^([a-z]{2,10})(-(\d{3}))?\.' + escape(settings.B3LB_API_BASE_DOMAIN) + '$')
 CONTENT_TYPE = "text/xml"
+
+SHA_ALGORITHMS_BY_LENGTH = {40: ClusterGroup.SHA1, 64: ClusterGroup.SHA256, 96: ClusterGroup.SHA384, 128: ClusterGroup.SHA512}
+SHA_ALGORITHMS_BY_STRING = {ClusterGroup.SHA1: sha1, ClusterGroup.SHA256: sha256, ClusterGroup.SHA384: sha384, ClusterGroup.SHA512: sha512}
 
 RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
 RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n</response>'
@@ -170,23 +173,17 @@ class ClientB3lbRequest:
 
     ## Check Routines ##
     def check_checksum(self) -> bool:
-        # Check for sha1 and sha256
-        if not self.checksum:
+        algorithm = self.get_sha_algorithm_type_by_checksum_length()
+        if not algorithm:
             return False
+
+        sha = algorithm()
         endpoint_string = f"{self.endpoint}{self.get_query_string()}"
 
-        # ToDo: To be discuss if both should be checked or defined by setting:
-        # if settings.B3LB_SHA_ALGORITHM == "sha1":
-        #     sha = sha1()
-        # elif settings.B3LB_SHA_ALGORITHM == "sha256":
-        #     sha = sha256()
-        # else:
-        #     sha = sha1()
-        for sha in [sha1(), sha256()]:
-            for secret in [self.secret.secret, self.secret.secret2]:
-                sha.update(f"{endpoint_string}{secret}".encode())
-                if sha.hexdigest() == self.checksum:
-                    return True
+        for secret in [self.secret.secret, self.secret.secret2]:
+            sha.update(f"{endpoint_string}{secret}".encode())
+            if sha.hexdigest() == self.checksum:
+                return True
         return False
 
     def check_parameters(self, meeting: Meeting = None):
@@ -293,15 +290,8 @@ class ClientB3lbRequest:
         return {"id": self.meeting_id, "secret": self.secret, "node": self.node, "room_name": self.parameters.get("name", "Unknown"), "end_callback_url": self.parameters.get("meta_endCallbackUrl", "")}
 
     def get_node_endpoint_url(self) -> str:
-        if settings.B3LB_NODE_SHA_ALGORITHM == "sha1":
-            sha = sha1()
-        elif settings.B3LB_NODE_SHA_ALGORITHM == "sha256":
-            sha = sha256()
-        else:
-            sha = sha1()
-
+        sha = self.get_sha_algorithm_from_cluster_group()
         parameter_str = ""
-
         if self.parameters:
             parameter_str = urlencode(self.parameters, safe='*')
 
@@ -323,6 +313,22 @@ class ClientB3lbRequest:
 
     def get_secret_metrics(self) -> str:
         return SecretMetricsList.objects.get(secret=self.secret).metrics
+
+    @staticmethod
+    def get_sha_algorithm(sha: str) -> Any:
+        if sha not in settings.B3LB_ALLOWED_SHA_ALGORITHMS or sha not in SHA_ALGORITHMS_BY_STRING:
+            return None
+        return SHA_ALGORITHMS_BY_STRING[sha]
+
+    def get_sha_algorithm_from_cluster_group(self) -> Any:
+        cluster_group = ClusterGroupRelation.objects.get(cluster=self.node.cluster).cluster_group
+        return self.get_sha_algorithm(cluster_group.sha_function)
+
+    def get_sha_algorithm_type_by_checksum_length(self) -> Any:
+        check_length = len(self.checksum)
+        if check_length not in SHA_ALGORITHMS_BY_LENGTH:
+            return self.get_sha_algorithm("")
+        return self.get_sha_algorithm(SHA_ALGORITHMS_BY_LENGTH[check_length])
 
     def get_tenant_statistic(self) -> str:
         statistic = {}

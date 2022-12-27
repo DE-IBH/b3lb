@@ -211,8 +211,7 @@ ADMINS = email.utils.getaddresses([env.str('DJANGO_ADMINS', '')])
 
 B3LB_API_BASE_DOMAIN = env.str('B3LB_API_BASE_DOMAIN')
 
-B3LB_SHA_ALGORITHM = env.str('B3LB_SHA_ALGORITHM', default='sha1')
-B3LB_NODE_SHA_ALGORITHM = env.str('B3LB_NODE_SHA_ALGORITHM', default='sha1')
+B3LB_ALLOWED_SHA_ALGORITHMS = env.list('B3LB_ALLOWED_SHA_ALGORITHMS', default=["sha1", "sha256", "sha384", "sha512"])
 B3LB_NODE_PROTOCOL = env.str('B3LB_NODE_PROTOCOL', default='https://')
 B3LB_NODE_DEFAULT_DOMAIN = env.str('B3LB_NODE_DEFAULT_DOMAIN', default='bbbconf.de')
 B3LB_NODE_BBB_ENDPOINT = env.str('B3LB_NODE_BBB_ENDPOINT', default='bigbluebutton/api/')
