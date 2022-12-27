@@ -173,9 +173,11 @@ class ClientB3lbRequest:
 
     ## Check Routines ##
     def check_checksum(self) -> bool:
-        algorithm = self.get_sha_algorithm_type_by_checksum_length()
+        algorithm = self.get_sha_algorithm_by_parameter()
         if not algorithm:
-            return False
+            algorithm = self.get_sha_algorithm_by_checksum_length()
+            if not algorithm:
+                return False
 
         sha = algorithm()
         endpoint_string = f"{self.endpoint}{self.get_query_string()}"
@@ -290,7 +292,7 @@ class ClientB3lbRequest:
         return {"id": self.meeting_id, "secret": self.secret, "node": self.node, "room_name": self.parameters.get("name", "Unknown"), "end_callback_url": self.parameters.get("meta_endCallbackUrl", "")}
 
     def get_node_endpoint_url(self) -> str:
-        sha = self.get_sha_algorithm_from_cluster_group()
+        sha = self.get_sha_algorithm_by_cluster_group()
         parameter_str = ""
         if self.parameters:
             parameter_str = urlencode(self.parameters, safe='*')
@@ -320,15 +322,18 @@ class ClientB3lbRequest:
             return None
         return SHA_ALGORITHMS_BY_STRING[sha]
 
-    def get_sha_algorithm_from_cluster_group(self) -> Any:
+    def get_sha_algorithm_by_cluster_group(self) -> Any:
         cluster_group = ClusterGroupRelation.objects.get(cluster=self.node.cluster).cluster_group
         return self.get_sha_algorithm(cluster_group.sha_function)
 
-    def get_sha_algorithm_type_by_checksum_length(self) -> Any:
+    def get_sha_algorithm_by_checksum_length(self) -> Any:
         check_length = len(self.checksum)
         if check_length not in SHA_ALGORITHMS_BY_LENGTH:
             return self.get_sha_algorithm("")
         return self.get_sha_algorithm(SHA_ALGORITHMS_BY_LENGTH[check_length])
+
+    def get_sha_algorithm_by_parameter(self) -> Any:
+        return self.get_sha_algorithm(self.parameters.get("checksumHash", ""))
 
     def get_tenant_statistic(self) -> str:
         statistic = {}
