@@ -296,7 +296,7 @@ class ClusterGroup(models.Model):
 
 class ClusterGroupAdmin(admin.ModelAdmin):
     model = ClusterGroup
-    list_display = ['name', 'description', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
+    list_display = ['name', 'description', 'sha_function', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
 
     def number_of_nodes(self, obj):
         count = 0
