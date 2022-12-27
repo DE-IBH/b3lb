@@ -270,9 +270,22 @@ def get_random_secret():
 
 
 class ClusterGroup(models.Model):
+    SHA1 = "sha1"
+    SHA256 = "sha256"
+    SHA384 = "sha384"
+    SHA512 = "sha512"
+
+    SHA_CHOICES = [
+        (SHA1, SHA1),
+        (SHA256, SHA256),
+        (SHA384, SHA384),
+        (SHA512, SHA512)
+    ]
+
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     name = models.CharField(max_length=100, help_text="Cluster name", unique=True)
     description = models.CharField(max_length=255, help_text="Cluster description", null=True)
+    sha_function = models.CharField(max_length=6, choices=SHA_CHOICES, default=SHA256)
 
     class Meta(object):
         ordering = ['name']
