@@ -27,6 +27,7 @@ SHA_ALGORITHMS_BY_STRING = {ClusterGroup.SHA1: sha1, ClusterGroup.SHA256: sha256
 RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
 RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n</response>'
 RETURN_STRING_CREATE_LIMIT_REACHED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting/Attendee limit reached.</message>\r\n</response>'
+RETURN_STRING_CREATE_NO_NODE_AVAILABE = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>No Node available.</message>\r\n</response>'
 RETURN_STRING_IS_MEETING_RUNNING_FALSE = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<running>false</running>\r\n</response>'
 RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
 RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<recordings></recordings>\r\n<messageKey>noRecordings</messageKey>\r\n<message>There are no recordings for the meeting(s).</message>\r\n</response>'
@@ -57,8 +58,12 @@ class ClientB3lbRequest:
         """
         if not self.meeting_id:
             return HttpResponse(RETURN_STRING_MISSING_MEETING_ID, content_type=CONTENT_TYPE)
-        if not await sync_to_async(self.is_meeting)() and not await sync_to_async(self.is_node_free)():
-            return HttpResponse(RETURN_STRING_CREATE_LIMIT_REACHED, content_type=CONTENT_TYPE)
+
+        if not await sync_to_async(self.is_meeting)():
+            if not await sync_to_async(self.is_node_free)():
+                return HttpResponse(RETURN_STRING_CREATE_NO_NODE_AVAILABE, content_type=CONTENT_TYPE)
+            elif not await sync_to_async(self.is_in_limit)():
+                return HttpResponse(RETURN_STRING_CREATE_LIMIT_REACHED, content_type=CONTENT_TYPE)
 
         meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=self.meeting_id, secret=self.secret, defaults=self.get_meeting_defaults())
 
@@ -376,6 +381,7 @@ class ClientB3lbRequest:
                         lowest = node.load
 
         # return randomized node if multiple are possible
+        print(lowest_node_list)
         if lowest_node_list:
             self.node = lowest_node_list[randint(0, len(lowest_node_list) - 1)]
 
