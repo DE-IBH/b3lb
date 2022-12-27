@@ -58,21 +58,26 @@ def ping(request: HttpRequest):
         return HttpResponse('Doh!', content_type="text/plain", status=503)
 
 
-# ToDo: overwork allowed_method
-
 # Statistic endpoint for tenants
-# secured via tenant auth token
-@require_http_methods(["GET"])
 async def stats(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
     b3lb = ClientB3lbRequest(request, "b3lb_stats")
+
+    # async: workaround for @require_http_methods decorator
+    if not b3lb.is_allowed_method():
+        return HttpResponseNotAllowed(b3lb.allowed_methods())
+
     b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
     return await b3lb.endpoint_delegation()
 
 # Metric endpoint for tenants
 # secured via tenant auth token
-@require_http_methods(["GET"])
 async def metrics(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
     b3lb = ClientB3lbRequest(request, "b3lb_metrics")
+
+    # async: workaround for @require_http_methods decorator
+    if not b3lb.is_allowed_method():
+        return HttpResponseNotAllowed(b3lb.allowed_methods())
+
     b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
     return await b3lb.endpoint_delegation()
 
