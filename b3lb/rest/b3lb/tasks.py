@@ -80,7 +80,6 @@ def run_check_node(uuid):
     except:
         # Do nothing and keep last cpu load value
         pass
-
     try:
         response = get(check.get_meetings_url(), timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
         if response.status_code == 200:

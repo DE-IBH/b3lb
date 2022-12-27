@@ -1,6 +1,6 @@
-from django.conf import settings
-from hashlib import sha1, sha256
-from rest.models import Node
+from rest.classes.api import SHA_ALGORITHMS_BY_STRING
+from rest.models import Node, ClusterGroupRelation
+
 from typing import Any, Dict, List
 
 
@@ -21,13 +21,7 @@ class NodeCheck:
             self.meeting_stats[meeting_id][param] = ""
 
     def get_meetings_url(self) -> str:
-        if settings.B3LB_SHA_ALGORITHM == "sha1":
-            sha = sha1()
-        elif settings.B3LB_SHA_ALGORITHM == "sha256":
-            sha = sha256()
-        else:
-            sha = sha1()
-
+        sha = SHA_ALGORITHMS_BY_STRING[ClusterGroupRelation.objects.get(cluster=self.node.cluster).cluster_group.sha_function]()
         sha.update(f"getMeetings{self.node.secret}".encode())
         return f"{self.node.api_base_url}getMeetings?checksum={sha.hexdigest()}"
 
