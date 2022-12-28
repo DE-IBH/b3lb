@@ -25,7 +25,7 @@ SHA_ALGORITHMS_BY_LENGTH = {40: ClusterGroup.SHA1, 64: ClusterGroup.SHA256, 96: 
 SHA_ALGORITHMS_BY_STRING = {ClusterGroup.SHA1: sha1, ClusterGroup.SHA256: sha256, ClusterGroup.SHA384: sha384, ClusterGroup.SHA512: sha512}
 
 RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
-RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n</response>'
+RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n<apiVersion>2.0</apiVersion>\r\n<bbbVersion/>\r\n</response>'
 RETURN_STRING_CREATE_LIMIT_REACHED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting/Attendee limit reached.</message>\r\n</response>'
 RETURN_STRING_CREATE_NO_NODE_AVAILABE = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>No Node available.</message>\r\n</response>'
 RETURN_STRING_IS_MEETING_RUNNING_FALSE = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<running>false</running>\r\n</response>'
@@ -255,6 +255,10 @@ class ClientB3lbRequest:
         return False
 
     def is_in_limit(self) -> bool:
+        """
+        Check meeting and attendee limit for secret and tenant.
+        Returns True if values are below limit, False if limit is reached.
+        """
         if self.secret.tenant.meeting_limit > 0 and not Meeting.objects.filter(secret__tenant=self.secret.tenant).count() < self.secret.tenant.meeting_limit:
             incr_metric(Metric.MEETING_LIMIT_HITS, Secret.objects.get(tenant=self.secret.tenant, sub_id=0), self.node)
             return False
@@ -298,7 +302,7 @@ class ClientB3lbRequest:
         return {"id": self.meeting_id, "secret": self.secret, "node": self.node, "room_name": self.parameters.get("name", "Unknown"), "end_callback_url": self.parameters.get("meta_endCallbackUrl", "")}
 
     def get_node_endpoint_url(self) -> str:
-        sha = self.get_sha_algorithm_by_cluster_group()
+        sha = self.get_sha_algorithm_by_cluster_group()()
         parameter_str = ""
         if self.parameters:
             parameter_str = urlencode(self.parameters, safe='*')
@@ -381,7 +385,6 @@ class ClientB3lbRequest:
                         lowest = node.load
 
         # return randomized node if multiple are possible
-        print(lowest_node_list)
         if lowest_node_list:
             self.node = lowest_node_list[randint(0, len(lowest_node_list) - 1)]
 
