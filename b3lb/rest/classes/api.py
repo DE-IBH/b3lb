@@ -14,7 +14,6 @@ from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats
-from rest.tasks import render_record
 from typing import Any, Dict, List, Literal
 from urllib.parse import urlencode
 
@@ -506,19 +505,6 @@ class NodeB3lbRequest:
                 url = f"{end_callback_url}?meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
             get(url)
 
-    @staticmethod
-    async def start_rendering_by_profile(record_set: RecordSet):
-        """
-        Async starting of rendering tasks.
-        """
-        secret_record_profile_relations = await sync_to_async(SecretRecordProfileRelation.objects.filter)(secret=record_set.secret)
-        for secret_record_profile_relation in secret_record_profile_relations:
-            render_record.apply_async(args=[record_set.uuid, secret_record_profile_relation.uuid], queue=secret_record_profile_relation.record_profile.celery_queue)
-
-        if record_set.status == record_set.UPLOADED:
-            record_set.status = record_set.UPLOADED
-            await sync_to_async(record_set.save)()
-
     async def upload_record(self) -> HttpResponse:
         record_set: RecordSet
         if not self.nonce:
@@ -539,8 +525,6 @@ class NodeB3lbRequest:
 
         record_set.status = record_set.UPLOADED
         await sync_to_async(record_set.save)()
-
-        create_task(self.start_rendering_by_profile(await sync_to_async(record_set.refresh_from_db)()))
 
         return HttpResponse(status=204)
 

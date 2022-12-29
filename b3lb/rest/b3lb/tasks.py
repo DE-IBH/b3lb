@@ -25,10 +25,10 @@ from json import dumps
 from requests import get
 from rest.b3lb.metrics import incr_metric, set_metric
 from rest.b3lb.utils import xml_escape
-from rest.classes.api import RETURN_STRING_GET_MEETINGS_NO_MEETINGS
+RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
 from rest.classes.checks import NodeCheck
 from rest.classes.statistics import MeetingStats
-from rest.models import Asset, AssetLogo, AssetSlide, Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats, Tenant
+from rest.models import Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats, Tenant
 from shlex import split
 from tempfile import TemporaryDirectory
 import os
@@ -40,33 +40,6 @@ import xml.etree.ElementTree as ElementTree
 #
 # Celery task routines
 #
-def cleanup_assets():
-    slides = list(AssetSlide.objects.all())
-    logos = list(AssetLogo.objects.all())
-    assets = Asset.objects.all()
-
-    for asset in assets:
-        for slide_index in range(len(slides)-1, -1, -1):
-            if asset.slide.name == slides[slide_index].filename:
-                del slides[slide_index]
-        for logo_index in range(len(logos)-1, -1, -1):
-            if asset.logo.name == logos[logo_index].filename:
-                del logos[logo_index]
-
-    del assets
-
-    slides_deleted = 0
-    for slide in slides:
-        slide.delete()
-        slides_deleted += 1
-    logos_deleted = 0
-    for logo in logos:
-        logo.delete()
-        logos_deleted += 1
-
-    return "Delete {} slides and {} logos.".format(slides_deleted, logos_deleted)
-
-
 def run_check_node(uuid):
     check = NodeCheck(uuid)
     try:
