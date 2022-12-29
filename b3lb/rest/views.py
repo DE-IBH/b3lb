@@ -17,15 +17,12 @@
 from asgiref.sync import sync_to_async
 from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest, HttpResponseForbidden
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.files.base import ContentFile
 from django.db import connection
 from django.db.utils import OperationalError
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from rest.classes.api import ClientB3lbRequest, NodeB3lbRequest
 from rest.classes.storage import DBStorage
-from rest.models import Asset, RecordSet, SecretRecordProfileRelation
-from rest.tasks import render_record
+from rest.models import Asset
 
 
 async def bbb_entrypoint(request: HttpRequest, endpoint: str = "", slug: str = "", sub_id: int = 0) -> HttpResponse:
@@ -133,40 +130,6 @@ def custom_css(request: HttpRequest, slug: str = "") -> HttpResponse:
         return HttpResponseNotFound()
 
 
-@require_http_methods(["POST"])
-@csrf_exempt
-def backend_record_upload(request: HttpRequest) -> HttpResponse:
-    """
-    Upload for BBB record files.
-    Saves file to given Storage (default, local or S3)
-    """
-    nonce = request.GET.get("nonce")
-    uploaded_file = request.FILES.get('file')
-    if nonce and uploaded_file:
-        try:
-            record_set = RecordSet.objects.get(nonce=nonce)
-        except RecordSet.DoesNotExist:
-            return HttpResponse(status=200)
-        try:
-            record_set.recording_archive.save(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
-        except:
-            return HttpResponse("Error during file save", status=503)
-
-        record_set.status = RecordSet.UPLOADED
-        record_set.save()
-
-        secret_record_profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
-        for secret_record_profile_relation in secret_record_profile_relations:
-            render_record.apply_async(args=[record_set.uuid, secret_record_profile_relation.record_profile.uuid], queue=secret_record_profile_relation.record_profile.celery_queue)
-
-        record_set.refresh_from_db()
-        if record_set.status == record_set.UPLOADED:
-            record_set.status = record_set.RENDERED
-            record_set.save()
-
-    return HttpResponse(status=200)
-
-
 async def backend_endpoint(request: HttpRequest, backend: str, endpoint: str) -> HttpResponse:
     """
     Entrypoint for backend API endpoints.
@@ -183,6 +146,3 @@ async def backend_endpoint(request: HttpRequest, backend: str, endpoint: str) ->
 
 # async: workaround for @csrf_exempt decorator
 backend_endpoint.csrf_exempt = True
-
-# ToDo Add endpoint for record download.
-# ..

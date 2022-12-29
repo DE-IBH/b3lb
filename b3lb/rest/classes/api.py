@@ -4,6 +4,7 @@ from asgiref.sync import sync_to_async
 from asyncio import create_task
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.files.base import ContentFile
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
 from django.db.models import Sum
 from json import dumps
@@ -12,7 +13,8 @@ from random import randint
 from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
-from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
+from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats
+from rest.tasks import render_record
 from typing import Any, Dict, List, Literal
 from urllib.parse import urlencode
 
@@ -472,11 +474,9 @@ class NodeB3lbRequest:
             # fire and forget end meeting request to original callback url
             create_task(self.send_end_callback(self.meeting.end_callback_url))
             if self.recording_marks == "false":
-                try:
-                    record_set = await sync_to_async(RecordSet.objects.get)(meeting=self.meeting, nonce=self.nonce)
-                    record_set.destroy()
-                except ObjectDoesNotExist:
-                    pass
+                record_set = await sync_to_async(self.get_record_set_by_nonce)()
+                if record_set:
+                    await sync_to_async(record_set.delete)()
             await sync_to_async(self.meeting.delete)()
         return HttpResponse(status=204)
 
@@ -487,6 +487,13 @@ class NodeB3lbRequest:
 
     def full_endpoint(self) -> str:
         return f"{self.backend}/{self.endpoint}"
+
+    def get_record_set_by_nonce(self) -> RecordSet:
+        try:
+            record_set = RecordSet.objects.get(nonce=self.nonce)
+        except ObjectDoesNotExist:
+            return None
+        return record_set
 
     async def send_end_callback(self, end_callback_url: str):
         """
@@ -499,6 +506,44 @@ class NodeB3lbRequest:
                 url = f"{end_callback_url}?meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
             get(url)
 
+    @staticmethod
+    async def start_rendering_by_profile(record_set: RecordSet):
+        """
+        Async starting of rendering tasks.
+        """
+        secret_record_profile_relations = await sync_to_async(SecretRecordProfileRelation.objects.filter)(secret=record_set.secret)
+        for secret_record_profile_relation in secret_record_profile_relations:
+            render_record.apply_async(args=[record_set.uuid, secret_record_profile_relation.uuid], queue=secret_record_profile_relation.record_profile.celery_queue)
+
+        if record_set.status == record_set.UPLOADED:
+            record_set.status = record_set.UPLOADED
+            await sync_to_async(record_set.save)()
+
+    async def upload_record(self) -> HttpResponse:
+        record_set: RecordSet
+        if not self.nonce:
+            return HttpResponse(status=400)
+
+        record_set = await sync_to_async(self.get_record_set_by_nonce)()
+        if not record_set:
+            return HttpResponse(status=404)
+
+        uploaded_file = self.request.FILES.get("file", None)
+        if not uploaded_file:
+            return HttpResponse(status=400)
+
+        try:
+            await sync_to_async(record_set.recording_archive.save)(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
+        except:
+            return HttpResponse("Error during file save", status=503)
+
+        record_set.status = record_set.UPLOADED
+        await sync_to_async(record_set.save)()
+
+        create_task(self.start_rendering_by_profile(await sync_to_async(record_set.refresh_from_db)()))
+
+        return HttpResponse(status=204)
+
     def __init__(self, request: HttpRequest, backend: str, endpoint: str):
         self.request = request
         self.meeting = None
@@ -509,4 +554,5 @@ class NodeB3lbRequest:
         self.recording_marks = self.request.GET.get("recordingmarks", "false")
         self.BACKENDS = {
             "meeting/end": {"methods": ["GET"], "function": self.end_meeting},
+            "record/upload": {"methods": ["POST"], "function": self.upload_record}
         }
