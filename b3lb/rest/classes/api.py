@@ -13,7 +13,7 @@ from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
-from typing import Any, Dict, List, Literal, Tuple
+from typing import Any, Dict, List, Literal
 from urllib.parse import urlencode
 
 
@@ -83,7 +83,7 @@ class ClientB3lbRequest:
             return HttpResponseBadRequest()
         await sync_to_async(self.check_parameters)()
         await sync_to_async(incr_metric)(Metric.JOINED, self.secret, self.node)
-        return HttpResponseRedirect(self.get_node_endpoint_url())
+        return HttpResponseRedirect(await sync_to_async(self.get_node_endpoint_url)())
 
     async def get_meetings(self) -> HttpResponse:
         """
@@ -242,7 +242,7 @@ class ClientB3lbRequest:
                 for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
                     self.parameters[param] = "false"
 
-            self.parameters["meta_endCallbackUrl"] = f"https://{self.secret.endpoint}/b3lb/b/meeting/end?nonce={meeting.nonce}"
+            self.parameters["meta_endCallbackUrl"] = f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/b/meeting/end?nonce={meeting.nonce}"
 
     def is_allowed_method(self) -> bool:
         if self.request.method in self.allowed_methods():
@@ -469,14 +469,15 @@ class NodeB3lbRequest:
         Run end meeting routines and destroy meeting database object.
         """
         if await sync_to_async(self.is_meeting)():
-            # fire and forget request to meeting creator system/client
-            create_task(self.send_end_callback())
+            # fire and forget end meeting request to original callback url
+            create_task(self.send_end_callback(self.meeting.end_callback_url))
             if self.recording_marks == "false":
                 try:
-                    await sync_to_async(RecordSet.objects.get)(meeting=self.meeting, nonce=self.nonce)
+                    record_set = await sync_to_async(RecordSet.objects.get)(meeting=self.meeting, nonce=self.nonce)
+                    record_set.destroy()
                 except ObjectDoesNotExist:
                     pass
-            self.meeting.delete()
+            await sync_to_async(self.meeting.delete)()
         return HttpResponse(status=204)
 
     async def endpoint_delegation(self) -> HttpResponse:
@@ -487,15 +488,16 @@ class NodeB3lbRequest:
     def full_endpoint(self) -> str:
         return f"{self.backend}/{self.endpoint}"
 
-    async def send_end_callback(self):
+    async def send_end_callback(self, end_callback_url: str):
         """
         Send async end callback (fire and forget).
         """
-        if "?" in self.meeting.end_callback_url:
-            url = f"{self.meeting.end_callback_url}&meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
-        else:
-            url = f"{self.meeting.end_callback_url}?meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
-        get(url)
+        if end_callback_url:
+            if "?" in end_callback_url:
+                url = f"{end_callback_url}&meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
+            else:
+                url = f"{end_callback_url}?meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
+            get(url)
 
     def __init__(self, request: HttpRequest, backend: str, endpoint: str):
         self.request = request
