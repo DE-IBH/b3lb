@@ -26,7 +26,9 @@ def del_metric(name, secret, node):
 
 def incr_metric(name: str, secret: Secret, node: Node, incr: int = 1):
     if Metric.objects.filter(name=name, secret=secret, node=node).update(value=(F("value") + incr) % METRIC_BIGINT_MODULO) == 0:
-        Metric.objects.update_or_create(name=name, secret=secret, node=node, defaults={"value": (F("value") + incr) % METRIC_BIGINT_MODULO})
+        metric, created = Metric.objects.get_or_create(name=name, secret=secret, node=node)
+        metric.value = (F("value") + incr) % METRIC_BIGINT_MODULO
+        metric.save(update_fields=["value"])
 
 
 def set_metric(name, secret, node, value):
