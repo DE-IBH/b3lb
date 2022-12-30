@@ -67,6 +67,10 @@ def get_storage():
     return used_storage
 
 
+def get_record_queue():
+    return settings.B3LB_RECORD_TASK_QUEUE
+
+
 #
 # ADMIN ACTIONS
 #
@@ -664,7 +668,7 @@ class RecordProfile(models.Model):
     backend_profile = models.CharField(max_length=32, default="default.yml.jinja2")
     command = models.CharField(max_length=255, null=True, blank=True)
     mime_type = models.CharField(max_length=32, default="video/mp4")
-    celery_queue = models.CharField(max_length=32, default=settings.B3LB_RECORD_TASK_DEFAULT_QUEUE)
+    celery_queue = models.CharField(max_length=32, default=get_record_queue)
     file_extension = models.CharField(max_length=10, default="mp4")
     is_default = models.BooleanField(default=False)
 
@@ -927,6 +931,7 @@ class Parameter(models.Model):
         (MEETING_KEEP_EVENT, MEETING_KEEP_EVENT),
         (MODERATOR_ONLY_MESSAGE, MODERATOR_ONLY_MESSAGE),
         (MUTE_ON_START, MUTE_ON_START),
+        (RECORD, RECORD),
         (WEBCAMS_ONLY_FOR_MODERATOR, WEBCAMS_ONLY_FOR_MODERATOR),
         (WELCOME, WELCOME),
         (MEETING_LAYOUT, MEETING_LAYOUT),

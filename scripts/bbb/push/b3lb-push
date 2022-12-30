@@ -40,17 +40,18 @@ QUEUE_DB_FILENAME = config.get(CONFIG_SECTIONNAME, "queueFilename")
 PUBLISHED_FOLDER = config.get(CONFIG_SECTIONNAME, "publishedFolder")
 
 # tar command to archive a recording with all of it's auxiliary files
-TAR_CMD = ["tar", "-cC", PUBLISHED_FOLDER]
+TAR_CMD = ["tar", "-cC"]
 
 
 def upload_recording(mid, nonce):
-    if not os.path.isdir(os.path.join(PUBLISHED_FOLDER, mid)):
+    mid_folder = os.path.join(PUBLISHED_FOLDER, mid)
+    if not os.path.isdir(mid_folder):
         print("[{}] published folder not found, aborting".format(mid))
         return False
 
     print("[{}] uploading...".format(mid))
 
-    tar = sp.Popen(TAR_CMD + [mid],
+    tar = sp.Popen(TAR_CMD + [mid_folder, "."],
                    stdin=sp.DEVNULL,
                    stdout=sp.PIPE,
                    close_fds=True)

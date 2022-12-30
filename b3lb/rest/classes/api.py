@@ -237,7 +237,7 @@ class ClientB3lbRequest:
             # check if records are enabled
             if self.secret.is_record_enabled:
                 record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, id_meeting=meeting.id, recording_ready_origin_url=self.parameters.pop("meta_bbb-recording-ready-url", ""), nonce=meeting.nonce)
-                self.parameters["meta_recordset"] = record_set.nonce
+                self.parameters[f"meta_{settings.B3LB_RECORD_META_DATA_TAG}"] = record_set.nonce
             else:
                 # record aren't enabled -> suppress any record related parameter
                 for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
@@ -518,10 +518,10 @@ class NodeB3lbRequest:
         if not uploaded_file:
             return HttpResponse(status=400)
 
-        try:
-            await sync_to_async(record_set.recording_archive.save)(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
-        except:
-            return HttpResponse("Error during file save", status=503)
+        # try:
+        await sync_to_async(record_set.recording_archive.save)(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
+        # except:
+        #     return HttpResponse("Error during file save", status=503)
 
         record_set.status = record_set.UPLOADED
         await sync_to_async(record_set.save)()
