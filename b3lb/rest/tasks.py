@@ -68,7 +68,7 @@ def update_statistic():
     return True
 
 
-@app.task(name="Render non-rendered Records", ignore_result=True, base=Singleton, queue=settings.B3LB_RECORD_TASK_DEFAULT_QUEUE)
+@app.task(name="Render non-rendered Records", ignore_result=True, base=Singleton, queue=settings.B3LB_RECORD_TASK_QUEUE)
 def render_record():
     """
     Async starting of rendering tasks.
@@ -76,4 +76,4 @@ def render_record():
     for record_set in RecordSet.objects.filter(status=RecordSet.UPLOADED):
         secret_record_profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
         for secret_record_profile_relation in secret_record_profile_relations:
-            b3lbtasks.render_record(secret_record_profile_relation.record_profile.uuid, record_set.uuid)
+            b3lbtasks.render_record(secret_record_profile_relation.record_profile, record_set)
