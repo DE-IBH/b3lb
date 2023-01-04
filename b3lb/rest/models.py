@@ -68,7 +68,7 @@ def get_storage():
 
 
 def get_record_queue():
-    return settings.B3LB_RECORD_TASK_QUEUE
+    return settings.B3LB_TASK_QUEUE_RECORD
 
 
 #
@@ -476,7 +476,7 @@ class SecretAdmin(admin.ModelAdmin):
 class AssetSlide(models.Model):
     blob = models.BinaryField()
     filename = models.CharField(max_length=255)
-    mimetype = models.CharField(max_length=50)
+    mimetype = models.CharField(max_length=100)
 
 
 class AssetSlideAdmin(admin.ModelAdmin):
@@ -636,6 +636,28 @@ class RecordSet(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
     file_path = models.CharField(max_length=50)
 
+    def get_raw_size(self) -> int:
+        try:
+            return self.recording_archive.size
+        except FileNotFoundError:
+            return 0
+        except FileExistsError:
+            return 0
+
+
+    def delete(self, using=None, keep_parents=False):
+        try:
+            self.recording_archive.delete()
+            # Todo delete path until other directory exists in parent directory
+            super().delete()
+        except NotImplementedError:
+            super().delete()
+        except:
+            pass
+
+    def __str__(self):
+        return f"{self.secret.__str__()} | {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         base32 = b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
@@ -656,9 +678,12 @@ def records_to_delete(modeladmin, request, queryset):
 
 class RecordSetAdmin(admin.ModelAdmin):
     model = RecordSet
-    list_display = ['uuid', 'secret', 'status', 'id_meeting', 'created_at']
+    list_display = ['__str__', 'secret', 'status', 'id_meeting', 'created_at']
     list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'status', 'created_at']
     actions = [records_rerender, records_to_delete]
+
+    class Meta(object):
+        ordering = ['secret', 'created_at']
 
 
 class RecordProfile(models.Model):
@@ -703,11 +728,34 @@ class Record(models.Model):
     record_set = models.ForeignKey(RecordSet, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(default=timezone.now)
 
+    def get_file_size(self) -> int:
+        try:
+            return self.file.size
+        except FileNotFoundError:
+            return 0
+        except FileExistsError:
+            return 0
+
+    def delete(self, using=None, keep_parents=False):
+        try:
+            self.file.delete()
+            super().delete()
+        except NotImplementedError:
+            super().delete()
+        except:
+            pass
+
+    def __str__(self):
+        return f"{self.record_set.__str__()} | {self.profile.name}"
+
 
 class RecordAdmin(admin.ModelAdmin):
     model = Record
-    list_display = ['uuid', 'record_set', 'profile', 'file']
+    list_display = ['__str__', 'record_set', 'profile', 'file']
     list_filter = [('record_set__secret__tenant', admin.RelatedOnlyFieldListFilter)]
+
+    class Meta(object):
+        ordering = ['record_set', 'profile']
 
 
 class Stats(models.Model):

@@ -19,61 +19,48 @@ from celery.utils.log import get_task_logger
 from celery_singleton import Singleton
 from django.conf import settings
 from loadbalancer.celery import app
-import rest.b3lb.tasks as b3lbtasks
-from rest.models import Node, RecordSet, Secret, Tenant, SecretRecordProfileRelation
+from rest.models import Node, RecordSet, Secret, Tenant
+import rest.task.b3lb as b3lbtask
+
 
 logger = get_task_logger(__name__)
 
 
-@app.task(ignore_result=True, base=Singleton, queue="b3lb")
-def check_node(node_uuid):
-    return b3lbtasks.run_check_node(node_uuid)
-
-
-@app.task(ignore_result=True, base=Singleton, queue="b3lb")
-def update_secret_meetings_lists(secret_uuid):
-    return b3lbtasks.update_get_meetings_xml(secret_uuid)
-
-
-@app.task(ignore_result=True, base=Singleton, queue="b3lb")
-def update_secret_metrics_list(secret_uuid):
-    return b3lbtasks.update_metrics(secret_uuid)
-
-
-@app.task(name="Update Secrets Lists", ignore_result=True, base=Singleton, queue="b3lb")
+@app.task(name="Update Secrets Lists", ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_CORE)
 def update_secrets_lists():
-    update_secret_metrics_list.si(None).apply_async()
+    """
+    Async starting of secret list update tasks.
+    """
+    b3lbtask.statistic_update_secret_metrics.si("").apply_async()
     for secret in Secret.objects.all():
-        update_secret_meetings_lists.si(str(secret.uuid)).apply_async()
-        update_secret_metrics_list.si(str(secret.uuid)).apply_async()
+        b3lbtask.statistic_update_secret_metrics.si(str(secret.uuid)).apply_async(queue=settings.B3LB_TASK_QUEUE_STATISTICS)
+        b3lbtask.core_generate_secret_meetings.si(str(secret.uuid)).apply_async(queue=settings.B3LB_TASK_QUEUE_CORE)
     return True
 
 
-@app.task(name="Check Status of Nodes", ignore_result=True, base=Singleton, queue="b3lb")
+@app.task(name="Check Status of Nodes", ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_CORE)
 def check_status():
+    """
+    Async starting of node check tasks.
+    """
     for node in Node.objects.all():
-        check_node.si(str(node.uuid)).apply_async(queue="b3lb")
+        b3lbtask.core_check_node.si(str(node.uuid)).apply_async(queue=settings.B3LB_TASK_QUEUE_CORE)
     return True
 
 
-@app.task(ignore_result=True, base=Singleton, queue="b3lb")
-def update_tenant_statistic(tenant_uuid):
-    return b3lbtasks.fill_statistic_by_tenant(tenant_uuid)
-
-
-@app.task(name="Update Statistics", ignore_result=True, base=Singleton, queue="b3lb")
+@app.task(name="Update Statistics", ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_STATISTICS)
 def update_statistic():
+    """
+    Async starting of tenant statistic update.
+    """
     for tenant in Tenant.objects.all():
-        update_tenant_statistic.si(str(tenant.uuid)).apply_async(queue="b3lb")
+        b3lbtask.statistics_update_tenant_statistics.si(str(tenant.uuid)).apply_async(queue=settings.B3LB_TASK_QUEUE_STATISTICS)
     return True
 
-
-@app.task(name="Render non-rendered Records", ignore_result=True, base=Singleton, queue=settings.B3LB_RECORD_TASK_QUEUE)
+@app.task(name="Render Records from RecordSets", ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_RECORD)
 def render_record():
     """
     Async starting of rendering tasks.
     """
     for record_set in RecordSet.objects.filter(status=RecordSet.UPLOADED):
-        secret_record_profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
-        for secret_record_profile_relation in secret_record_profile_relations:
-            b3lbtasks.render_record(secret_record_profile_relation.record_profile, record_set)
+        b3lbtask.recording_render_record.si(str(record_set.uuid)).apply_async(queue=settings.B3LB_TASK_QUEUE_RECORD)

@@ -20,44 +20,36 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-from jinja2 import Template
 from json import dumps
 from requests import get
 from rest.b3lb.metrics import incr_metric, set_metric
-from rest.b3lb.utils import xml_escape
-RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
+from rest.b3lb.utils import xml_escape, load_template
 from rest.classes.checks import NodeCheck
-from rest.classes.statistics import MeetingStats
-from rest.models import Node, NodeMeetingList, Meeting, Metric, Record, RecordProfile, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats, Tenant
-from shlex import split
-from tempfile import TemporaryDirectory
-import os
-import subprocess as sp
-import xml.etree.ElementTree as ElementTree
+from rest.models import Meeting, Metric, Node, NodeMeetingList, Secret, SecretMeetingList
+from xml.etree import ElementTree
 
 
+RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
 
-#
-# Celery task routines
-#
-def run_check_node(uuid):
-    check = NodeCheck(uuid)
+
+def check_node(check: NodeCheck):
     try:
         response = get(check.node.load_base_url, timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
         if response.status_code == 200:
             if response.text.find('\n') != -1:
                 with transaction.atomic():
-                    node = Node.objects.select_for_update().get(uuid=uuid)
+                    node = Node.objects.select_for_update().get(uuid=check.node.uuid)
                     node.cpu_load = int(response.text.split('\n')[0])
                     node.save()
     except:
         # Do nothing and keep last cpu load value
         pass
+
     try:
         response = get(check.get_meetings_url(), timeout=settings.B3LB_NODE_REQUEST_TIMEOUT)
         if response.status_code == 200:
             get_meetings_text = response.content.decode('utf-8')
-            cache.set(settings.B3LB_CACHE_NML_PATTERN.format(uuid), get_meetings_text, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
+            cache.set(settings.B3LB_CACHE_NML_PATTERN.format(check.node.uuid), get_meetings_text, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
             with transaction.atomic():
                 NodeMeetingList.objects.update_or_create(node=check.node, defaults={'xml': get_meetings_text})
 
@@ -97,7 +89,7 @@ def run_check_node(uuid):
         pass
 
     if check.has_errors:
-        cache.set(settings.B3LB_CACHE_NML_PATTERN.format(uuid), RETURN_STRING_GET_MEETINGS_NO_MEETINGS, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
+        cache.set(settings.B3LB_CACHE_NML_PATTERN.format(check.node.uuid), RETURN_STRING_GET_MEETINGS_NO_MEETINGS, timeout=settings.B3LB_CACHE_NML_TIMEOUT)
         with transaction.atomic():
             NodeMeetingList.objects.update_or_create(node=check.node, defaults={'xml': RETURN_STRING_GET_MEETINGS_NO_MEETINGS})
 
@@ -170,78 +162,7 @@ def run_check_node(uuid):
     return dumps([check.node.slug, load, check.meetings, check.attendees])
 
 
-def fill_statistic_by_tenant(tenant_uuid):
-    stats_combination = []
-    try:
-        tenant = Tenant.objects.get(uuid=tenant_uuid)
-    except ObjectDoesNotExist:
-        return {}
-
-    result = {tenant.slug: {}}
-
-    stats = Stats.objects.filter(tenant=tenant)
-    meetings_all = Meeting.objects.filter(secret__tenant=tenant)
-    statistics = MeetingStats()
-
-    # update existing stats
-    for stat in stats:
-        meetings_filter = meetings_all.filter(bbb_origin=stat.bbb_origin, bbb_origin_server_name=stat.bbb_origin_server_name)
-        stats_combination.append([stat.bbb_origin, stat.bbb_origin_server_name])
-
-        statistics.reinit()
-
-        for meeting in meetings_filter:
-            if not meeting.node.has_errors:
-                statistics.add_meeting_stats(meeting.attendees, meeting.listenerCount, meeting.voiceParticipantCount, meeting.moderatorCount, meeting.videoCount)
-            meetings_all = meetings_all.exclude(id=meeting.id)
-
-        stat.update_values(statistics)
-
-        if stat.bbb_origin_server_name not in result[tenant.slug]:
-            result[tenant.slug][stat.bbb_origin_server_name] = {}
-            if stat.bbb_origin not in result[tenant.slug][stat.bbb_origin_server_name]:
-                result[tenant.slug][stat.bbb_origin_server_name][stat.bbb_origin] = statistics.get_values()
-
-    # add new stats combinations
-    new_combinations = []
-    for meeting in meetings_all:
-        if [meeting.bbb_origin, meeting.bbb_origin_server_name] not in stats_combination and meeting.bbb_origin_server_name and meeting.bbb_origin and not meeting.node.has_errors:
-            new_combinations.append([meeting.bbb_origin, meeting.bbb_origin_server_name])
-            stat = Stats(tenant=tenant, bbb_origin=meeting.bbb_origin, bbb_origin_server_name=meeting.bbb_origin_server_name)
-            stat.save()
-            stats_combination.append([meeting.bbb_origin, meeting.bbb_origin_server_name])
-
-    # fill new combinations with data
-    for new_combination in new_combinations:
-        bbb_origin = new_combination[0]
-        bbb_origin_server_name = new_combination[1]
-        stat = Stats.objects.get(tenant=tenant, bbb_origin=bbb_origin, bbb_origin_server_name=bbb_origin_server_name)
-        meetings_filter = meetings_all.filter(bbb_origin=stat.bbb_origin, bbb_origin_server_name=stat.bbb_origin_server_name)
-
-        statistics.reinit()
-
-        for meeting in meetings_filter:
-            if not meeting.node.has_errors:
-                statistics.add_meeting_stats(meeting.attendees, meeting.listenerCount, meeting.voiceParticipantCount, meeting.moderatorCount, meeting.videoCount)
-
-        stat.update_values(statistics)
-
-        if stat.bbb_origin_server_name not in result[tenant.slug]:
-            result[tenant.slug][stat.bbb_origin_server_name] = {}
-            if stat.bbb_origin not in result[tenant.slug][stat.bbb_origin_server_name]:
-                result[tenant.slug][stat.bbb_origin_server_name][stat.bbb_origin] = statistics.get_values()
-
-    return result
-
-
-# ToDo: Use django-template instead of jinja2 -> Needs to update the templates, because of DjangoTemplateErrors
-def load_template(file_name):
-    with open(f"rest/templates/{file_name}") as template_file:
-        return Template(template_file.read())
-
-
-def update_get_meetings_xml(secret_uuid):
-    secret = Secret.objects.get(uuid=secret_uuid)
+def generate_secret_get_meetings(secret: Secret):
     if secret.sub_id == 0:
         mcis = Meeting.objects.filter(secret__tenant=secret.tenant)
     else:
@@ -308,112 +229,3 @@ def update_get_meetings_xml(secret_uuid):
     if created:
         mode = "created"
     return f"{secret.__str__()} MeetingListXML {mode}."
-
-
-def update_metrics(secret_uuid):
-    if secret_uuid:
-        secret_zero = Secret.objects.get(uuid=secret_uuid)
-        if secret_zero.sub_id == 0:
-            secrets = Secret.objects.filter(tenant=secret_zero.tenant)
-        else:
-            secrets = [secret_zero]
-        del secret_zero
-        template = load_template("metrics_secret")
-        secret_text = secrets[0].__str__()
-    else:
-        secrets = Secret.objects.all()
-        template = load_template("metrics_all")
-        secret_text = "all metrics."
-
-    metric_count = 0
-
-    context = {
-        "nodes": [],
-        "secret_limits": [],
-        "tenant_limits": [],
-        "metrics": {},
-        "metric_helps": {x[0]: x[1] for x in Metric.NAME_CHOICES},
-        "metric_gauges": Metric.GAUGES,
-    }
-
-    if not secret_uuid:
-        nodes = Node.objects.all()
-        for node in nodes:
-            context["nodes"].append([node.slug, node.cluster.name, node.load])
-
-    for secret in secrets:
-        tenant_slug = secret.tenant.slug
-        if secret.sub_id == 0:
-            secret_slug = tenant_slug
-            context["secret_limits"].append([secret_slug, secret.attendee_limit, secret.meeting_limit])
-            context["tenant_limits"].append([secret_slug, secret.tenant.attendee_limit, secret.tenant.meeting_limit])
-        else:
-            secret_slug = secret.__str__()
-            context["secret_limits"].append([secret_slug, secret.attendee_limit, secret.meeting_limit])
-        if secret.sub_id != 0:
-            metrics = Metric.objects.filter(secret=secret)
-        else:
-            metrics = Metric.objects.filter(secret__tenant=secret.tenant)
-
-        # group metrics by name
-        for metric in metrics:
-            if metric.name not in context["metrics"]:
-                context["metrics"][metric.name] = {
-                    "name_choice": context["metric_helps"][metric.name],
-                    "secrets": {}
-                }
-
-            if secret_slug in context["metrics"][metric.name]["secrets"]:
-                context["metrics"][metric.name]["secrets"][secret_slug]["value"] += metric.value
-            else:
-                if secret_uuid:
-                    context["metrics"][metric.name]["secrets"][secret_slug] = {"value": metric.value}
-                else:
-                    context["metrics"][metric.name]["secrets"][secret_slug] = {"tenant": tenant_slug, "value": metric.value}
-                metric_count += 1
-
-    if secret_uuid:
-        with transaction.atomic():
-            obj, created = SecretMetricsList.objects.update_or_create(secret=secrets[0], defaults={'metrics': template.render(context)})
-    else:
-        with transaction.atomic():
-            obj, created = SecretMetricsList.objects.update_or_create(secret=None, defaults={'metrics': template.render(context)})
-
-    mode = "Update"
-    if created:
-        mode = "Create"
-    return f"{mode} list with {metric_count} metrics for {secret_text}."
-
-
-# ToDo: S3 Test
-def render_record(record_profile: RecordProfile, record_set: RecordSet):
-    record, created = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
-    with TemporaryDirectory(dir="/data") as tempdir:
-        template = load_template(f"render/{record_profile.backend_profile}")
-        os.mkdir(f"{tempdir}/in")
-        os.mkdir(f"{tempdir}/out")
-
-        # generate backend profile (docker-compose.yml) in tmpdir
-        with open(f"{tempdir}/docker-compose.yml", "w") as docker_file:
-            docker_file.write(template.render({"tmpdir": f"{tempdir}", "extension": record_profile.file_extension, "commands": split(record_profile.command)}))
-
-        # download raw.tar. ToDo: testing for local storage
-        with open(f"{tempdir}/raw.tar", "wb") as raw:
-            raw.write(record_set.recording_archive.file.read())
-
-        # unpack tar to IN folder
-        sp.Popen(["tar", "-xf", f"{tempdir}/raw.tar", "-C", f"{tempdir}/in/"], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True).wait()
-
-        # render with given profile
-        sp.Popen(["docker-compose", "-f", f"{tempdir}/docker-compose.yml", "up"]).wait()
-
-        # check result
-        if not os.path.isfile(f"{tempdir}/out/video.{record_profile.file_extension}"):
-            raise Exception("No video output")
-
-        # create record entry
-        with open(f"{tempdir}/out/video.{record_profile.file_extension}", "rb") as video_file:
-            if not created:
-                record.file.delete()
-            record.file.save(name=f"{record_set.file_path}/{record_profile.name}.{record_profile.file_extension}", content=video_file)
-        record.save()
