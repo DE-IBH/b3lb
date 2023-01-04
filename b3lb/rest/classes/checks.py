@@ -25,8 +25,8 @@ class NodeCheck:
         sha.update(f"getMeetings{self.node.secret}".encode())
         return f"{self.node.api_base_url}getMeetings?checksum={sha.hexdigest()}"
 
-    def __init__(self, uuid: str):
-        self.node = Node.objects.get(uuid=uuid)
+    def __init__(self, node: Node):
+        self.node = node
         self.has_errors = True
         self.attendees = 0
         self.meetings = 0

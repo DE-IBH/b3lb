@@ -16,6 +16,8 @@
 
 # This utils file contains functions without import of b3lb files to prevent circular imports
 
+from jinja2 import Template
+
 def xml_escape(string):
     if isinstance(string, str):
         escape_symbols = [("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ("'", "&apos;"), ('"', "&quot;") ]
@@ -24,3 +26,8 @@ def xml_escape(string):
         return string
     else:
         return ""
+
+# ToDo: Use django-template instead of jinja2 -> Needs to update the templates, because of DjangoTemplateErrors
+def load_template(file_name):
+    with open(f"rest/templates/{file_name}") as template_file:
+        return Template(template_file.read())
