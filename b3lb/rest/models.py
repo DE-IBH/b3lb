@@ -615,14 +615,12 @@ class RecordSet(models.Model):
     UPLOADED = "UPLOADED"
     RENDERED = "RENDERED"
     DELETING = "DELETING"
-    DELETED = "DELETED"
 
     STATUS_CHOICES = [
-        (UNKNOWN, "Record state is unknown"),
-        (UPLOADED, "Record files has been uploaded"),
-        (RENDERED, "Record files has been rendered to a video"),
-        (DELETING, "Record video will be deleted"),
-        (DELETED, "Record files have been deleted")
+        (UNKNOWN, "Recording state is unknown or meeting is running"),
+        (UPLOADED, "Recording file has been uploaded"),
+        (RENDERED, "Recordings have been rendered to video files"),
+        (DELETING, "Recordings will be deleted"),
     ]
 
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
@@ -684,6 +682,12 @@ class RecordSetAdmin(admin.ModelAdmin):
 
     class Meta(object):
         ordering = ['secret', 'created_at']
+
+    def delete_queryset(self, request, queryset):
+        for record_set in queryset:
+            for record in Record.objects.filter(record_set=record_set):
+                record.delete()
+            record_set.delete()
 
 
 class RecordProfile(models.Model):
@@ -755,7 +759,11 @@ class RecordAdmin(admin.ModelAdmin):
     list_filter = [('record_set__secret__tenant', admin.RelatedOnlyFieldListFilter)]
 
     class Meta(object):
-        ordering = ['record_set', 'profile']
+        ordering = ['record_set', 'record_profile']
+
+    def delete_queryset(self, request, queryset):
+        for record in queryset:
+            record.delete()
 
 
 class Stats(models.Model):
