@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2023 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -24,6 +24,9 @@ from rest.task.recording import render_record
 from rest.task.statistics import update_secret_metrics, update_tenant_statistics
 from rest.models import Node, RecordSet, Secret
 
+##
+# cast following tasks asynchronous for multiple time
+##
 
 @app.task(ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_CORE)
 def core_check_node(node_uuid: str):
