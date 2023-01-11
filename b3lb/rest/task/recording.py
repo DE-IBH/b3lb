@@ -16,8 +16,8 @@
 
 
 from django.utils import timezone as tz
+from django.template.loader import render_to_string
 from os import makedirs, path
-from rest.b3lb.utils import load_template
 from rest.models import Record, RecordSet, RecordProfile, SecretRecordProfileRelation
 from shlex import split
 from subprocess import DEVNULL, PIPE, Popen
@@ -36,11 +36,9 @@ def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, temp
     print(f"Start rendering {record_set.__str__()} with profile {record_profile.name}")
     record, created = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
 
-    template = load_template(f"render/{record_profile.backend_profile}")
-
     # generate backend record_profile (docker-compose.yml) in tmpdir
     with open(f"{tempdir}/docker-compose.yml", "w") as docker_file:
-        docker_file.write(template.render({"tmpdir": f"{tempdir}", "extension": record_profile.file_extension, "commands": split(record_profile.command)}))
+        docker_file.write(render_to_string(template_name=f"render/{record_profile.backend_profile}", context={"tmpdir": f"{tempdir}", "extension": record_profile.file_extension, "commands": split(record_profile.command)}))
 
     # unpack tar to IN folder
     Popen(["tar", "-xf", f"{tempdir}/raw.tar", "-C", f"{tempdir}/in/"], stdin=DEVNULL, stdout=PIPE, close_fds=True).wait()
@@ -57,6 +55,7 @@ def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, temp
         if not created:
             record.file.delete()
         record.file.save(name=f"{record_set.file_path}/{record_profile.name}.{record_profile.file_extension}", content=video_file)
+    record.published = True
     record.save()
     print(f"Finished rendering {record_set.__str__()} with profile {record_profile.name}")
 

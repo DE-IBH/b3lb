@@ -43,6 +43,7 @@ import uuid as uid
 API_MATE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
 NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$*(-_)'
 MEETING_ID_LENGTH = 100
+MEETING_NAME_LENGTH = 500
 
 
 #
@@ -583,7 +584,7 @@ class Meeting(models.Model):
     id = models.CharField(max_length=MEETING_ID_LENGTH, primary_key=True)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
     node = models.ForeignKey(Node, on_delete=models.CASCADE)
-    room_name = models.CharField(max_length=500)
+    room_name = models.CharField(max_length=MEETING_NAME_LENGTH)
     age = models.DateTimeField(default=timezone.now)
     attendees = models.SmallIntegerField(default=0)
     end_callback_url = models.URLField(default="")
@@ -626,13 +627,25 @@ class RecordSet(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
     meeting = models.ForeignKey(Meeting, on_delete=models.SET_NULL, null=True, blank=True)
-    id_meeting = models.CharField(max_length=MEETING_ID_LENGTH, default="")
     created_at = models.DateTimeField(default=timezone.now)
     recording_archive = models.FileField(storage=get_storage)
     recording_ready_origin_url = models.URLField(default="")
     nonce = models.CharField(max_length=64, default=get_nonce, editable=False, unique=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
     file_path = models.CharField(max_length=50)
+
+    # information from metadata.xml and Meeting
+    meta_bbb_origin = models.CharField(max_length=20, default="")
+    meta_bbb_origin_version = models.CharField(max_length=20, default="")
+    meta_bbb_origin_server_name = models.CharField(max_length=50, default="")
+    meta_is_breakout = models.BooleanField(default=False)
+    meta_gl_listed = models.BooleanField(default=False)
+    meta_end_callback_url = models.URLField(default="")
+    meta_meeting_id = models.CharField(max_length=MEETING_ID_LENGTH, default="")
+    meta_meeting_name = models.CharField(max_length=MEETING_NAME_LENGTH, default="")
+    meta_start_time = models.CharField(max_length=14, default="")
+    meta_end_time = models.CharField(max_length=14, default="")
+    meta_participants = models.SmallIntegerField(default=0)
 
     def get_raw_size(self) -> int:
         try:
@@ -646,7 +659,6 @@ class RecordSet(models.Model):
     def delete(self, using=None, keep_parents=False):
         try:
             self.recording_archive.delete()
-            # Todo delete path until other directory exists in parent directory
             super().delete()
         except NotImplementedError:
             super().delete()
@@ -676,7 +688,7 @@ def records_to_delete(modeladmin, request, queryset):
 
 class RecordSetAdmin(admin.ModelAdmin):
     model = RecordSet
-    list_display = ['__str__', 'secret', 'status', 'id_meeting', 'created_at']
+    list_display = ['__str__', 'secret', 'status', 'meta_meeting_id', 'created_at']
     list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'status', 'created_at']
     actions = [records_rerender, records_to_delete]
 
@@ -694,7 +706,7 @@ class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     description = models.CharField(max_length=255)
     name = models.CharField(max_length=32, unique=True)
-    backend_profile = models.CharField(max_length=32, default="default.yml.jinja2")
+    backend_profile = models.CharField(max_length=32, default="default.yml")
     command = models.CharField(max_length=255, null=True, blank=True)
     mime_type = models.CharField(max_length=32, default="video/mp4")
     celery_queue = models.CharField(max_length=32, default=get_record_queue)
@@ -729,6 +741,7 @@ class Record(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     file = models.FileField(storage=get_storage)
     profile = models.ForeignKey(RecordProfile, on_delete=models.PROTECT, null=True)
+    published = models.BooleanField(default=False)
     record_set = models.ForeignKey(RecordSet, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(default=timezone.now)
 

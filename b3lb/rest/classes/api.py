@@ -16,6 +16,7 @@ from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats
 from typing import Any, Dict, List, Literal
 from urllib.parse import urlencode
+from xmltodict import parse
 
 
 HOST_REGEX = compile(r'([^:]+)(:\d+)?$')
@@ -236,7 +237,7 @@ class ClientB3lbRequest:
 
             # check if records are enabled
             if self.secret.is_record_enabled:
-                record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, id_meeting=meeting.id, recording_ready_origin_url=self.parameters.pop("meta_bbb-recording-ready-url", ""), nonce=meeting.nonce)
+                record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, meta_meeting_id=meeting.id, recording_ready_origin_url=self.parameters.pop("meta_bbb-recording-ready-url", ""), meta_end_callback_url=meeting.end_callback_url, nonce=meeting.nonce)
                 self.parameters[f"meta_{settings.B3LB_RECORD_META_DATA_TAG}"] = record_set.nonce
             else:
                 # record aren't enabled -> suppress any record related parameter
@@ -518,10 +519,32 @@ class NodeB3lbRequest:
         if not uploaded_file:
             return HttpResponse(status=400)
 
-        # try:
-        await sync_to_async(record_set.recording_archive.save)(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
-        # except:
-        #     return HttpResponse("Error during file save", status=503)
+        uploaded_meta = self.request.FILES.get("meta", {})
+        if not uploaded_meta:
+            return HttpResponse(status=400)
+
+        meta = parse(uploaded_meta.read()).get("recording", {})
+
+        if not meta:
+            return HttpResponse(status=400)
+
+        if meta.get("meta", {}).get("isBreakout", "false") == "true":
+            return HttpResponse(status=403) # no support for breakout room recordings currently
+
+        try:
+            await sync_to_async(record_set.recording_archive.save)(name=f"{record_set.file_path}/raw.tar", content=ContentFile(uploaded_file.read()))
+        except:
+            return HttpResponse("Error during file save", status=503)
+
+        record_set.meta_bbb_origin = meta.get("meta", {}).get("bbb-origin", "")
+        record_set.meta_bbb_origin_server_name = meta.get("meta", {}).get("bbb-origin-server-name", "")
+        record_set.meta_bbb_origin_version = meta.get("meta", {}).get("bbb-origin-version", "")
+        if meta.get("meta", {}).get("gl-listed", "false") == "true":
+            record_set.meta_gl_listed = True
+        record_set.meta_meeting_name = meta.get("meeting", {}).get("@name", "")
+        record_set.meta_start_time = meta.get("start_time", "")
+        record_set.meta_end_time = meta.get("end_time", "")
+        record_set.meta_participants = int(meta.get("participants", "1"))
 
         record_set.status = record_set.UPLOADED
         await sync_to_async(record_set.save)()
