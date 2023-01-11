@@ -1,0 +1,44 @@
+<response>
+    <returncode>SUCCESS</returncode>
+    <recordings>{% for record in records %}
+        <recording>
+            <recordID>{{ record.uuid }}</recordID>
+            <meetingID>{{ record.meeting_id }}</meetingID>
+            <internalMeetingID>{{ record.internal_meeting_id }}</internalMeetingID>
+            <name>{{ record.name }}</name>
+            <isBreakout>{% if record.is_breakout %}true{% else %}false{% endif %}</isBreakout>
+            <published>{% if record.published %}true{% else %}false{% endif %}</published>
+            <state>{{ record.state }}</state>
+            <startTime>{{ record.start_time }}</startTime>
+            <endTime>{{ record.end_time }}</endTime>
+            <participants>{{ record.participants }}</participants>
+            <rawSize>{{ record.raw_size }}</rawSize>
+            <metadata>
+                <bbb-origin>{{ record.bbb_origin }}</bbb-origin>
+                <bbb-origin-server-name>{{ record.bbb_origin_server_name }}</bbb-origin-server-name>
+                <bbb-origin-version>{{ record.bbb_origin_version }}</bbb-origin-version>{% if record.end_callback_url %}
+                <endcallbackurl>{{ record.end_callback_url }}</endcallbackurl>{% endif %}
+                <gl-listed>{% if record.gl_listed %}true{% else %}false{% endif %}</gl-listed>
+                <isBreakout>{% if record.is_breakout %}true{% else %}false{% endif %}</isBreakout>
+                <meetingId>{{ record.meeting_id }}</meetingId>
+                <meetingName>{{ record.meeting_name }}</meetingName>
+            </metadata>{% if record.is_breakout %}{% else %}
+            <breakout>
+                <parentId>unknown</parentId>
+                <sequence>0</sequence>
+                <freeJoin>false</freeJoin>
+            </breakout>{% endif %}
+            <size>{{ record.video_size }}</size>
+            <playback>
+                <format>
+                    <type>video</type>
+                    <url>{{ record.video_url }}</url>
+                    <processingTime>{{ record.video_length }}</processingTime>
+                    <length>{{ record.video_length }}</length>
+                    <size>{{ record.video_size }}</size>
+                </format>
+            </playback>
+            <data></data>
+        </recording>{% endfor %}
+    </recordings>
+</response>

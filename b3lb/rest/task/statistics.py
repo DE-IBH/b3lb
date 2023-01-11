@@ -17,7 +17,7 @@
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from rest.b3lb.utils import load_template
+from django.template.loader import render_to_string
 from rest.classes.statistics import MeetingStats
 from rest.models import Meeting, Metric, Node, Secret, SecretMetricsList, Stats, Tenant
 
@@ -30,11 +30,11 @@ def update_secret_metrics(secret_uuid: str):
         else:
             secrets = [secret_zero]
         del secret_zero
-        template = load_template("metrics_secret")
+        template = "metrics_secret"
         secret_text = secrets[0].__str__()
     else:
         secrets = Secret.objects.all()
-        template = load_template("metrics_all")
+        template = "metrics_all"
         secret_text = "all metrics."
 
     metric_count = 0
@@ -86,10 +86,10 @@ def update_secret_metrics(secret_uuid: str):
 
     if secret_uuid:
         with transaction.atomic():
-            obj, created = SecretMetricsList.objects.update_or_create(secret=secrets[0], defaults={'metrics': template.render(context)})
+            obj, created = SecretMetricsList.objects.update_or_create(secret=secrets[0], defaults={'metrics': render_to_string(template_name=template, context=context)})
     else:
         with transaction.atomic():
-            obj, created = SecretMetricsList.objects.update_or_create(secret=None, defaults={'metrics': template.render(context)})
+            obj, created = SecretMetricsList.objects.update_or_create(secret=None, defaults={'metrics': render_to_string(template_name=template, context=context)})
 
     mode = "Update"
     if created:

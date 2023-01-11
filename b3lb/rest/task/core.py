@@ -19,11 +19,12 @@ from django.db import transaction
 from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
+from django.template.loader import render_to_string
 from django.utils import timezone
 from json import dumps
 from requests import get
 from rest.b3lb.metrics import incr_metric, set_metric
-from rest.b3lb.utils import xml_escape, load_template
+from rest.b3lb.utils import xml_escape
 from rest.classes.checks import NodeCheck
 from rest.models import Meeting, Metric, Node, NodeMeetingList, Secret, SecretMeetingList
 from xml.etree import ElementTree
@@ -174,7 +175,6 @@ def generate_secret_get_meetings(secret: Secret):
         meeting_ids.append(mci.id)
 
     context = {"meetings": []}
-    template = load_template("getMeetings.xml")
 
     for node in Node.objects.all():
         try:
@@ -218,7 +218,7 @@ def generate_secret_get_meetings(secret: Secret):
             continue
 
     if context["meetings"]:
-        response = template.render(context)
+        response = render_to_string(template_name="getMeetings.xml", context=context)
     else:
         response = RETURN_STRING_GET_MEETINGS_NO_MEETINGS
 

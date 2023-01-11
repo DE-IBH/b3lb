@@ -20,7 +20,6 @@ import configparser
 import os
 import requests
 import subprocess as sp
-import sys
 import sqlite3
 import itertools
 import time
@@ -51,10 +50,8 @@ def upload_recording(mid, nonce):
 
     print("[{}] uploading...".format(mid))
 
-    tar = sp.Popen(TAR_CMD + [mid_folder, "."],
-                   stdin=sp.DEVNULL,
-                   stdout=sp.PIPE,
-                   close_fds=True)
+    tar = sp.Popen(TAR_CMD + [mid_folder, "."], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True)
+    meta = sp.Popen(["cat", f"{os.path.join(mid_folder, 'metadata.xml')}"], stdin=sp.DEVNULL, stdout=sp.PIPE, close_fds=True)
 
     response = requests.post(
         "{}b3lb/b/record/upload".format(B3LB_BASE_DOMAIN),
@@ -63,20 +60,20 @@ def upload_recording(mid, nonce):
         },
         files={
             "file": tar.stdout,
+            "meta": meta.stdout
         },
     )
 
     print("[{}] http code {}".format(mid, response.status_code))
 
-    return response.status_code >= 200 and response.status_code < 300
+    return 200 <= response.status_code < 300
 
 
 def process_backlog(fn):
     num_errors = 0
 
     dh = sqlite3.connect(fn)
-    dh.execute(
-        "CREATE TABLE IF NOT EXISTS backlog (mid varchar(64), nonce varchar(64))")
+    dh.execute("CREATE TABLE IF NOT EXISTS backlog (mid varchar(64), nonce varchar(64))")
 
     cur = dh.cursor()
     for rowid, mid, nonce in cur.execute("SELECT ROWID, mid, nonce FROM backlog"):
