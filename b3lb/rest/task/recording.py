@@ -18,6 +18,7 @@
 from django.utils import timezone as tz
 from django.template.loader import render_to_string
 from os import makedirs, path
+from requests import get
 from rest.models import Record, RecordSet, RecordProfile, SecretRecordProfileRelation
 from shlex import split
 from subprocess import DEVNULL, PIPE, Popen
@@ -85,6 +86,8 @@ def render_record(record_set: RecordSet):
 
     record_set.status = RecordSet.RENDERED
     record_set.save()
+    if record_set.recording_ready_origin_url:
+        get(record_set.recording_ready_origin_url)
     return True
 
 
