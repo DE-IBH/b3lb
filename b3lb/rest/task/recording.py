@@ -87,7 +87,10 @@ def render_record(record_set: RecordSet):
     record_set.status = RecordSet.RENDERED
     record_set.save()
     if record_set.recording_ready_origin_url:
-        get(record_set.recording_ready_origin_url)
+        try:
+            get(record_set.recording_ready_origin_url)
+        except:
+            pass
     return True
 
 
