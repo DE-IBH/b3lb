@@ -39,7 +39,7 @@ def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, temp
 
     # generate backend record_profile (docker-compose.yml) in tmpdir
     with open(f"{tempdir}/docker-compose.yml", "w") as docker_file:
-        docker_file.write(render_to_string(template_name=f"render/{record_profile.backend_profile}", context={"tmpdir": f"{tempdir}", "extension": record_profile.file_extension, "commands": split(record_profile.command)}))
+        docker_file.write(render_to_string(template_name=f"render/{record_profile.backend_profile}", context={"commands": [tempdir, record_profile.file_extension] + split(record_profile.command)}))
 
     # unpack tar to IN folder
     Popen(["tar", "-xf", f"{tempdir}/raw.tar", "-C", f"{tempdir}/in/"], stdin=DEVNULL, stdout=PIPE, close_fds=True).wait()

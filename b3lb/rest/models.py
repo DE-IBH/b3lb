@@ -35,6 +35,7 @@ from rest.classes.statistics import MeetingStats
 from rest.classes.storage import DBStorage
 from storages.backends.s3boto3 import S3Boto3Storage
 from textwrap import wrap
+from typing import Any, Dict
 import uuid as uid
 
 #
@@ -639,7 +640,6 @@ class RecordSet(models.Model):
     meta_bbb_origin_version = models.CharField(max_length=20, default="")
     meta_bbb_origin_server_name = models.CharField(max_length=50, default="")
     meta_is_breakout = models.BooleanField(default=False)
-    meta_gl_listed = models.BooleanField(default=False)
     meta_end_callback_url = models.URLField(default="")
     meta_meeting_id = models.CharField(max_length=MEETING_ID_LENGTH, default="")
     meta_meeting_name = models.CharField(max_length=MEETING_NAME_LENGTH, default="")
@@ -741,6 +741,7 @@ class Record(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     file = models.FileField(storage=get_storage)
     profile = models.ForeignKey(RecordProfile, on_delete=models.PROTECT, null=True)
+    gl_listed = models.BooleanField(default=False)
     published = models.BooleanField(default=False)
     record_set = models.ForeignKey(RecordSet, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(default=timezone.now)
@@ -752,6 +753,8 @@ class Record(models.Model):
             return 0
         except FileExistsError:
             return 0
+        except ValueError:
+            return 0
 
     def delete(self, using=None, keep_parents=False):
         try:
@@ -761,6 +764,43 @@ class Record(models.Model):
             super().delete()
         except:
             pass
+
+    def get_recording_dict(self) -> Dict[str, Any]:
+        if self.published:
+            state = "published"
+        else:
+            state = "unpublished"
+
+        if self.gl_listed:
+            gl_listed = "true"
+        else:
+            gl_listed = "false"
+
+        video_length = (int(self.record_set.meta_end_time) - int(self.record_set.meta_start_time)) / 60000.  # milliseconds to minutes
+
+        record_dict = {
+            "uuid": str(self.uuid),
+            "meeting_id": self.record_set.meta_meeting_id,
+            "internal_meeting_id": self.record_set.meta_meeting_id,
+            "name": f"{self.record_set.meta_meeting_name} ({self.profile.description})",
+            "is_breakout": self.record_set.meta_is_breakout,
+            "gl_listed": gl_listed,
+            "published": self.published,
+            "state": state,
+            "start_time": self.record_set.meta_start_time,
+            "end_time": self.record_set.meta_end_time,
+            "participants": self.record_set.meta_participants,
+            "raw_size": self.record_set.get_raw_size(),
+            "bbb_origin": self.record_set.meta_bbb_origin,
+            "bbb_origin_server_name": self.record_set.meta_bbb_origin_server_name,
+            "bbb_origin_version": self.record_set.meta_bbb_origin_version,
+            "end_callback_url":  self.record_set.meta_end_callback_url,
+            "meeting_name": self.record_set.meta_meeting_name,
+            "video_size": self.get_file_size(),
+            "video_url": "",  # ToDo: Implement endpoint
+            "video_length": video_length  # ToDo: Get length of video via routine?
+        }
+        return record_dict
 
     def __str__(self):
         return f"{self.record_set.__str__()} | {self.profile.name}"

@@ -1,3 +1,20 @@
+# B3LB - BigBlueButton Load Balancer
+# Copyright (C) 2020-2023 IBH IT-Service GmbH
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at your
+# option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+# for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+
 from aiohttp import ClientSession
 from aiohttp.web_request import URL
 from asgiref.sync import sync_to_async
@@ -5,15 +22,17 @@ from asyncio import create_task
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
 from django.db.models import Sum
+from django.db.models.query import QuerySet
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
+from django.template.loader import render_to_string
 from json import dumps
 from hashlib import sha1, sha256, sha384, sha512
 from random import randint
 from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
-from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats
+from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats
 from typing import Any, Dict, List, Literal
 from urllib.parse import urlencode
 from xmltodict import parse
@@ -49,6 +68,7 @@ class ClientB3lbRequest:
     stats_token: str
     node: Node
     secret: Secret
+    state: str
     ENDPOINTS_PASS_THROUGH: List[str]
     ENDPOINTS: Dict[str, Any]
 
@@ -98,13 +118,28 @@ class ClientB3lbRequest:
         except ObjectDoesNotExist:
             return HttpResponse(RETURN_STRING_GET_MEETINGS_NO_MEETINGS, content_type=CONTENT_TYPE)
 
-    @staticmethod
-    async def get_recordings() -> HttpResponse:
+    async def get_recordings(self) -> HttpResponse:
         """
         'getRecordings' endpoint.
-        Currently, hardcoded for future implementation.
         """
+        records = []
+        recording_ids = self.parameters.get("recordID", "")
+        if recording_ids:
+            for recording_id in recording_ids.split(","):
+                for record in await sync_to_async(self.filter_recordings)(recording_id=recording_id):
+                    records.append(await sync_to_async(record.get_recording_dict)())
+        elif self.meeting_id:
+            for meeting_id in self.meeting_id.split(","):
+                for record in await sync_to_async(self.filter_recordings)(meeting_id=meeting_id):
+                    records.append(await sync_to_async(record.get_recording_dict)())
+        else:
+            for record in await sync_to_async(self.filter_recordings)():
+                records.append(await sync_to_async(record.get_recording_dict)())
+
+        if records:
+            return HttpResponse(render_to_string(template_name="getRecordings.xml", context={"records": records}), content_type=CONTENT_TYPE)
         return HttpResponse(RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type=CONTENT_TYPE)
+
 
     @staticmethod
     async def get_recording_text_tracks() -> HttpResponse:
@@ -178,6 +213,31 @@ class ClientB3lbRequest:
         if self.endpoint in ["b3lb_metrics", "b3lb_stats"]:
             return ["GET"]
         return ["GET", "POST"]
+
+    def filter_recordings(self, meeting_id: str = "", recording_id: str = "") -> List[Record]:
+        if recording_id:
+            recordings = Record.objects.filter(uuid=recording_id, record_set__secret=self.secret)
+        elif meeting_id:
+            recordings = Record.objects.filter(record_set__meta_meeting_id=meeting_id, record_set__secret=self.secret)
+        else:
+            recordings = Record.objects.filter(record_set__secret=self.secret)
+
+        records = []
+        for recording in self.filter_recordings_by_state(recordings):
+            if recording.get_file_size() > 0:
+                records.append(recording)
+        return records
+
+    def filter_recordings_by_state(self, recordings: QuerySet[Record]) -> QuerySet[Record]:
+        if not self.state:
+            return recordings
+        elif self.state == "published":
+            return recordings.filter(published=True)
+        elif self.state == "unpublished":
+            return recordings.filter(published=False)
+        else:
+            return QuerySet(model=Record)  # return empty QuerySet
+
 
     ## Check Routines ##
     def check_checksum(self) -> bool:
@@ -417,6 +477,7 @@ class ClientB3lbRequest:
 
         self.secret = None
         self.node = None
+        self.state = self.parameters.get("state", "")
         self.ENDPOINTS_PASS_THROUGH = ["end", "insertDocument", "setConfigXML", "getMeetingInfo"]
         self.ENDPOINTS = {
             "": self.version,
@@ -525,7 +586,7 @@ class NodeB3lbRequest:
 
         meta = parse(uploaded_meta.read()).get("recording", {})
 
-        if not meta:
+        if not meta or not isinstance(meta, dict):
             return HttpResponse(status=400)
 
         if meta.get("meta", {}).get("isBreakout", "false") == "true":
