@@ -35,7 +35,7 @@ def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, temp
     |__ out/
     """
     print(f"Start rendering {record_set.__str__()} with profile {record_profile.name}")
-    record, created = Record.objects.get_or_create(record_set=record_set, profile=record_profile)
+    record, created = Record.objects.get_or_create(record_set=record_set, profile=record_profile, name=f"{record_set.meta_meeting_name} ({record_profile.description})")
 
     # generate backend record_profile (docker-compose.yml) in tmpdir
     with open(f"{tempdir}/docker-compose.yml", "w") as docker_file:
