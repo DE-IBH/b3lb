@@ -45,6 +45,7 @@ API_MATE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
 NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$*(-_)'
 MEETING_ID_LENGTH = 100
 MEETING_NAME_LENGTH = 500
+RECORD_PROFILE_DESCRIPTION_LENGTH = 255
 
 
 #
@@ -704,7 +705,7 @@ class RecordSetAdmin(admin.ModelAdmin):
 
 class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    description = models.CharField(max_length=255)
+    description = models.CharField(max_length=RECORD_PROFILE_DESCRIPTION_LENGTH)
     name = models.CharField(max_length=32, unique=True)
     backend_profile = models.CharField(max_length=32, default="default.yml")
     command = models.CharField(max_length=255, null=True, blank=True)
@@ -741,6 +742,7 @@ class Record(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     file = models.FileField(storage=get_storage)
     profile = models.ForeignKey(RecordProfile, on_delete=models.PROTECT, null=True)
+    name = models.CharField(max_length=RECORD_PROFILE_DESCRIPTION_LENGTH + MEETING_NAME_LENGTH + 3)
     gl_listed = models.BooleanField(default=False)
     published = models.BooleanField(default=False)
     record_set = models.ForeignKey(RecordSet, on_delete=models.CASCADE)
@@ -776,13 +778,13 @@ class Record(models.Model):
         else:
             gl_listed = "false"
 
-        video_length = (int(self.record_set.meta_end_time) - int(self.record_set.meta_start_time)) / 60000.  # milliseconds to minutes
+        video_length = int((int(self.record_set.meta_end_time) - int(self.record_set.meta_start_time)) / 60000.)  # milliseconds to minutes
 
         record_dict = {
             "uuid": str(self.uuid),
             "meeting_id": self.record_set.meta_meeting_id,
             "internal_meeting_id": self.record_set.meta_meeting_id,
-            "name": f"{self.record_set.meta_meeting_name} ({self.profile.description})",
+            "name": self.name,
             "is_breakout": self.record_set.meta_is_breakout,
             "gl_listed": gl_listed,
             "published": self.published,
