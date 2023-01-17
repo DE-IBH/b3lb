@@ -15,14 +15,14 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest, HttpResponseForbidden, HttpResponseBadRequest, FileResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
 from django.db.utils import OperationalError
 from django.views.decorators.http import require_http_methods
 from rest.classes.api import ClientB3lbRequest, NodeB3lbRequest
 from rest.classes.storage import DBStorage
-from rest.models import Asset
+from rest.models import Asset, Record
 
 
 async def bbb_entrypoint(request: HttpRequest, endpoint: str = "", slug: str = "", sub_id: int = 0) -> HttpResponse:
@@ -111,7 +111,8 @@ def logo(request: HttpRequest, slug=None) -> HttpResponse:
         return HttpResponseNotFound()
 
 
-
+# Endpoint for getting custom css for meeting
+# no default security
 @require_http_methods(['GET'])
 def custom_css(request: HttpRequest, slug: str = "") -> HttpResponse:
     """
@@ -128,6 +129,23 @@ def custom_css(request: HttpRequest, slug: str = "") -> HttpResponse:
         return storage.get_response(asset.custom_css.name)
     else:
         return HttpResponseNotFound()
+
+
+@require_http_methods(['GET'])
+def recording(request: HttpRequest, nonce: str = "") -> FileResponse:
+    """
+    Endpoint for downloading recording video files.
+    No security like on BigBlueButton Nodes.
+    """
+    if not nonce:
+        return FileResponse()
+
+    try:
+        record = Record.objects.get(nonce=nonce)
+    except ObjectDoesNotExist:
+        return FileResponse()
+
+    return FileResponse(record.file.open(), as_attachment=True, filename=f"video.{record.profile.file_extension}")
 
 
 async def backend_endpoint(request: HttpRequest, backend: str, endpoint: str) -> HttpResponse:

@@ -42,9 +42,10 @@ import uuid as uid
 # CONSTANTS
 #
 API_MATE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
-NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$*(-_)'
 MEETING_ID_LENGTH = 100
 MEETING_NAME_LENGTH = 500
+NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@*(-_)'
+NONCE_LENGTH = 64
 RECORD_PROFILE_DESCRIPTION_LENGTH = 255
 
 
@@ -52,7 +53,7 @@ RECORD_PROFILE_DESCRIPTION_LENGTH = 255
 # FUNCTIONS
 #
 def get_nonce():
-    return get_random_string(64, NONCE_CHAR_POOL)
+    return get_random_string(NONCE_LENGTH, NONCE_CHAR_POOL)
 
 
 def get_storage():
@@ -591,7 +592,7 @@ class Meeting(models.Model):
     attendees = models.SmallIntegerField(default=0)
     end_callback_url = models.URLField(default="")
     listenerCount = models.SmallIntegerField(default=0)
-    nonce = models.CharField(max_length=64, default=get_nonce, editable=False, unique=True)
+    nonce = models.CharField(max_length=NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
     voiceParticipantCount = models.SmallIntegerField(default=0)
     moderatorCount = models.SmallIntegerField(default=0)
     videoCount = models.SmallIntegerField(default=0)
@@ -632,7 +633,7 @@ class RecordSet(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     recording_archive = models.FileField(storage=get_storage)
     recording_ready_origin_url = models.URLField(default="")
-    nonce = models.CharField(max_length=64, default=get_nonce, editable=False, unique=True)
+    nonce = models.CharField(max_length=NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
     file_path = models.CharField(max_length=50)
 
@@ -747,6 +748,7 @@ class Record(models.Model):
     published = models.BooleanField(default=False)
     record_set = models.ForeignKey(RecordSet, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(default=timezone.now)
+    nonce = models.CharField(max_length=NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
 
     def get_file_size(self) -> int:
         try:
@@ -799,7 +801,7 @@ class Record(models.Model):
             "end_callback_url":  self.record_set.meta_end_callback_url,
             "meeting_name": self.record_set.meta_meeting_name,
             "video_size": self.get_file_size(),
-            "video_url": "",  # ToDo: Implement endpoint
+            "video_url": f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/r/{self.nonce}/",
             "video_length": video_length  # ToDo: Get length of video via routine?
         }
         return record_dict

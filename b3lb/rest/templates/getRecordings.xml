@@ -32,7 +32,7 @@
             <playback>
                 <format>
                     <type>presentation</type>
-                    <url>https://ibh.de/{{ record.video_url }}</url>
+                    <url>{{ record.video_url }}</url>
                     <processingTime>0</processingTime>
                     <length>{{ record.video_length }}</length>
                     <size>{{ record.video_size }}</size>

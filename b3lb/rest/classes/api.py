@@ -179,9 +179,7 @@ class ClientB3lbRequest:
 
         self.state = ""  # set to empty string for not filtering by state
         for recording_id in recording_ids.split(","):
-            recordings = await sync_to_async(self.filter_recordings)(recording_id=recording_id)
-            for recording in recordings:
-                await sync_to_async(recording.delete)()
+            await sync_to_async(self.delete_recordings_by_recording_id)(recording_id)
 
         return HttpResponse(RETURN_STRING_RECORD_DELETED, content_type=CONTENT_TYPE)
 
@@ -310,6 +308,10 @@ class ClientB3lbRequest:
         else:
             return QuerySet(model=Record)  # return empty QuerySet
 
+    def delete_recordings_by_recording_id(self, recording_id: str = ""):
+        recordings = self.filter_recordings(recording_id=recording_id)
+        for recording in recordings:
+            recording.delete()
 
     ## Check Routines ##
     def check_checksum(self) -> bool:
