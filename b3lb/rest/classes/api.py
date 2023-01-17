@@ -32,7 +32,7 @@ from random import randint
 from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
-from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, SecretRecordProfileRelation, Stats
+from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats, RECORD_PROFILE_DESCRIPTION_LENGTH, MEETING_NAME_LENGTH
 from typing import Any, Dict, List, Literal
 from urllib.parse import urlencode
 from xmltodict import parse
@@ -53,6 +53,11 @@ RETURN_STRING_IS_MEETING_RUNNING_FALSE = '<response>\r\n<returncode>SUCCESS</ret
 RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
 RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<recordings></recordings>\r\n<messageKey>noRecordings</messageKey>\r\n<message>There are no recordings for the meeting(s).</message>\r\n</response>'
 RETURN_STRING_MISSING_MEETING_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamMeetingID</messageKey>\r\n<message>You must specify a meeting ID for the meeting.</message>\r\n</response>'
+RETURN_STRING_MISSING_RECORD_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamRecordID</messageKey>\r\n<message>You must specify one or more a record IDs.</message>\r\n</response>'
+RETURN_STRING_MISSING_RECORD_PUBLISH = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamPublish</messageKey>\r\n<message>You must specify one a publish value true or false.</message>\r\n</response>'
+RETURN_STRING_RECORD_PUBLISHED = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<published>{}</published>\r\n</response>'
+RETURN_STRING_RECORD_DELETED = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<deleted>true</deleted>\r\n</response>'
+RETURN_STRING_RECORD_UPDATED = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<updated>true</updated>\r\n</response>'
 
 
 class ClientB3lbRequest:
@@ -122,24 +127,98 @@ class ClientB3lbRequest:
         """
         'getRecordings' endpoint.
         """
+        if not self.secret.is_record_enabled:
+            return HttpResponse(RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type=CONTENT_TYPE)
+
         records = []
         recording_ids = self.parameters.get("recordID", "")
         if recording_ids:
             for recording_id in recording_ids.split(","):
-                for record in await sync_to_async(self.filter_recordings)(recording_id=recording_id):
-                    records.append(await sync_to_async(record.get_recording_dict)())
+                records = await sync_to_async(self.get_recording_dicts)(records, recording_id=recording_id)
         elif self.meeting_id:
             for meeting_id in self.meeting_id.split(","):
-                for record in await sync_to_async(self.filter_recordings)(meeting_id=meeting_id):
-                    records.append(await sync_to_async(record.get_recording_dict)())
+                records = await sync_to_async(self.get_recording_dicts)(records, meeting_id=meeting_id)
         else:
-            for record in await sync_to_async(self.filter_recordings)():
-                records.append(await sync_to_async(record.get_recording_dict)())
+            records = await sync_to_async(self.get_recording_dicts)()
 
         if records:
             return HttpResponse(render_to_string(template_name="getRecordings.xml", context={"records": records}), content_type=CONTENT_TYPE)
         return HttpResponse(RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type=CONTENT_TYPE)
 
+    async def publish_recordings(self) -> HttpResponse:
+        """
+        'publishRecordings' endpoint.
+        """
+        recording_ids = self.parameters.get("recordID", "")
+        publish = self.parameters.get("publish", "")
+        if not recording_ids:
+            return HttpResponse(RETURN_STRING_MISSING_RECORD_ID, content_type=CONTENT_TYPE)
+
+        if not publish or publish.lower() not in ["true", "false"]:
+            return HttpResponse(RETURN_STRING_MISSING_RECORD_PUBLISH, content_type=CONTENT_TYPE)
+
+        self.state = ""  # set to empty string for not filtering by state
+        if publish == "true":
+            published = True
+        else:
+            published = False
+
+        for recording_id in recording_ids.split(","):
+            recordings = await sync_to_async(self.filter_recordings)(recording_id=recording_id)
+            await sync_to_async(recordings.update)(published=published)
+
+        return HttpResponse(RETURN_STRING_RECORD_PUBLISHED.format(publish), content_type=CONTENT_TYPE)
+
+    async def delete_recordings(self) -> HttpResponse:
+        """
+        'deleteRecordings' endpoint.
+        """
+        recording_ids = self.parameters.get("recordID", "")
+        if not recording_ids:
+            return HttpResponse(RETURN_STRING_MISSING_RECORD_ID, content_type=CONTENT_TYPE)
+
+        self.state = ""  # set to empty string for not filtering by state
+        for recording_id in recording_ids.split(","):
+            recordings = await sync_to_async(self.filter_recordings)(recording_id=recording_id)
+            for recording in recordings:
+                await sync_to_async(recording.delete)()
+
+        return HttpResponse(RETURN_STRING_RECORD_DELETED, content_type=CONTENT_TYPE)
+
+    async def update_recordings(self) -> HttpResponse:
+        """
+        'updateRecordings' endpoint.
+        Currently limited to 'gl-listed' and 'name' meta data.
+        Other data are ignored.
+        ToDo: Upgrade to generic meta data update endpoint for recordings.
+        """
+        recording_ids = self.parameters.get("recordID", "")
+        if not recording_ids:
+            return HttpResponse(RETURN_STRING_MISSING_RECORD_ID, content_type=CONTENT_TYPE)
+
+        gl_listed = self.parameters.get("meta_gl-listed", "")
+        name = self.parameters.get("meta_name", "").strip()  # replacing Greenlight parameter syntax, which isn't part of the entered name
+
+        # prevent database update error with arbitrary long name parameter value
+        if len(name) > RECORD_PROFILE_DESCRIPTION_LENGTH + MEETING_NAME_LENGTH + 3:
+            name = name[:RECORD_PROFILE_DESCRIPTION_LENGTH + MEETING_NAME_LENGTH + 3]
+
+        self.state = ""  # no recording filter by state
+
+        listed = False
+        if gl_listed == "true":
+            listed = True
+        elif gl_listed != "false":
+            gl_listed = ""
+
+        for recording_id in recording_ids.split(","):
+            recordings = await sync_to_async(self.filter_recordings)(recording_id=recording_id)
+            if name:
+                await sync_to_async(recordings.update)(name=name)
+            if gl_listed:
+                await sync_to_async(recordings.update)(gl_listed=listed)
+
+        return HttpResponse(RETURN_STRING_RECORD_UPDATED, content_type=CONTENT_TYPE)
 
     @staticmethod
     async def get_recording_text_tracks() -> HttpResponse:
@@ -214,7 +293,7 @@ class ClientB3lbRequest:
             return ["GET"]
         return ["GET", "POST"]
 
-    def filter_recordings(self, meeting_id: str = "", recording_id: str = "") -> List[Record]:
+    def filter_recordings(self, meeting_id: str = "", recording_id: str = "") -> QuerySet[Record]:
         if recording_id:
             recordings = Record.objects.filter(uuid=recording_id, record_set__secret=self.secret)
         elif meeting_id:
@@ -222,13 +301,6 @@ class ClientB3lbRequest:
         else:
             recordings = Record.objects.filter(record_set__secret=self.secret)
 
-        records = []
-        for recording in self.filter_recordings_by_state(recordings):
-            if recording.get_file_size() > 0:
-                records.append(recording)
-        return records
-
-    def filter_recordings_by_state(self, recordings: QuerySet[Record]) -> QuerySet[Record]:
         if not self.state:
             return recordings
         elif self.state == "published":
@@ -385,6 +457,12 @@ class ClientB3lbRequest:
         query_string = query_string.replace("checksum=" + self.checksum, "")
         return query_string
 
+    def get_recording_dicts(self, records: List[Dict[str, Any]], meeting_id: str = "", recording_id: str = "") -> List[Dict[str, Any]]:
+        for record in self.filter_recordings(meeting_id=meeting_id, recording_id=recording_id):
+            if record.get_file_size() > 0:
+                records.append(record.get_recording_dict())
+        return records
+
     def get_secret_metrics(self) -> str:
         return SecretMetricsList.objects.get(secret=self.secret).metrics
 
@@ -487,6 +565,9 @@ class ClientB3lbRequest:
             "getMeetings": self.get_meetings,
             "getRecordingTextTracks": self.get_recording_text_tracks,
             "getRecordings": self.get_recordings,
+            "deleteRecordings": self.delete_recordings,
+            "publishRecordings": self.publish_recordings,
+            "updateRecordings": self.update_recordings,
             "b3lb_metrics": self.metrics,
             "b3lb_stats": self.stats
         }
