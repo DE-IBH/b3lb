@@ -8,7 +8,7 @@ services:
     volumes:
       - b3lb-render:/data
     # ToDo: Improve escaping
-    command: {{ [tmpdir, extension] + commands }}
+    command: {% autoescape off %}{{ commands }}{% endautoescape %}
 
 volumes:
   b3lb-render:

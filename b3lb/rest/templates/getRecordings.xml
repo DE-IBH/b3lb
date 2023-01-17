@@ -18,7 +18,7 @@
                 <bbb-origin-server-name>{{ record.bbb_origin_server_name }}</bbb-origin-server-name>
                 <bbb-origin-version>{{ record.bbb_origin_version }}</bbb-origin-version>{% if record.end_callback_url %}
                 <endcallbackurl>{{ record.end_callback_url }}</endcallbackurl>{% endif %}
-                <gl-listed>{% if record.gl_listed %}true{% else %}false{% endif %}</gl-listed>
+                <gl-listed>{{ record.gl_listed }}</gl-listed>
                 <isBreakout>{% if record.is_breakout %}true{% else %}false{% endif %}</isBreakout>
                 <meetingId>{{ record.meeting_id }}</meetingId>
                 <meetingName>{{ record.meeting_name }}</meetingName>
@@ -31,9 +31,9 @@
             <size>{{ record.video_size }}</size>
             <playback>
                 <format>
-                    <type>video</type>
-                    <url>{{ record.video_url }}</url>
-                    <processingTime>{{ record.video_length }}</processingTime>
+                    <type>presentation</type>
+                    <url>https://ibh.de/{{ record.video_url }}</url>
+                    <processingTime>0</processingTime>
                     <length>{{ record.video_length }}</length>
                     <size>{{ record.video_size }}</size>
                 </format>
