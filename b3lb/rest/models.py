@@ -806,7 +806,7 @@ class Record(models.Model):
             "end_callback_url":  self.record_set.meta_end_callback_url,
             "meeting_name": self.record_set.meta_meeting_name,
             "video_size": self.get_file_size(),
-            "video_url": f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/r/{self.nonce}/",
+            "video_url": f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/r/{self.nonce}",
             "video_length": video_length  # ToDo: Get length of video via routine?
         }
         return record_dict

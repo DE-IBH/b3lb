@@ -27,7 +27,7 @@ urlpatterns = [
     path('b3lb/metrics', views.metrics),
     path('b3lb/ping', views.ping),
     url(r'^b3lb/b/(?P<backend>[a-z]+)/(?P<endpoint>[a-z]+)$', views.backend_endpoint),
-    url(r'^b3lb/r/(?P<nonce>[a-zA-Z0-9!@$*(_)-]+)/', views.recording),
+    url(r'^b3lb/r/(?P<nonce>[a-zA-Z0-9!@*(_)-]+)$', views.recording),
     url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.bbb_entrypoint),
     url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/stats', views.stats),
     url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/metrics', views.metrics),
