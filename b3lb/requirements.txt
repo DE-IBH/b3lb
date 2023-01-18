@@ -1,12 +1,11 @@
-# ToDo: v3.1 - Delay update to Django 4.x
+# b3lb v3.1 - Delay update to Django 4.x because of dependencies
 Django==3.2.16
 django-extensions==3.2.1
-requests==2.28.1
-boto3==1.26.46
+requests==2.28.2
+boto3==1.26.51
 celery==5.2.7
 celery-singleton==0.3.1
 django-cacheops==6.1
-# ToDo: v3.1 - TBD for Django 4.x
 django-db-file-storage==0.5.5
 django-celery-admin==0.1
 django-celery-beat==2.4.0
