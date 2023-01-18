@@ -96,7 +96,7 @@ def render_record(record_set: RecordSet):
 
 def housekeeping_records():
     for record_set in RecordSet.objects.all():
-        if record_set.status != RecordSet.DELETING and record_set.created_at < tz.now() - tz.timedelta(days=record_set.secret.tenant.records_hold_time):
+        if record_set.status != RecordSet.DELETING and record_set.created_at < tz.now() - tz.timedelta(days=record_set.secret.records_effective_hold_time):
             record_set.status = RecordSet.DELETING
             record_set.save()
     for record_set in RecordSet.objects.filter(status=RecordSet.DELETING):
