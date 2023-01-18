@@ -7,6 +7,19 @@ import django.utils.timezone
 import rest.models
 import uuid
 
+def create_default_record_profile(apps, schema_editor):
+    record_profile = apps.get_model("rest", "RecordProfile")
+    profile = record_profile()
+    profile.uuid = uuid.UUID("f2de8725-ea94-4594-b1f0-454bc3b22294")
+    profile.description = "Presentation Only"
+    profile.name = "presentation"
+    profile.backend_profile = "default.yml"
+    profile.command = "--webcam-size=0 --annotations"
+    profile.mime_type = "video/mp4"
+    profile.file_extension = "mp4"
+    profile.is_default = True
+    profile.save()
+
 
 class Migration(migrations.Migration):
 
@@ -24,11 +37,11 @@ class Migration(migrations.Migration):
                 ('backend_profile', models.CharField(default='default.yml', max_length=32)),
                 ('command', models.CharField(blank=True, max_length=255, null=True)),
                 ('mime_type', models.CharField(default='video/mp4', max_length=32)),
-                ('celery_queue', models.CharField(default=rest.models.get_record_queue, max_length=32)),
                 ('file_extension', models.CharField(default='mp4', max_length=10)),
                 ('is_default', models.BooleanField(default=False)),
             ],
         ),
+        migrations.RunPython(create_default_record_profile),
         migrations.AddField(
             model_name='clustergroup',
             name='sha_function',
