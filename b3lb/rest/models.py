@@ -33,7 +33,7 @@ from re import match
 from rest.b3lb.utils import xml_escape
 from rest.classes.statistics import MeetingStats
 from rest.classes.storage import DBStorage
-from storages.backends.s3boto3 import S3Boto3Storage
+from storages.backends.s3boto3 import ClientError, S3Boto3Storage
 from textwrap import wrap
 from typing import Any, Dict
 import uuid as uid
@@ -656,6 +656,10 @@ class RecordSet(models.Model):
             return 0
         except FileExistsError:
             return 0
+        except ValueError:
+            return 0
+        except ClientError:
+            return 0
 
 
     def delete(self, using=None, keep_parents=False):
@@ -711,7 +715,6 @@ class RecordProfile(models.Model):
     backend_profile = models.CharField(max_length=32, default="default.yml")
     command = models.CharField(max_length=255, null=True, blank=True)
     mime_type = models.CharField(max_length=32, default="video/mp4")
-    celery_queue = models.CharField(max_length=32, default=get_record_queue)
     file_extension = models.CharField(max_length=10, default="mp4")
     is_default = models.BooleanField(default=False)
 
@@ -721,7 +724,7 @@ class RecordProfile(models.Model):
 
 class RecordProfileAdmin(admin.ModelAdmin):
     model = RecordProfile
-    list_display = ['name', 'description', 'backend_profile', 'file_extension', 'celery_queue', 'is_default']
+    list_display = ['name', 'description', 'backend_profile', 'file_extension', 'is_default']
 
 
 class SecretRecordProfileRelation(models.Model):
@@ -758,6 +761,8 @@ class Record(models.Model):
         except FileExistsError:
             return 0
         except ValueError:
+            return 0
+        except ClientError:
             return 0
 
     def delete(self, using=None, keep_parents=False):
