@@ -71,10 +71,6 @@ def get_storage():
     return used_storage
 
 
-def get_record_queue():
-    return settings.B3LB_TASK_QUEUE_RECORD
-
-
 #
 # ADMIN ACTIONS
 #
