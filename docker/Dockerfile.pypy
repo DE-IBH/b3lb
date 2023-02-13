@@ -48,14 +48,16 @@ COPY b3lb/manage.py \
 COPY b3lb/loadbalancer ./loadbalancer
 COPY b3lb/rest ./rest
 
-#RUN addgroup --gid $B3LBUID b3lb && \
-#    adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
-#    ln -s $(which pypy3) /usr/local/bin/python3 && \
-#    ENV_FILE=.env.dev ./manage.py check --force-color && \
-#    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
+RUN addgroup --gid $B3LBUID b3lb && \
+    adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
+    ln -s $(which pypy3) /usr/local/bin/python3 && \
+    ENV_FILE=.env.dev ./manage.py check --force-color && \
+    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
 RUN ./manage.py check --force-color && \
     ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
 
-# USER b3lb:b3lb
+RUN mkdir -p /srv/rendering
+RUN chown b3lb:b3lb /srv/rendering
+USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 CMD ["uvicorn", "--host", "0.0.0.0", "--ws", "none", "--no-access-log", "--use-colors"]

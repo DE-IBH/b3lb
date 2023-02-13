@@ -15,12 +15,11 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This utils file contains functions without import of b3lb files to prevent circular imports
+from xml.sax.saxutils import escape, quoteattr
 
-def xml_escape(string):
+
+def xml_escape(string) -> str:
     if isinstance(string, str):
-        escape_symbols = [("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ("'", "&apos;"), ('"', "&quot;") ]
-        for symbol, escape in escape_symbols:
-            string = string.replace(symbol, escape)
-        return string
+        return quoteattr(escape(string))
     else:
         return ""

@@ -114,7 +114,7 @@ def update_tenant_statistics(tenant_uuid):
         meetings_filter = meetings_all.filter(bbb_origin=stat.bbb_origin, bbb_origin_server_name=stat.bbb_origin_server_name)
         stats_combination.append([stat.bbb_origin, stat.bbb_origin_server_name])
 
-        statistics.reinit()
+        statistics.__init__()
 
         for meeting in meetings_filter:
             if not meeting.node.has_errors:
@@ -144,7 +144,7 @@ def update_tenant_statistics(tenant_uuid):
         stat = Stats.objects.get(tenant=tenant, bbb_origin=bbb_origin, bbb_origin_server_name=bbb_origin_server_name)
         meetings_filter = meetings_all.filter(bbb_origin=stat.bbb_origin, bbb_origin_server_name=stat.bbb_origin_server_name)
 
-        statistics.reinit()
+        statistics.__init__()
 
         for meeting in meetings_filter:
             if not meeting.node.has_errors:
