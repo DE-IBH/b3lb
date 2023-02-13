@@ -67,7 +67,7 @@ def render_record(record_set: RecordSet):
         return False
 
     # create temporary directory
-    with TemporaryDirectory(dir="/data") as tempdir:
+    with TemporaryDirectory(dir="/srv/rendering") as tempdir:
         makedirs(f"{tempdir}/in")
         makedirs(f"{tempdir}/out")
 
