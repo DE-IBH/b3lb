@@ -14,43 +14,35 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
-FROM pypy:3.9-7-slim AS build
-
-RUN apt-get update && apt-get install -y build-essential libpq-dev libcairo2-dev gcc python3-dev libgirepository1.0-dev
+FROM python:3.10-slim-bullseye as build
 
 ENV PYTHONUNBUFFERED 1
 
 WORKDIR /usr/src/app
 
+RUN apt-get update && apt-get install -y libpq-dev build-essential python3-gi gir1.2-ges-1.0 ges1.0-tools gstreamer1.0-libav gstreamer1.0-plugins-* libcairo2-dev gcc python3-dev libgirepository1.0-dev
 COPY b3lb/requirements.txt ./
 RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
+FROM python:3.10-slim-bullseye
 
-FROM pypy:3.9-7-slim
-
-RUN apt-get update && apt-get install -y libpq5 tar
-
+ENV PYTHONUNBUFFERED 1
+# enable Rendering
+ENV B3LB_RENDERING=true
 ARG B3LBUID=8318
 ARG ENV_FILE=.env.dev
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH /usr/local/lib/pypy3.9/site-packages
 
 WORKDIR /usr/src/app
 
 COPY --from=build /usr/local /usr/local
+RUN apt-get update && apt-get install -y libpq5 tar gir1.2-ges-1.0 ges1.0-tools gstreamer1.0-libav gstreamer1.0-plugins-*
 
-COPY b3lb/manage.py \
-     b3lb/loadbalancer/.env.dev \
-     docker/entrypoint.sh \
-     docker/static.sh \
-     ./
+COPY b3lb/manage.py b3lb/loadbalancer/.env.dev docker/entrypoint.sh docker/static.sh ./
 COPY b3lb/loadbalancer ./loadbalancer
 COPY b3lb/rest ./rest
 
 RUN addgroup --gid $B3LBUID b3lb && \
     adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
-    ln -s $(which pypy3) /usr/local/bin/python3 && \
     ENV_FILE=.env.dev ./manage.py check --force-color && \
     ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
 RUN ./manage.py check --force-color && \
@@ -60,4 +52,4 @@ RUN mkdir -p /srv/rendering
 RUN chown b3lb:b3lb /srv/rendering
 USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
-CMD ["celery-tasks", "-Q", "b3lb"]
+CMD ["celery-tasks", "-Q", "recording"]

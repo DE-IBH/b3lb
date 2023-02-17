@@ -233,6 +233,7 @@ B3LB_API_MATE_PW_LENGTH = env.int('B3LB_API_MATE_PW_LENGTH', default=13)
 # MEDIA_ROOT for local storage
 MEDIA_ROOT = env.path("B3LB_MEDIA_ROOT", default="/media_root")
 B3LB_RECORD_META_DATA_TAG = env.str("B3LB_RECORD_META_DATA_TAG", default="b3lb-recordset")
+B3LB_RENDERING = env.bool("B3LB_RENDERING", default=False)
 B3LB_RECORD_STORAGE = env.str('B3LB_RECORD_STORAGE', default='local')
 B3LB_S3_ACCESS_KEY = env.str('B3LB_S3_ACCESS_KEY', default=env.str('AWS_S3_ACCESS_KEY_ID', default=env.str('AWS_S3_SECRET_ACCESS_KEY', default='')))
 B3LB_S3_BUCKET_NAME = env.str('B3LB_S3_BUCKET_NAME', 'raw')

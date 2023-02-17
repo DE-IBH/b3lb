@@ -20,12 +20,15 @@ from django.conf import settings
 from loadbalancer.celery import app
 from rest.classes.checks import NodeCheck
 from rest.task.core import check_node, generate_secret_get_meetings
-from rest.task.recording import render_record
 from rest.task.statistics import update_secret_metrics, update_tenant_statistics
 from rest.models import Node, RecordSet, Secret
 
+# import rendering feature only in B3LB recording image
+if settings.B3LB_RENDERING:
+    from rest.task.recording import render_record
+
 ##
-# cast following tasks asynchronous for multiple time
+# cast following tasks multiple times asynchronous
 ##
 
 @app.task(ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_CORE)
@@ -40,7 +43,10 @@ def core_generate_secret_meetings(secret_uuid: str):
 
 @app.task(ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_RECORD)
 def recording_render_record(record_set_uuid: str):
-    return render_record(RecordSet.objects.get(uuid=record_set_uuid))
+    # import recoding feature only in B3LB recording image
+    if settings.B3LB_RENDERING:
+        return render_record(RecordSet.objects.get(uuid=record_set_uuid))
+    return False
 
 
 @app.task(ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_STATISTICS)

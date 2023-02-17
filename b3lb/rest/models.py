@@ -708,10 +708,15 @@ class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     description = models.CharField(max_length=RECORD_PROFILE_DESCRIPTION_LENGTH)
     name = models.CharField(max_length=32, unique=True)
-    backend_profile = models.CharField(max_length=32, default="default.yml")
-    command = models.CharField(max_length=255, null=True, blank=True)
-    mime_type = models.CharField(max_length=32, default="video/mp4")
-    file_extension = models.CharField(max_length=10, default="mp4")
+    width = models.IntegerField(default=1920, help_text="width of video")
+    height = models.IntegerField(default=1080, help_text="height of video")
+    webcam_size = models.IntegerField(default=0, help_text="percentual size of webcam in video")
+    crop_webcam = models.BooleanField(default=False)
+    stretch_webcam = models.BooleanField(default=False)
+    backdrop = models.CharField(max_length=255, default="")
+    annotations = models.BooleanField(default=True, help_text="Show annotations in video")
+    mime_type = models.CharField(max_length=32, default="video/mp4", help_text="video mime type, can be 'video/mp4' or 'video/webm'")
+    file_extension = models.CharField(max_length=10, default="mp4", help_text="video format, can be 'mp4' or 'webm'")
     is_default = models.BooleanField(default=False)
 
     def __str__(self):
@@ -720,7 +725,7 @@ class RecordProfile(models.Model):
 
 class RecordProfileAdmin(admin.ModelAdmin):
     model = RecordProfile
-    list_display = ['name', 'description', 'backend_profile', 'file_extension', 'is_default']
+    list_display = ['name', 'description', 'width', 'height', 'webcam_size', 'annotations', 'is_default']
 
 
 class SecretRecordProfileRelation(models.Model):
