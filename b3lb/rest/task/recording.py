@@ -16,11 +16,10 @@
 
 
 from django.utils import timezone as tz
-from django.template.loader import render_to_string
 from os import makedirs, path
 from requests import get
+from rest.b3lb.make_xges import render_xges
 from rest.models import Record, RecordSet, RecordProfile, SecretRecordProfileRelation
-from shlex import split
 from subprocess import DEVNULL, PIPE, Popen
 from tempfile import TemporaryDirectory
 
@@ -37,15 +36,14 @@ def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, temp
     print(f"Start rendering {record_set.__str__()} with profile {record_profile.name}")
     record, created = Record.objects.get_or_create(record_set=record_set, profile=record_profile, name=f"{record_set.meta_meeting_name} ({record_profile.description})")
 
-    # generate backend record_profile (docker-compose.yml) in tmpdir
-    with open(f"{tempdir}/docker-compose.yml", "w") as docker_file:
-        docker_file.write(render_to_string(template_name=f"render/{record_profile.backend_profile}", context={"commands": [tempdir, record_profile.file_extension] + split(record_profile.command)}))
-
     # unpack tar to IN folder
     Popen(["tar", "-xf", f"{tempdir}/raw.tar", "-C", f"{tempdir}/in/"], stdin=DEVNULL, stdout=PIPE, close_fds=True).wait()
 
-    # render with given record_profile
-    Popen(["docker-compose", "-f", f"{tempdir}/docker-compose.yml", "up"]).wait()
+    # generate xges file
+    render_xges(f"{tempdir}/in/", f"{tempdir}/out/video.xges", record_profile)
+
+    # render by xges file
+    Popen(["ges-launch-1.0", "--load", f"{tempdir}/out/video.xges", "-o", f"{tempdir}/out/video.{record_profile.file_extension}"]).wait()
 
     # check result
     if not path.isfile(f"{tempdir}/out/video.{record_profile.file_extension}"):
