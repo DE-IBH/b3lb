@@ -60,4 +60,6 @@ RUN mkdir -p /srv/rendering
 RUN chown b3lb:b3lb /srv/rendering
 USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
-CMD ["celery-tasks", "-Q", "b3lb"]
+CMD ["uvicorn", "--host", "0.0.0.0", "--ws", "none", "--no-access-log", "--use-colors"]
+# For celery tasks use with default queue use following command in docker-compose.yml
+# CMD ["celery-tasks", "-Q", "b3lb"]

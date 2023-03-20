@@ -3,9 +3,9 @@
     <recordings>{% for record in records %}
         <recording>
             <recordID>{{ record.uuid }}</recordID>
-            <meetingID>{{ record.meeting_id }}</meetingID>
+            <meetingID>{% autoescape on %}{{ record.meeting_id }}{% endautoescape %}</meetingID>
             <internalMeetingID>{{ record.internal_meeting_id }}</internalMeetingID>
-            <name>{{ record.name }}</name>
+            <name>{% autoescape on %}{{ record.name }}{% endautoescape %}</name>
             <isBreakout>{% if record.is_breakout %}true{% else %}false{% endif %}</isBreakout>
             <published>{% if record.published %}true{% else %}false{% endif %}</published>
             <state>{{ record.state }}</state>
@@ -21,7 +21,7 @@
                 <gl-listed>{{ record.gl_listed }}</gl-listed>
                 <isBreakout>{% if record.is_breakout %}true{% else %}false{% endif %}</isBreakout>
                 <meetingId>{{ record.meeting_id }}</meetingId>
-                <meetingName>{{ record.meeting_name }}</meetingName>
+                <meetingName>{% autoescape on %}{{ record.meeting_name }}{% endautoescape %}</meetingName>
             </metadata>{% if record.is_breakout %}{% else %}
             <breakout>
                 <parentId>unknown</parentId>
