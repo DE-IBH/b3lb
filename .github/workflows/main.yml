@@ -64,9 +64,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Build rendering image
+      - name: Build render image
         run: |
-          docker build . --file docker/Dockerfile.rendering --tag b3lb-render
+          docker build . --file docker/Dockerfile.render --tag b3lb-render
           docker save b3lb-render > /tmp/b3lb-render.tar
 
       - name: Upload django artifact
@@ -146,7 +146,7 @@ jobs:
 
 
   push-release:
-    needs: ["build-django", "build-pypy", "build-dev", "build-static", "build-rendering"]
+    needs: ["build-django", "build-pypy", "build-dev", "build-static", "build-render"]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
 
@@ -166,10 +166,10 @@ jobs:
           name: b3lb-pypy
           path: /tmp
 
-      - name: Download rendering artifact
+      - name: Download render artifact
         uses: actions/download-artifact@v2
         with:
-          name: b3lb-rendering
+          name: b3lb-render
           path: /tmp
 
       - name: Download dev artifact
@@ -188,7 +188,7 @@ jobs:
         run: |
           docker load < /tmp/b3lb.tar
           docker load < /tmp/b3lb-pypy.tar
-          docker load < /tmp/b3lb-rendering.tar
+          docker load < /tmp/b3lb-render.tar
           docker load < /tmp/b3lb-dev.tar
           docker load < /tmp/b3lb-static.tar
 
@@ -205,12 +205,12 @@ jobs:
 
           docker tag b3lb $IMAGE_ID/b3lb:$VERSION
           docker tag b3lb-pypy $IMAGE_ID/b3lb-pypy:$VERSION
-          docker tag b3lb-rendering $IMAGE_ID/b3lb-rendering:$VERSION
+          docker tag b3lb-render $IMAGE_ID/b3lb-render:$VERSION
           docker tag b3lb-dev $IMAGE_ID/b3lb-dev:$VERSION
           docker tag b3lb-static $IMAGE_ID/b3lb-static:$VERSION
 
           docker push $IMAGE_ID/b3lb:$VERSION
           docker push $IMAGE_ID/b3lb-pypy:$VERSION
-          docker push $IMAGE_ID/b3lb-rendering:$VERSION
+          docker push $IMAGE_ID/b3lb-render:$VERSION
           docker push $IMAGE_ID/b3lb-dev:$VERSION
           docker push $IMAGE_ID/b3lb-static:$VERSION
