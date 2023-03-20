@@ -21,8 +21,15 @@ from django.db.models import ObjectDoesNotExist
 from wsgiref.util import FileWrapper
 
 
+# Slides in POST requests have a maximum size by the BigBlueButton API
+# see: https://docs.bigbluebutton.org/dev/api.html#pre-upload-slides
+#
+# Based on API description, the max request size is 2MB, in practice tests it was < 1MB
+#
+# So the maximum base64 size was set to 1024000
+# so, the max. size of slides in a POST request is 1024000 * 0.75 ~ 768kiB
+
 MAX_BASE64_SLIDE_SIZE_IN_POST = 1024000
-# 1024000 * 0.75 ~ 768kB -> max file size in post
 MAX_SLIDE_SIZE_IN_POST = MAX_BASE64_SLIDE_SIZE_IN_POST * 0.75
 
 

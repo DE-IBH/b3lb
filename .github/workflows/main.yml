@@ -57,7 +57,7 @@ jobs:
           name: b3lb-pypy
           path: /tmp/b3lb-pypy.tar
 
-  build-rendering:
+  build-render:
     runs-on: ubuntu-latest
 
     steps:
@@ -66,14 +66,14 @@ jobs:
 
       - name: Build rendering image
         run: |
-          docker build . --file docker/Dockerfile.rendering --tag b3lb-rendering
-          docker save b3lb-rendering > /tmp/b3lb-rendering.tar
+          docker build . --file docker/Dockerfile.rendering --tag b3lb-render
+          docker save b3lb-render > /tmp/b3lb-render.tar
 
       - name: Upload django artifact
         uses: actions/upload-artifact@v2
         with:
-          name: b3lb-rendering
-          path: /tmp/b3lb-rendering.tar
+          name: b3lb-render
+          path: /tmp/b3lb-render.tar
 
   build-static:
     runs-on: ubuntu-latest

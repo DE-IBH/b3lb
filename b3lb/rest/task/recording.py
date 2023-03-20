@@ -16,9 +16,11 @@
 
 
 from django.utils import timezone as tz
+from django.conf import settings
 from os import makedirs, path
 from requests import get
-from rest.b3lb.make_xges import render_xges
+if settings.B3LB_RENDERING:
+    from rest.b3lb.make_xges import render_xges
 from rest.models import Record, RecordSet, RecordProfile, SecretRecordProfileRelation
 from subprocess import DEVNULL, PIPE, Popen
 from tempfile import TemporaryDirectory
