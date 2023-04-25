@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM alpine:3.16 AS build
+FROM alpine:3.17 AS build
 
 RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel gcc gobject-introspection-dev
 
@@ -28,7 +28,7 @@ COPY b3lb/requirements.txt ./
 RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 
-FROM alpine:3.16
+FROM alpine:3.17
 
 RUN apk --no-cache add python3 postgresql-libs libffi py3-pip tar
 

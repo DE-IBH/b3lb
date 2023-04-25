@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM alpine:3.16 AS build
+FROM alpine:3.17 AS build
 
 RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel tar gcc gobject-introspection-dev
 
