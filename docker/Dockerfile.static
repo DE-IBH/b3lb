@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM alpine:3.16 AS build
+FROM alpine:3.17 AS build
 
 RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel gcc gobject-introspection-dev
 
@@ -35,7 +35,7 @@ RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 RUN ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
 
 
-FROM caddy:2.5.2-alpine
+FROM caddy:2.6-alpine
 
 ARG CADDYUID=8380
 
