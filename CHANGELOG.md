@@ -1,5 +1,82 @@
 # ChangeLog
 
+## 3.0.0 - 2023-05-10
+
+Changes:
+- api
+  - refactoring api endpoint routines
+  - updated parameters for BigBlueButton API v2.5
+  - added endpoints:
+    - getRecordings
+    - publishRecordings
+    - deleteRecordings
+    - updateRecordings (partial, only for `meta_name` and `meta_gl-listed`)
+  - add multiple sha algorithms support for client and node communication
+    - `sha1`, `sha256`, `sha384`, `sha512` support
+    - sha algorithms can be enabled/disabled via environment variable for client communication
+    - cluster group wise configuration for node communication (default: `sha256`)
+  - non-BigBlueButton endpoints added
+    - backend endpoint for raw recording upload (via b3lb-push)
+    - download endpoint for rendered records
+- Add recording support
+  - secret & tenant wise enabling/disabling of recording
+  - local (eg. NFS-Share) and s3 storage support (s3 recommended)
+  - rending based on [bbb-render](https://github.com/plugorgau/bbb-render/blob/master/make-xges.py)
+    - multiple profile rendering
+  - download of videos only (via "presentation", no "podcast" format type)
+- celery-tasks
+  - queues now configurable via environment variable
+    - core tasks
+    - statistical tasks
+    - recording (rendering) tasks
+    - housekeeping tasks
+- admin view
+  - `Tenants`
+    - added recording option (default: `false`, must be `true` to work for secrets)
+    - added record holding time for record housekeeping
+    - action for setting recording on/off
+  - `Secrets`
+    - added recording option (default: `false`)
+    - added record holding time for record housekeeping
+    - action for setting recording on/off
+    - added APIMate Links for testing from admin view
+  - `Meeting`
+    - add `end_callback_url` and `nonce` field
+  - added models/classes
+    - `Record`: rendered record meta data entry 
+    - `RecordSet`: Meeting-Secret-Records relation
+    - `RecordProfile`: record rendering profiles
+    - `SecretRecordProfileRelation`: Secret-RecordProfile relation
+- Node scripts
+  - added b3lb-push script for recording push to B3LB backend
+  - move scripts to specific scripts folder
+
+Dependencies:
+- added python dependencies:
+  - boto3: `1.26.119`
+  - django-storages: `1.13.2`
+  - PyGObject: `3.44.1`
+  - xmltodict: `0.13.0`
+- bumped python dependencies:
+  - aiohttp: `3.8.1` => `3.8.4`
+  - Django: `3.2.15` => `3.2.18`
+  - django-extensions: `3.2.0` => `3.2.1`
+  - requests: `2.28.1` => `2.28.2`
+  - django-cacheops: `6.1` => `7.0`
+    - now needs redis 7+
+  - django-celery-beat: `2.3.0` => `2.5.0`
+  - django-celery-results: `2.4.0` => `2.5.0`
+  - django-environ: `0.9.0` => `0.10.0`
+  - uvicorn: `0.18.2` => `0.21.1`
+- dropped python dependencies:
+  - django-split-settings
+  - jinja2
+- docker images
+  - alpine: `3.16` => `3.17`
+  - caddy: `2.5.2-alpine` => `2.6-alpine`
+  - pypy: `3.9-7-slim` => `3.9-slim`
+  - python: `3.10-slim` added
+
 ## 2.3.1 - 2022-08-11
 
 Fixes:
