@@ -2,56 +2,49 @@
 
 ## 3.0.0 - 2023-05-10
 
+Features:
+- recording: add BBB recording support
+  - secret & tenant wise enabling/disabling of recording
+  - local (needs to be shared by all b3lb instances) and S3 storage support
+  - rendering based on [bbb-render](https://github.com/plugorgau/bbb-render/blob/master/make-xges.py)
+  - rendering profile support
+  - limitations:
+    - no html video player
+    - no podcast support
+
 Changes:
-- api
+- api:
   - refactoring api endpoint routines
-  - updated parameters for BigBlueButton API v2.5
-  - added endpoints:
+  - update parameters for BigBlueButton API v2.5
+  - new endpoints:
     - getRecordings
     - publishRecordings
     - deleteRecordings
     - updateRecordings (partial, only for `meta_name` and `meta_gl-listed`)
-  - add multiple sha algorithms support for client and node communication
-    - `sha1`, `sha256`, `sha384`, `sha512` support
-    - sha algorithms can be enabled/disabled via environment variable for client communication
-    - cluster group wise configuration for node communication (default: `sha256`)
-  - non-BigBlueButton endpoints added
-    - backend endpoint for raw recording upload (via b3lb-push)
-    - download endpoint for rendered records
-- Add recording support
-  - secret & tenant wise enabling/disabling of recording
-  - local (eg. NFS-Share) and s3 storage support (s3 recommended)
-  - rending based on [bbb-render](https://github.com/plugorgau/bbb-render/blob/master/make-xges.py)
-    - multiple profile rendering
-  - download of videos only (via "presentation", no "podcast" format type)
-- celery-tasks
+  - add alternative secret hash support (backend and frontend):
+    - supported hashes: `sha1`, `sha256`, `sha384`, `sha512`
+    - configurable frontend hash support
+    - per cluster hash backend setting (default: `sha256`)
+  - additional non-BBB endpoints:
+    - raw recording upload (`b3lb-push` script)
+    - download of rendered records
+- worker:
   - queues now configurable via environment variable
     - core tasks
     - statistical tasks
     - recording (rendering) tasks
     - housekeeping tasks
-- admin view
+- admin:
   - `Tenants`
-    - added recording option (default: `false`, must be `true` to work for secrets)
-    - added record holding time for record housekeeping
-    - action for setting recording on/off
+    - added recording option (default: `false`)
+    - added record holding time
   - `Secrets`
     - added recording option (default: `false`)
-    - added record holding time for record housekeeping
-    - action for setting recording on/off
-    - added APIMate Links for testing from admin view
-  - `Meeting`
-    - add `end_callback_url` and `nonce` field
-  - added models/classes
-    - `Record`: rendered record meta data entry 
-    - `RecordSet`: Meeting-Secret-Records relation
-    - `RecordProfile`: record rendering profiles
-    - `SecretRecordProfileRelation`: Secret-RecordProfile relation
-- Node scripts
-  - added b3lb-push script for recording push to B3LB backend
-  - move scripts to specific scripts folder
+    - added record holding time
+    - added APIMate Links
+- nodes:
+  - added `b3lb-push` script for recording push to B3LB backend
 
-Dependencies:
 - added python dependencies:
   - boto3: `1.26.119`
   - django-storages: `1.13.2`
@@ -63,7 +56,6 @@ Dependencies:
   - django-extensions: `3.2.0` => `3.2.1`
   - requests: `2.28.1` => `2.28.2`
   - django-cacheops: `6.1` => `7.0`
-    - now needs redis 7+
   - django-celery-beat: `2.3.0` => `2.5.0`
   - django-celery-results: `2.4.0` => `2.5.0`
   - django-environ: `0.9.0` => `0.10.0`
@@ -76,6 +68,8 @@ Dependencies:
   - caddy: `2.5.2-alpine` => `2.6-alpine`
   - pypy: `3.9-7-slim` => `3.9-slim`
   - python: `3.10-slim` added
+
+With b3lb 3.0 the support for redis 6 has been dropped! Redis 7 is now required by `django-cacheops`.
 
 ## 2.3.1 - 2022-08-11
 
