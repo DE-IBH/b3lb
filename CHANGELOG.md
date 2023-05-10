@@ -1,5 +1,76 @@
 # ChangeLog
 
+## 3.0.0 - 2023-05-10
+
+Features:
+- recording: add BBB recording support
+  - secret & tenant wise enabling/disabling of recording
+  - local (needs to be shared by all b3lb instances) and S3 storage support
+  - rendering based on [bbb-render](https://github.com/plugorgau/bbb-render/blob/master/make-xges.py)
+  - rendering profile support
+  - limitations:
+    - no html video player
+    - no podcast support
+
+Changes:
+- api:
+  - refactoring api endpoint routines
+  - update parameters for BigBlueButton API v2.5
+  - new endpoints:
+    - getRecordings
+    - publishRecordings
+    - deleteRecordings
+    - updateRecordings (partial, only for `meta_name` and `meta_gl-listed`)
+  - add alternative secret hash support (backend and frontend):
+    - supported hashes: `sha1`, `sha256`, `sha384`, `sha512`
+    - configurable frontend hash support
+    - per cluster hash backend setting (default: `sha256`)
+  - additional non-BBB endpoints:
+    - raw recording upload (`b3lb-push` script)
+    - download of rendered records
+- worker:
+  - queues now configurable via environment variable
+    - core tasks
+    - statistical tasks
+    - recording (rendering) tasks
+    - housekeeping tasks
+- admin:
+  - `Tenants`
+    - added recording option (default: `false`)
+    - added record holding time
+  - `Secrets`
+    - added recording option (default: `false`)
+    - added record holding time
+    - added APIMate Links
+- nodes:
+  - added `b3lb-push` script for recording push to B3LB backend
+
+- added python dependencies:
+  - boto3: `1.26.119`
+  - django-storages: `1.13.2`
+  - PyGObject: `3.44.1`
+  - xmltodict: `0.13.0`
+- bumped python dependencies:
+  - aiohttp: `3.8.1` => `3.8.4`
+  - Django: `3.2.15` => `3.2.18`
+  - django-extensions: `3.2.0` => `3.2.1`
+  - requests: `2.28.1` => `2.28.2`
+  - django-cacheops: `6.1` => `7.0`
+  - django-celery-beat: `2.3.0` => `2.5.0`
+  - django-celery-results: `2.4.0` => `2.5.0`
+  - django-environ: `0.9.0` => `0.10.0`
+  - uvicorn: `0.18.2` => `0.21.1`
+- dropped python dependencies:
+  - django-split-settings
+  - jinja2
+- docker images
+  - alpine: `3.16` => `3.17`
+  - caddy: `2.5.2-alpine` => `2.6-alpine`
+  - pypy: `3.9-7-slim` => `3.9-slim`
+  - python: `3.10-slim` added
+
+With b3lb 3.0 the support for redis 6 has been dropped! Redis 7 is now required by `django-cacheops`.
+
 ## 2.3.1 - 2022-08-11
 
 Fixes:
