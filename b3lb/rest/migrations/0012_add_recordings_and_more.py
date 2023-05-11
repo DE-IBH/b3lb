@@ -26,6 +26,14 @@ def create_default_record_profile(apps, schema_editor):
     profile.save()
 
 
+def unify_nonce(apps, schema_editor):
+    Meetings = apps.get_model("rest", "Meeting")
+    for meeting in Meetings.objects.all():
+        meeting.nonce = rest.models.get_nonce()
+        meeting.save()
+
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -63,6 +71,12 @@ class Migration(migrations.Migration):
             field=models.URLField(default=''),
         ),
         migrations.AddField(
+            model_name='meeting',
+            name='nonce',
+            field=models.CharField(editable=False, max_length=64, null=True),
+        ),
+        migrations.RunPython(unify_nonce),
+        migrations.AlterField(
             model_name='meeting',
             name='nonce',
             field=models.CharField(default=rest.models.get_nonce, editable=False, max_length=64, unique=True),
