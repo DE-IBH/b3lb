@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 3.0.1 - 2023-05-11
+
+Fixes:
+- migration: fix unique nonce for meetings
+
 ## 3.0.0 - 2023-05-10
 
 Features:
