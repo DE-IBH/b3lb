@@ -86,7 +86,7 @@ class ClientB3lbRequest:
         if not self.meeting_id:
             return HttpResponse(RETURN_STRING_MISSING_MEETING_ID, content_type=CONTENT_TYPE)
 
-        if not await sync_to_async(self.is_meeting)():
+        if not await self.is_meeting():
             if not await sync_to_async(self.is_node_free)():
                 return HttpResponse(RETURN_STRING_CREATE_NO_NODE_AVAILABE, content_type=CONTENT_TYPE)
             elif not await sync_to_async(self.is_in_limit)():
@@ -106,7 +106,7 @@ class ClientB3lbRequest:
         """
         if not self.meeting_id:
             return HttpResponse(RETURN_STRING_MISSING_MEETING_ID, content_type=CONTENT_TYPE)
-        if not await sync_to_async(self.is_meeting)():
+        if not await self.is_meeting():
             return HttpResponseBadRequest()
         await sync_to_async(self.check_parameters)()
         await sync_to_async(incr_metric)(Metric.JOINED, self.secret, self.node)
@@ -232,7 +232,7 @@ class ClientB3lbRequest:
         Checks meeting from B3LB database.
         Send client request to node and return response to client if exists otherwise return hardcoded answer.
         """
-        if not await sync_to_async(self.is_meeting)():
+        if not await self.is_meeting():
             return HttpResponse(RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type=CONTENT_TYPE)
         return await self.pass_through()
 
@@ -241,7 +241,7 @@ class ClientB3lbRequest:
         Multiple BBB endpoints.
         Send client request to correct node and return node response to client.
         """
-        self.set_node_by_meeting_id()
+        await self.set_node_by_meeting_id()
         async with ClientSession() as session:
             if self.request.method == "POST":
                 async with session.post(await sync_to_async(self.get_node_endpoint_url_encoded)(), data=self.body) as res:
@@ -420,9 +420,9 @@ class ClientB3lbRequest:
                 return False
         return True
 
-    def is_meeting(self) -> bool:
+    async def is_meeting(self) -> bool:
         if self.meeting_id:
-            self.set_node_by_meeting_id()
+            await self.set_node_by_meeting_id()
             if self.node:
                 return True
             return False
@@ -504,11 +504,11 @@ class ClientB3lbRequest:
         return dumps(statistic)
 
     ## Setter Routines ##
-    def set_node_by_meeting_id(self):
+    async def set_node_by_meeting_id(self):
         self.node = None
         if self.meeting_id:
             try:
-                meeting = sync_to_async(Meeting.objects.get)(id=self.meeting_id, secret=self.secret)
+                meeting = await sync_to_async(Meeting.objects.get)(id=self.meeting_id, secret=self.secret)
                 if not meeting.node.has_errors:
                     self.node = meeting.node
             except ObjectDoesNotExist:
