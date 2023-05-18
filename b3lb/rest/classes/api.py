@@ -539,7 +539,7 @@ class ClientB3lbRequest:
                 sub_id = int(search.group(3) or 0)
         if slug:
             try:
-                self.secret = sync_to_async(Secret.objects.select_related("tenant", "tenant__asset").get)(tenant__slug=slug.upper(), sub_id=sub_id)
+                self.secret = await sync_to_async(Secret.objects.select_related("tenant", "tenant__asset").get)(tenant__slug=slug.upper(), sub_id=sub_id)
             except ObjectDoesNotExist:
                 pass
 
