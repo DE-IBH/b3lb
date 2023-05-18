@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 3.0.3 - 2023-05-18
+
+Fixes:
+- missing statements: fix missing statements in pass through routines and metric endpoint
+
 ## 3.0.2 - 2023-05-18
 
 Fixes:
