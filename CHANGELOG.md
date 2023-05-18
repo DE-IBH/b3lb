@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 3.0.2 - 2023-05-18
+
+Fixes:
+- sha_algorithm: fix get sha algorithm if node is in multiple cluster groups
+
 ## 3.0.1 - 2023-05-11
 
 Fixes:
