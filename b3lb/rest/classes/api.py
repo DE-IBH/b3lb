@@ -241,7 +241,8 @@ class ClientB3lbRequest:
         Multiple BBB endpoints.
         Send client request to correct node and return node response to client.
         """
-        await self.set_node_by_meeting_id()
+        if not self.node:
+            await self.set_node_by_meeting_id()
         async with ClientSession() as session:
             if self.request.method == "POST":
                 async with session.post(await sync_to_async(self.get_node_endpoint_url_encoded)(), data=self.body) as res:
