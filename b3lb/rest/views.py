@@ -35,7 +35,7 @@ async def bbb_entrypoint(request: HttpRequest, endpoint: str = "", slug: str = "
     if not b3lb.is_allowed_method():
         return HttpResponseNotAllowed(b3lb.allowed_methods())
 
-    await sync_to_async(b3lb.set_secret_by_slug_and_slug_id)(slug, sub_id)
+    await b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
     if not await sync_to_async(b3lb.is_authorized)():
         return HttpResponse("Unauthorized", status=401)
     return await b3lb.endpoint_delegation()

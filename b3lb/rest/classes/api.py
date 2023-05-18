@@ -531,7 +531,7 @@ class ClientB3lbRequest:
         if lowest_node_list:
             self.node = lowest_node_list[randint(0, len(lowest_node_list) - 1)]
 
-    def set_secret_by_slug_and_slug_id(self, slug: str, sub_id: int):
+    async def set_secret_by_slug_and_slug_id(self, slug: str, sub_id: int):
         if not slug:
             search = SLUG_REGEX.search(self.get_forwarded_host())
             if search:
