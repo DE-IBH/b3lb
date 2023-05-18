@@ -64,6 +64,7 @@ def update_statistic():
         counter += 1
     return f"Queue {counter} update statistic tasks."
 
+
 @app.task(name="Render Records from RecordSets", ignore_result=True, base=Singleton, queue=settings.B3LB_TASK_QUEUE_RECORD)
 def render_record():
     """

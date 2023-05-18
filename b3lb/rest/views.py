@@ -66,6 +66,7 @@ async def stats(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpRe
     b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
     return await b3lb.endpoint_delegation()
 
+
 # Metric endpoint for tenants
 # secured via tenant auth token
 async def metrics(request: HttpRequest, slug: str = "", sub_id: int = 0) -> HttpResponse:
@@ -75,7 +76,7 @@ async def metrics(request: HttpRequest, slug: str = "", sub_id: int = 0) -> Http
     if not b3lb.is_allowed_method():
         return HttpResponseNotAllowed(b3lb.allowed_methods())
 
-    b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
+    await b3lb.set_secret_by_slug_and_slug_id(slug, sub_id)
     return await b3lb.endpoint_delegation()
 
 
