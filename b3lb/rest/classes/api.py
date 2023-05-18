@@ -509,7 +509,7 @@ class ClientB3lbRequest:
         self.node = None
         if self.meeting_id:
             try:
-                meeting = await sync_to_async(Meeting.objects.get)(id=self.meeting_id, secret=self.secret)
+                meeting = await sync_to_async(Meeting.objects.select_related("node").get)(id=self.meeting_id, secret=self.secret)
                 if not meeting.node.has_errors:
                     self.node = meeting.node
             except ObjectDoesNotExist:
