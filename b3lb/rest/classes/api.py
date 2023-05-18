@@ -508,7 +508,7 @@ class ClientB3lbRequest:
         self.node = None
         if self.meeting_id:
             try:
-                meeting = Meeting.objects.get(id=self.meeting_id, secret=self.secret)
+                meeting = await Meeting.objects.get(id=self.meeting_id, secret=self.secret)
                 if not meeting.node.has_errors:
                     self.node = meeting.node
             except ObjectDoesNotExist:
@@ -539,7 +539,7 @@ class ClientB3lbRequest:
                 sub_id = int(search.group(3) or 0)
         if slug:
             try:
-                self.secret = Secret.objects.select_related("tenant", "tenant__asset").get(tenant__slug=slug.upper(), sub_id=sub_id)
+                self.secret = await Secret.objects.select_related("tenant", "tenant__asset").get(tenant__slug=slug.upper(), sub_id=sub_id)
             except ObjectDoesNotExist:
                 pass
 
