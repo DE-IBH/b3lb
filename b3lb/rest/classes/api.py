@@ -475,8 +475,8 @@ class ClientB3lbRequest:
         return SHA_ALGORITHMS_BY_STRING[sha]
 
     def get_sha_algorithm_by_cluster_group(self) -> Any:
-        cluster_group = ClusterGroupRelation.objects.get(cluster=self.node.cluster).cluster_group
-        return self.get_sha_algorithm(cluster_group.sha_function)
+        cluster_group = ClusterGroupRelation.objects.filter(cluster=self.node.cluster)
+        return self.get_sha_algorithm(cluster_group[0].cluster_group.sha_function)
 
     def get_sha_algorithm_by_checksum_length(self) -> Any:
         check_length = len(self.checksum)
