@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 3.0.5 - 2023-05-19
+
+Fixes:
+- fix slide xml miss-format
+
+
 ## 3.0.4 - 2023-05-19
 
 Fixes:
