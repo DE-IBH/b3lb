@@ -86,8 +86,6 @@ def check_node(check: NodeCheck):
                                             check.meeting_stats[meeting_id][cell.tag] = cell.text
                             check.attendees += attendee_dummy
             check.has_errors = False
-        else:
-            print(response.text)
     except:
         pass
 
