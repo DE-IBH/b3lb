@@ -452,7 +452,7 @@ class SecretAdmin(admin.ModelAdmin):
         try:
             slide = Asset.objects.get(tenant__secret=obj).slide
             if slide:
-                slide_string = f"pre-upload=https:// {settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug}/slide"
+                slide_string = f"pre-upload=https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug}/slide"
         except Asset.DoesNotExist:
             pass
 
@@ -518,9 +518,9 @@ class Asset(models.Model):
         if self.slide_filename:
             return xml_escape(self.slide_filename)
         elif self.slide:
-            return "{}.{}".format(self.tenant.slug.lower(), self.slide.name.split(".")[-1])
+            return xml_escape("{}.{}".format(self.tenant.slug.lower(), self.slide.name.split(".")[-1]))
         else:
-            return ""
+            return '""'
 
     @property
     def custom_css_url(self) -> str:
