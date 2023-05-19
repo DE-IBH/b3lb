@@ -21,7 +21,7 @@ class NodeCheck:
             self.meeting_stats[meeting_id][param] = ""
 
     def get_meetings_url(self) -> str:
-        sha = SHA_ALGORITHMS_BY_STRING[ClusterGroupRelation.objects.get(cluster=self.node.cluster).cluster_group.sha_function]()
+        sha = SHA_ALGORITHMS_BY_STRING[ClusterGroupRelation.objects.filter(cluster=self.node.cluster)[0].cluster_group.sha_function]()
         sha.update(f"getMeetings{self.node.secret}".encode())
         return f"{self.node.api_base_url}getMeetings?checksum={sha.hexdigest()}"
 

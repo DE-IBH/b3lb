@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 3.0.4 - 2023-05-19
+
+Fixes:
+- fix cluster group filtering check in node status check routine
+- add check for meeting existence, before continuing in pass through routine
+
 ## 3.0.3 - 2023-05-18
 
 Fixes:
