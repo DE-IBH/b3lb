@@ -33,7 +33,7 @@ from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.models import ClusterGroup, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats, RECORD_PROFILE_DESCRIPTION_LENGTH, MEETING_NAME_LENGTH
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Union
 from urllib.parse import urlencode
 from xmltodict import parse
 
@@ -50,6 +50,7 @@ RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<vers
 RETURN_STRING_CREATE_LIMIT_REACHED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting/Attendee limit reached.</message>\r\n</response>'
 RETURN_STRING_CREATE_NO_NODE_AVAILABE = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>No Node available.</message>\r\n</response>'
 RETURN_STRING_IS_MEETING_RUNNING_FALSE = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<running>false</running>\r\n</response>'
+RETURN_STRING_GET_MEETING_INFO_FALSE = '<response>\r\n<returncode>FAILED</returncode>\r\n<<messageKey>notFound</messageKey>\r\n<message>A meeting with that ID does not exist</message>\r\n</response>'
 RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
 RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<recordings></recordings>\r\n<messageKey>noRecordings</messageKey>\r\n<message>There are no recordings for the meeting(s).</message>\r\n</response>'
 RETURN_STRING_MISSING_MEETING_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamMeetingID</messageKey>\r\n<message>You must specify a meeting ID for the meeting.</message>\r\n</response>'
@@ -71,8 +72,8 @@ class ClientB3lbRequest:
     endpoint: str
     checksum: str
     stats_token: str
-    node: Node
-    secret: Secret
+    node: Union[Node, None]
+    secret: Union[Secret, None]
     state: str
     ENDPOINTS_PASS_THROUGH: List[str]
     ENDPOINTS: Dict[str, Any]
@@ -241,6 +242,10 @@ class ClientB3lbRequest:
         Multiple BBB endpoints.
         Send client request to correct node and return node response to client.
         """
+        if not self.meeting_id:
+            return HttpResponse(RETURN_STRING_MISSING_MEETING_ID, content_type=CONTENT_TYPE)
+        if not await self.is_meeting():
+            return HttpResponse(RETURN_STRING_GET_MEETING_INFO_FALSE, content_type=CONTENT_TYPE)
         if not self.node:
             await self.set_node_by_meeting_id()
         async with ClientSession() as session:
@@ -583,7 +588,7 @@ class NodeB3lbRequest:
     """
     BACKENDS: Dict[str, Dict[Literal["methods", "function"], Any]]
     request: HttpRequest
-    meeting: Meeting
+    meeting: Union[Meeting, None]
     backend: str
     endpoint: str
     meeting_id: str
@@ -634,7 +639,7 @@ class NodeB3lbRequest:
     def full_endpoint(self) -> str:
         return f"{self.backend}/{self.endpoint}"
 
-    def get_record_set_by_nonce(self) -> RecordSet:
+    def get_record_set_by_nonce(self) -> Union[RecordSet, None]:
         try:
             record_set = RecordSet.objects.get(nonce=self.nonce)
         except ObjectDoesNotExist:
