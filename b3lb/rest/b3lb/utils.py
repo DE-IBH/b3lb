@@ -18,8 +18,8 @@
 from xml.sax.saxutils import escape, quoteattr
 
 
-def xml_escape(string) -> str:
-    if isinstance(string, str):
-        return quoteattr(escape(string))
-    else:
-        return ""
+def xml_escape(string: str) -> str:
+    """
+    Returns a quoted xml escaped string
+    """
+    return quoteattr(escape(string))
