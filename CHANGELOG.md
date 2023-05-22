@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 3.0.6 - 2023-05-22
+
+Fixes:
+- fix missing custom slide in POST create request from client
+
+
 ## 3.0.5 - 2023-05-19
 
 Fixes:
