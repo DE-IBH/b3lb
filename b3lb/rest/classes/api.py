@@ -68,7 +68,7 @@ class ClientB3lbRequest:
     request: HttpRequest
     parameters: Dict[str, Any]
     meeting_id: str
-    body: str
+    body: Union[str, bytes]
     endpoint: str
     checksum: str
     stats_token: str
@@ -554,7 +554,7 @@ class ClientB3lbRequest:
         self.request = request
         self.endpoint = endpoint
         self.parameters = {}
-        self.body = ""
+        self.body = request.body
         for parameter in request.GET.keys():
             self.parameters[parameter] = request.GET.get(parameter)
 
