@@ -371,9 +371,9 @@ class ClientB3lbRequest:
             if self.request.method == "GET" and hasattr(self.secret.tenant, 'asset') and self.secret.tenant.asset.slide:
                 slide_base64 = self.secret.tenant.asset.slide_base64
                 if slide_base64:
-                    self.body = f'<modules><module name="presentation"><document name={self.secret.tenant.asset.s_filename}>{slide_base64}</document></module></modules>'
+                    self.body = f'<modules><module name="presentation"><document name="{self.secret.tenant.asset.s_filename}">{slide_base64}</document></module></modules>'
                 else:
-                    self.body = f'<modules><module name="presentation"><document url="{self.secret.tenant.asset.slide_url}" filename={self.secret.tenant.asset.s_filename}></document></module></modules>'
+                    self.body = f'<modules><module name="presentation"><document url="{self.secret.tenant.asset.slide_url}" filename="{self.secret.tenant.asset.s_filename}"></document></module></modules>'
                 self.request.method = "POST"
 
             # check if records are enabled

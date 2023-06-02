@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 3.0.7 - 2023-06-02
+
+Fixes:
+- fix generated xml response
+
 ## 3.0.6 - 2023-05-22
 
 Fixes:
