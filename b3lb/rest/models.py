@@ -27,6 +27,8 @@ from django.utils.crypto import get_random_string
 from django.utils.html import format_html
 from django.utils.http import urlencode
 from django.urls import reverse
+from hashlib import sha1, sha256, sha384, sha512
+from _hashlib import HASH
 from math import pow
 from os.path import join
 from re import match
@@ -35,7 +37,7 @@ from rest.classes.statistics import MeetingStats
 from rest.classes.storage import DBStorage
 from storages.backends.s3boto3 import ClientError, S3Boto3Storage
 from textwrap import wrap
-from typing import Any, Dict
+from typing import Any, Dict, Union
 import uuid as uid
 
 #
@@ -92,23 +94,36 @@ def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
 # MODELS
 #
 class Cluster(models.Model):
+    SHA1 = "sha1"
+    SHA256 = "sha256"
+    SHA384 = "sha384"
+    SHA512 = "sha512"
+
+    SHA_BY_LENGTH: Dict[int, HASH] = {40: sha1, 64: sha256, 96: sha384, 128: sha512}
+    SHA_BY_STRING: Dict[str, HASH] = {SHA1: sha1, SHA256: sha256, SHA384: sha384, SHA512: sha512}
+    SHA_CHOICES = [(SHA1, SHA1), (SHA256, SHA256), (SHA384, SHA384), (SHA512, SHA512)]
+
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     name = models.CharField(max_length=100, help_text="cluster name", unique=True)
     load_a_factor = models.FloatField(default=1.0, help_text="per attendee load factor")
     load_m_factor = models.FloatField(default=30.0, help_text="per meeting load factor")
     load_cpu_iterations = models.IntegerField(default=6, help_text="max sum iteration")
     load_cpu_max = models.IntegerField(default=5000, help_text="max cpu load")
-
-    def __str__(self):
-        return self.name
+    sha_function = models.CharField(max_length=6, choices=SHA_CHOICES, default=SHA256)
 
     class Meta(object):
         ordering = ['name']
 
+    def __str__(self):
+        return self.name
+
+    def get_sha(self) -> HASH:
+        return self.SHA_BY_STRING.get(self.sha_function)()
+
 
 class ClusterAdmin(admin.ModelAdmin):
     model = Cluster
-    list_display = ['name', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes', 'a_factor', 'm_factor', 'cpu_iterations', 'cpu_max']
+    list_display = ['name', 'sha_function', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes', 'a_factor', 'm_factor', 'cpu_iterations', 'cpu_max']
     actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
 
     def a_factor(self, obj):
@@ -187,10 +202,6 @@ class Node(models.Model):
         return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_BBB_ENDPOINT)
 
     @property
-    def load_base_url(self):
-        return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_LOAD_ENDPOINT)
-
-    @property
     def load(self):
         if self.maintenance:
             return -2
@@ -215,6 +226,10 @@ class Node(models.Model):
 
         # return total synthetic load
         return int(work_attendees + work_meetings + work_cpu)
+
+    @property
+    def load_base_url(self):
+        return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_LOAD_ENDPOINT)
 
 
 @admin.action(description="Set Node to maintenance")
@@ -274,22 +289,9 @@ def get_random_secret():
 
 
 class ClusterGroup(models.Model):
-    SHA1 = "sha1"
-    SHA256 = "sha256"
-    SHA384 = "sha384"
-    SHA512 = "sha512"
-
-    SHA_CHOICES = [
-        (SHA1, SHA1),
-        (SHA256, SHA256),
-        (SHA384, SHA384),
-        (SHA512, SHA512)
-    ]
-
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     name = models.CharField(max_length=100, help_text="Cluster name", unique=True)
     description = models.CharField(max_length=255, help_text="Cluster description", null=True)
-    sha_function = models.CharField(max_length=6, choices=SHA_CHOICES, default=SHA256)
 
     class Meta(object):
         ordering = ['name']
@@ -300,7 +302,7 @@ class ClusterGroup(models.Model):
 
 class ClusterGroupAdmin(admin.ModelAdmin):
     model = ClusterGroup
-    list_display = ['name', 'description', 'sha_function', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
+    list_display = ['name', 'description', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
 
     def number_of_nodes(self, obj):
         count = 0

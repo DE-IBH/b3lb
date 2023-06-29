@@ -15,8 +15,13 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 # This utils file contains functions without import of b3lb files to prevent circular imports
+from _hashlib import HASH
 from xml.sax.saxutils import escape
 
+
+def get_checksum(sha: HASH, url_string: str) -> str:
+    sha.update(url_string.encode())
+    return sha.hexdigest()
 
 def xml_escape(string: str) -> str:
     if isinstance(string, str):
