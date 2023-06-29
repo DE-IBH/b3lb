@@ -443,7 +443,6 @@ class ClientB3lbRequest:
         parameter_str = ""
         if self.parameters:
             parameter_str = urlencode(self.parameters, safe='*')
-        print(get_checksum(self.node.cluster.get_sha(), f'{self.endpoint}{parameter_str}{self.node.secret}'))
         return f"{self.node.api_base_url}{self.endpoint}?{parameter_str}&checksum={get_checksum(self.node.cluster.get_sha(), f'{self.endpoint}{parameter_str}{self.node.secret}')}"
 
     def get_node_endpoint_url_encoded(self) -> URL:
