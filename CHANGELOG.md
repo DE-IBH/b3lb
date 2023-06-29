@@ -1,5 +1,17 @@
 # ChangeLog
 
+## 3.1.0 - 2023-06-29
+
+Changes:
+- add new BBB 2.6 API parameters
+  - notifyRecordingIsOn
+  - prsentationUploadExternalUrl
+  - prsentationUploadExternalDescription
+  - recordFullDurationMedia (v2.6.9)
+  - disabledFeaturesExclude(2.6.9)
+  - userdata-bbb_hide_presentation_on_join
+- move configuration of checksum hash function from `ClusterGroups` to `Clusters` 
+
 ## 3.0.7 - 2023-06-02
 
 Fixes:
