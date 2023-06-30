@@ -328,7 +328,7 @@ class ClientB3lbRequest:
         endpoint_string = f"{self.endpoint}{self.get_query_string()}"
 
         for secret in [self.secret.secret, self.secret.secret2]:
-            if get_checksum(algorithm, f"{endpoint_string}{secret}") == self.checksum:
+            if get_checksum(algorithm(), f"{endpoint_string}{secret}") == self.checksum:
                 return True
         return False
 
@@ -471,13 +471,10 @@ class ClientB3lbRequest:
     def get_sha_algorithm(sha: str) -> Union[HASH, None]:
         if sha not in settings.B3LB_ALLOWED_SHA_ALGORITHMS or sha not in Cluster.SHA_BY_STRING:
             return None
-        return Cluster.SHA_BY_STRING.get(sha)()
+        return Cluster.SHA_BY_STRING.get(sha)
 
     def get_sha_algorithm_by_checksum_length(self) -> Union[HASH, None]:
-        check_length = len(self.checksum)
-        if check_length not in Cluster.SHA_BY_LENGTH:
-            return self.get_sha_algorithm("")
-        return Cluster.SHA_BY_LENGTH.get(check_length)()
+        return Cluster.SHA_BY_LENGTH.get(len(self.checksum))
 
     def get_sha_algorithm_by_parameter(self) -> Union[HASH, None]:
         return self.get_sha_algorithm(self.parameters.get("checksumHash", ""))
