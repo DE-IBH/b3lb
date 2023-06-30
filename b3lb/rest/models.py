@@ -49,6 +49,24 @@ MEETING_NAME_LENGTH = 500
 NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@*(-_)'
 NONCE_LENGTH = 64
 RECORD_PROFILE_DESCRIPTION_LENGTH = 255
+SHA1 = "sha1"
+SHA256 = "sha256"
+SHA384 = "sha384"
+SHA512 = "sha512"
+SHA_BY_STRING: Dict[Any, HASH] = {SHA1: sha1, SHA256: sha256, SHA384: sha384, SHA512: sha512}
+SHA_ALGORITHMS: Dict[Any, HASH] = {}
+if SHA1 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
+    SHA_ALGORITHMS[40] = sha1
+    SHA_ALGORITHMS[SHA1] = sha1
+if SHA256 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
+    SHA_ALGORITHMS[64] = sha256
+    SHA_ALGORITHMS[SHA256] = sha256
+if SHA384 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
+    SHA_ALGORITHMS[96] = sha384
+    SHA_ALGORITHMS[SHA384] = sha384
+if SHA512 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
+    SHA_ALGORITHMS[128] = sha512
+    SHA_ALGORITHMS[SHA512] = sha512
 
 
 #
@@ -94,13 +112,6 @@ def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
 # MODELS
 #
 class Cluster(models.Model):
-    SHA1 = "sha1"
-    SHA256 = "sha256"
-    SHA384 = "sha384"
-    SHA512 = "sha512"
-
-    SHA_BY_LENGTH: Dict[int, HASH] = {40: sha1, 64: sha256, 96: sha384, 128: sha512}
-    SHA_BY_STRING: Dict[str, HASH] = {SHA1: sha1, SHA256: sha256, SHA384: sha384, SHA512: sha512}
     SHA_CHOICES = [(SHA1, SHA1), (SHA256, SHA256), (SHA384, SHA384), (SHA512, SHA512)]
 
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
@@ -118,7 +129,7 @@ class Cluster(models.Model):
         return self.name
 
     def get_sha(self) -> HASH:
-        return self.SHA_BY_STRING.get(self.sha_function)()
+        return SHA_BY_STRING.get(self.sha_function)()
 
 
 class ClusterAdmin(admin.ModelAdmin):
