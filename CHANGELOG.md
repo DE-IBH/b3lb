@@ -10,7 +10,8 @@ Changes:
   - recordFullDurationMedia (v2.6.9)
   - disabledFeaturesExclude(2.6.9)
   - userdata-bbb_hide_presentation_on_join
-- move configuration of checksum hash function from `ClusterGroups` to `Clusters` 
+- move configuration of checksum hash function from `ClusterGroups` to `Clusters`
+- bump dependencies
 
 ## 3.0.7 - 2023-06-02
 
