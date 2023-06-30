@@ -33,7 +33,7 @@ from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.utils import get_checksum
-from rest.models import Cluster, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats, RECORD_PROFILE_DESCRIPTION_LENGTH, MEETING_NAME_LENGTH
+from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats, MEETING_NAME_LENGTH, RECORD_PROFILE_DESCRIPTION_LENGTH, SHA_ALGORITHMS
 from typing import Any, Dict, List, Literal, Union
 from urllib.parse import urlencode
 from xmltodict import parse
@@ -319,9 +319,9 @@ class ClientB3lbRequest:
 
     ## Check Routines ##
     def check_checksum(self) -> bool:
-        algorithm = self.get_sha_algorithm_by_parameter()
+        algorithm = self.get_sha_by_parameter()
         if not algorithm:
-            algorithm = self.get_sha_algorithm_by_checksum_length()
+            algorithm = self.get_sha_by_length()
             if not algorithm:
                 return False
 
@@ -467,17 +467,11 @@ class ClientB3lbRequest:
     def get_secret_metrics(self) -> str:
         return SecretMetricsList.objects.get(secret=self.secret).metrics
 
-    @staticmethod
-    def get_sha_algorithm(sha: str) -> Union[HASH, None]:
-        if sha not in settings.B3LB_ALLOWED_SHA_ALGORITHMS or sha not in Cluster.SHA_BY_STRING:
-            return None
-        return Cluster.SHA_BY_STRING.get(sha)
+    def get_sha_by_length(self) -> Union[HASH, None]:
+        return SHA_ALGORITHMS.get(len(self.checksum))
 
-    def get_sha_algorithm_by_checksum_length(self) -> Union[HASH, None]:
-        return Cluster.SHA_BY_LENGTH.get(len(self.checksum))
-
-    def get_sha_algorithm_by_parameter(self) -> Union[HASH, None]:
-        return self.get_sha_algorithm(self.parameters.get("checksumHash", ""))
+    def get_sha_by_parameter(self) -> Union[HASH, None]:
+        return SHA_ALGORITHMS.get(self.parameters.get("checksumHash", ""))
 
     def get_tenant_statistic(self) -> str:
         statistic = {}
