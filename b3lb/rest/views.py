@@ -15,7 +15,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from asgiref.sync import sync_to_async
-from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest, HttpResponseForbidden, HttpResponseBadRequest, FileResponse
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseNotFound, HttpRequest, HttpResponseForbidden, FileResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import connection
 from django.db.utils import OperationalError
