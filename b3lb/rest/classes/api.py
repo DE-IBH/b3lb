@@ -29,33 +29,14 @@ from django.template.loader import render_to_string
 from json import dumps
 from _hashlib import HASH
 from random import randint
-from re import compile, escape
 from requests import get
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.utils import get_checksum
-from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats, MEETING_NAME_LENGTH, RECORD_PROFILE_DESCRIPTION_LENGTH, SHA_ALGORITHMS
+from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal, Union
 from urllib.parse import urlencode
 from xmltodict import parse
-
-
-CONTENT_TYPE = "text/xml"
-HOST_REGEX = compile(r'([^:]+)(:\d+)?$')
-RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
-RETURN_STRING_VERSION = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<version>2.0</version>\r\n<apiVersion>2.0</apiVersion>\r\n<bbbVersion/>\r\n</response>'
-RETURN_STRING_CREATE_LIMIT_REACHED = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting/Attendee limit reached.</message>\r\n</response>'
-RETURN_STRING_CREATE_NO_NODE_AVAILABE = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>No Node available.</message>\r\n</response>'
-RETURN_STRING_IS_MEETING_RUNNING_FALSE = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<running>false</running>\r\n</response>'
-RETURN_STRING_GET_MEETING_INFO_FALSE = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>notFound</messageKey>\r\n<message>A meeting with that ID does not exist</message>\r\n</response>'
-RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
-RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<recordings></recordings>\r\n<messageKey>noRecordings</messageKey>\r\n<message>There are no recordings for the meeting(s).</message>\r\n</response>'
-RETURN_STRING_MISSING_MEETING_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamMeetingID</messageKey>\r\n<message>You must specify a meeting ID for the meeting.</message>\r\n</response>'
-RETURN_STRING_MISSING_RECORD_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamRecordID</messageKey>\r\n<message>You must specify one or more a record IDs.</message>\r\n</response>'
-RETURN_STRING_MISSING_RECORD_PUBLISH = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamPublish</messageKey>\r\n<message>You must specify one a publish value true or false.</message>\r\n</response>'
-RETURN_STRING_RECORD_PUBLISHED = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<published>{}</published>\r\n</response>'
-RETURN_STRING_RECORD_DELETED = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<deleted>true</deleted>\r\n</response>'
-RETURN_STRING_RECORD_UPDATED = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<updated>true</updated>\r\n</response>'
-SLUG_REGEX = compile(r'^([a-z]{2,10})(-(\d{3}))?\.' + escape(settings.B3LB_API_BASE_DOMAIN) + '$')
+import rest.b3lb.contants as cst
 
 
 class ClientB3lbRequest:
@@ -82,13 +63,13 @@ class ClientB3lbRequest:
         Creates a new meeting on a node if not exists.
         """
         if not self.meeting_id:
-            return HttpResponse(RETURN_STRING_MISSING_MEETING_ID, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID, content_type=cst.CONTENT_TYPE)
 
         if not await self.is_meeting():
             if not await sync_to_async(self.is_node_free)():
-                return HttpResponse(RETURN_STRING_CREATE_NO_NODE_AVAILABE, content_type=CONTENT_TYPE)
+                return HttpResponse(cst.RETURN_STRING_CREATE_NO_NODE_AVAILABE, content_type=cst.CONTENT_TYPE)
             elif not await sync_to_async(self.is_in_limit)():
-                return HttpResponse(RETURN_STRING_CREATE_LIMIT_REACHED, content_type=CONTENT_TYPE)
+                return HttpResponse(cst.RETURN_STRING_CREATE_LIMIT_REACHED, content_type=cst.CONTENT_TYPE)
 
         meeting, created = await sync_to_async(Meeting.objects.get_or_create)(id=self.meeting_id, secret=self.secret, defaults=self.get_meeting_defaults())
 
@@ -103,7 +84,7 @@ class ClientB3lbRequest:
         Get node and delegate (redirect) client to node.
         """
         if not self.meeting_id:
-            return HttpResponse(RETURN_STRING_MISSING_MEETING_ID, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID, content_type=cst.CONTENT_TYPE)
         if not await self.is_meeting():
             return HttpResponseBadRequest()
         await sync_to_async(self.check_parameters)()
@@ -117,16 +98,16 @@ class ClientB3lbRequest:
         """
         try:
             secret_meeting_list = await sync_to_async(SecretMeetingList.objects.get)(secret=self.secret)
-            return HttpResponse(secret_meeting_list.xml, content_type=CONTENT_TYPE)
+            return HttpResponse(secret_meeting_list.xml, content_type=cst.CONTENT_TYPE)
         except ObjectDoesNotExist:
-            return HttpResponse(RETURN_STRING_GET_MEETINGS_NO_MEETINGS, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_GET_MEETINGS_NO_MEETINGS, content_type=cst.CONTENT_TYPE)
 
     async def get_recordings(self) -> HttpResponse:
         """
         'getRecordings' endpoint.
         """
         if not self.secret.is_record_enabled:
-            return HttpResponse(RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type=cst.CONTENT_TYPE)
 
         records = []
         recording_ids = self.parameters.get("recordID", "")
@@ -140,8 +121,8 @@ class ClientB3lbRequest:
             records = await sync_to_async(self.get_recording_dicts)()
 
         if records:
-            return HttpResponse(render_to_string(template_name="getRecordings.xml", context={"records": records}), content_type=CONTENT_TYPE)
-        return HttpResponse(RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type=CONTENT_TYPE)
+            return HttpResponse(render_to_string(template_name="getRecordings.xml", context={"records": records}), content_type=cst.CONTENT_TYPE)
+        return HttpResponse(cst.RETURN_STRING_GET_RECORDING_NO_RECORDINGS, content_type=cst.CONTENT_TYPE)
 
     async def publish_recordings(self) -> HttpResponse:
         """
@@ -150,10 +131,10 @@ class ClientB3lbRequest:
         recording_ids = self.parameters.get("recordID", "")
         publish = self.parameters.get("publish", "")
         if not recording_ids:
-            return HttpResponse(RETURN_STRING_MISSING_RECORD_ID, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_MISSING_RECORD_ID, content_type=cst.CONTENT_TYPE)
 
         if not publish or publish.lower() not in ["true", "false"]:
-            return HttpResponse(RETURN_STRING_MISSING_RECORD_PUBLISH, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_MISSING_RECORD_PUBLISH, content_type=cst.CONTENT_TYPE)
 
         self.state = ""  # set to empty string for not filtering by state
         if publish == "true":
@@ -165,7 +146,7 @@ class ClientB3lbRequest:
             recordings = await sync_to_async(self.filter_recordings)(recording_id=recording_id)
             await sync_to_async(recordings.update)(published=published)
 
-        return HttpResponse(RETURN_STRING_RECORD_PUBLISHED.format(publish), content_type=CONTENT_TYPE)
+        return HttpResponse(cst.RETURN_STRING_RECORD_PUBLISHED.format(publish), content_type=cst.CONTENT_TYPE)
 
     async def delete_recordings(self) -> HttpResponse:
         """
@@ -173,13 +154,13 @@ class ClientB3lbRequest:
         """
         recording_ids = self.parameters.get("recordID", "")
         if not recording_ids:
-            return HttpResponse(RETURN_STRING_MISSING_RECORD_ID, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_MISSING_RECORD_ID, content_type=cst.CONTENT_TYPE)
 
         self.state = ""  # set to empty string for not filtering by state
         for recording_id in recording_ids.split(","):
             await sync_to_async(self.delete_recordings_by_recording_id)(recording_id)
 
-        return HttpResponse(RETURN_STRING_RECORD_DELETED, content_type=CONTENT_TYPE)
+        return HttpResponse(cst.RETURN_STRING_RECORD_DELETED, content_type=cst.CONTENT_TYPE)
 
     async def update_recordings(self) -> HttpResponse:
         """
@@ -190,14 +171,14 @@ class ClientB3lbRequest:
         """
         recording_ids = self.parameters.get("recordID", "")
         if not recording_ids:
-            return HttpResponse(RETURN_STRING_MISSING_RECORD_ID, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_MISSING_RECORD_ID, content_type=cst.CONTENT_TYPE)
 
         gl_listed = self.parameters.get("meta_gl-listed", "")
         name = self.parameters.get("meta_name", "").strip()  # replacing Greenlight parameter syntax, which isn't part of the entered name
 
         # prevent database update error with arbitrary long name parameter value
-        if len(name) > RECORD_PROFILE_DESCRIPTION_LENGTH + MEETING_NAME_LENGTH + 3:
-            name = name[:RECORD_PROFILE_DESCRIPTION_LENGTH + MEETING_NAME_LENGTH + 3]
+        if len(name) > cst.RECORD_PROFILE_DESCRIPTION_LENGTH + cst.MEETING_NAME_LENGTH + 3:
+            name = name[:cst.RECORD_PROFILE_DESCRIPTION_LENGTH + cst.MEETING_NAME_LENGTH + 3]
 
         self.state = ""  # no recording filter by state
 
@@ -214,7 +195,7 @@ class ClientB3lbRequest:
             if gl_listed:
                 await sync_to_async(recordings.update)(gl_listed=listed)
 
-        return HttpResponse(RETURN_STRING_RECORD_UPDATED, content_type=CONTENT_TYPE)
+        return HttpResponse(cst.RETURN_STRING_RECORD_UPDATED, content_type=cst.CONTENT_TYPE)
 
     @staticmethod
     async def get_recording_text_tracks() -> HttpResponse:
@@ -222,7 +203,7 @@ class ClientB3lbRequest:
         'getRecordingTextTracks' endpoint.
         Currently, hardcoded for future implementation.
         """
-        return HttpResponse(RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON, content_type="application/json")
+        return HttpResponse(cst.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON, content_type="application/json")
 
     async def is_meeting_running(self) -> HttpResponse:
         """
@@ -231,7 +212,7 @@ class ClientB3lbRequest:
         Send client request to node and return response to client if exists otherwise return hardcoded answer.
         """
         if not await self.is_meeting():
-            return HttpResponse(RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_IS_MEETING_RUNNING_FALSE, content_type=cst.CONTENT_TYPE)
         return await self.pass_through()
 
     async def pass_through(self) -> HttpResponse:
@@ -240,18 +221,18 @@ class ClientB3lbRequest:
         Send client request to correct node and return node response to client.
         """
         if not self.meeting_id:
-            return HttpResponse(RETURN_STRING_MISSING_MEETING_ID, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID, content_type=cst.CONTENT_TYPE)
         if not await self.is_meeting():
-            return HttpResponse(RETURN_STRING_GET_MEETING_INFO_FALSE, content_type=CONTENT_TYPE)
+            return HttpResponse(cst.RETURN_STRING_GET_MEETING_INFO_FALSE, content_type=cst.CONTENT_TYPE)
         if not self.node:
             await self.set_node_by_meeting_id()
         async with ClientSession() as session:
             if self.request.method == "POST":
                 async with session.post(await sync_to_async(self.get_node_endpoint_url_encoded)(), data=self.body) as res:
-                    return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', CONTENT_TYPE))
+                    return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', cst.CONTENT_TYPE))
             else:
                 async with session.get(await sync_to_async(self.get_node_endpoint_url_encoded)()) as res:
-                    return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', CONTENT_TYPE))
+                    return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', cst.CONTENT_TYPE))
 
     @staticmethod
     async def version() -> HttpResponse:
@@ -259,7 +240,7 @@ class ClientB3lbRequest:
         Empty ('')/root endpoint.
         Returns the BigBlueButton API version.
         """
-        return HttpResponse(RETURN_STRING_VERSION, content_type=CONTENT_TYPE)
+        return HttpResponse(cst.RETURN_STRING_VERSION, content_type=cst.CONTENT_TYPE)
 
     #### Own Routines & Endpoints ####
     async def endpoint_delegation(self) -> HttpResponse:
@@ -449,7 +430,7 @@ class ClientB3lbRequest:
         return URL(self.get_node_endpoint_url(), encoded=True)
 
     def get_forwarded_host(self) -> str:
-        return HOST_REGEX.sub(r'\1', self.request.META.get('HTTP_X_FORWARDED_HOST', self.request.META.get('HTTP_HOST')))
+        return cst.HOST_REGEX.sub(r'\1', self.request.META.get('HTTP_X_FORWARDED_HOST', self.request.META.get('HTTP_HOST')))
 
     def get_query_string(self) -> str:
         query_string = self.request.META.get("QUERY_STRING", "")
@@ -468,10 +449,10 @@ class ClientB3lbRequest:
         return SecretMetricsList.objects.get(secret=self.secret).metrics
 
     def get_sha_by_length(self) -> Union[HASH, None]:
-        return SHA_ALGORITHMS.get(len(self.checksum))
+        return cst.SHA_ALGORITHMS.get(len(self.checksum))
 
     def get_sha_by_parameter(self) -> Union[HASH, None]:
-        return SHA_ALGORITHMS.get(self.parameters.get("checksumHash", ""))
+        return cst.SHA_ALGORITHMS.get(self.parameters.get("checksumHash", ""))
 
     def get_tenant_statistic(self) -> str:
         statistic = {}
@@ -518,7 +499,7 @@ class ClientB3lbRequest:
 
     async def set_secret_by_slug_and_slug_id(self, slug: str, sub_id: int):
         if not slug:
-            search = SLUG_REGEX.search(self.get_forwarded_host())
+            search = cst.SLUG_REGEX.search(self.get_forwarded_host())
             if search:
                 slug = search.group(1).upper()
                 sub_id = int(search.group(3) or 0)

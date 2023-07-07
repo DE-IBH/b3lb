@@ -27,7 +27,6 @@ from django.utils.crypto import get_random_string
 from django.utils.html import format_html
 from django.utils.http import urlencode
 from django.urls import reverse
-from hashlib import sha1, sha256, sha384, sha512
 from _hashlib import HASH
 from math import pow
 from os.path import join
@@ -37,43 +36,18 @@ from rest.classes.statistics import MeetingStats
 from rest.classes.storage import DBStorage
 from storages.backends.s3boto3 import ClientError, S3Boto3Storage
 from textwrap import wrap
-from typing import Any, Dict, Union
+from typing import Any, Dict
+import rest.b3lb.contants as cst
 import uuid as uid
 
-#
-# CONSTANTS
-#
-API_MATE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyz0123456789'
-MEETING_ID_LENGTH = 100
-MEETING_NAME_LENGTH = 500
-NONCE_CHAR_POOL = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@*(-_)'
-NONCE_LENGTH = 64
-RECORD_PROFILE_DESCRIPTION_LENGTH = 255
-SHA1 = "sha1"
-SHA256 = "sha256"
-SHA384 = "sha384"
-SHA512 = "sha512"
-SHA_BY_STRING: Dict[Any, HASH] = {SHA1: sha1, SHA256: sha256, SHA384: sha384, SHA512: sha512}
-SHA_ALGORITHMS: Dict[Any, HASH] = {}
-if SHA1 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
-    SHA_ALGORITHMS[40] = sha1
-    SHA_ALGORITHMS[SHA1] = sha1
-if SHA256 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
-    SHA_ALGORITHMS[64] = sha256
-    SHA_ALGORITHMS[SHA256] = sha256
-if SHA384 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
-    SHA_ALGORITHMS[96] = sha384
-    SHA_ALGORITHMS[SHA384] = sha384
-if SHA512 in settings.B3LB_ALLOWED_SHA_ALGORITHMS:
-    SHA_ALGORITHMS[128] = sha512
-    SHA_ALGORITHMS[SHA512] = sha512
+
 
 
 #
 # FUNCTIONS
 #
 def get_nonce():
-    return get_random_string(NONCE_LENGTH, NONCE_CHAR_POOL)
+    return get_random_string(cst.NONCE_LENGTH, cst.NONCE_CHAR_POOL)
 
 
 def get_storage():
@@ -112,7 +86,7 @@ def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
 # MODELS
 #
 class Cluster(models.Model):
-    SHA_CHOICES = [(SHA1, SHA1), (SHA256, SHA256), (SHA384, SHA384), (SHA512, SHA512)]
+    SHA_CHOICES = [(cst.SHA1, cst.SHA1), (cst.SHA256, cst.SHA256), (cst.SHA384, cst.SHA384), (cst.SHA512, cst.SHA512)]
 
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     name = models.CharField(max_length=100, help_text="cluster name", unique=True)
@@ -120,7 +94,7 @@ class Cluster(models.Model):
     load_m_factor = models.FloatField(default=30.0, help_text="per meeting load factor")
     load_cpu_iterations = models.IntegerField(default=6, help_text="max sum iteration")
     load_cpu_max = models.IntegerField(default=5000, help_text="max cpu load")
-    sha_function = models.CharField(max_length=6, choices=SHA_CHOICES, default=SHA256)
+    sha_function = models.CharField(max_length=6, choices=SHA_CHOICES, default=cst.SHA256)
 
     class Meta(object):
         ordering = ['name']
@@ -129,7 +103,7 @@ class Cluster(models.Model):
         return self.name
 
     def get_sha(self) -> HASH:
-        return SHA_BY_STRING.get(self.sha_function)()
+        return cst.SHA_BY_STRING.get(self.sha_function)()
 
 
 class ClusterAdmin(admin.ModelAdmin):
@@ -264,8 +238,8 @@ class NodeAdmin(admin.ModelAdmin):
         params = {
             "sharedSecret": obj.secret,
             "name": f"API Mate test room on {obj.slug.lower()}.{obj.domain}",
-            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL),
-            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL)
+            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL),
+            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL)
         }
 
         url_enc_params = urlencode(params)
@@ -458,8 +432,8 @@ class SecretAdmin(admin.ModelAdmin):
         params = {
             "sharedSecret": obj.secret,
             "name": f"API Mate test room for {low_slug_id}",
-            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL),
-            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, API_MATE_CHAR_POOL)
+            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL),
+            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL)
         }
         slide_string = ""
         try:
@@ -593,15 +567,15 @@ class SecretMetricsListAdmin(admin.ModelAdmin):
 
 # meeting - tenant - node relation class
 class Meeting(models.Model):
-    id = models.CharField(max_length=MEETING_ID_LENGTH, primary_key=True)
+    id = models.CharField(max_length=cst.MEETING_ID_LENGTH, primary_key=True)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
     node = models.ForeignKey(Node, on_delete=models.CASCADE)
-    room_name = models.CharField(max_length=MEETING_NAME_LENGTH)
+    room_name = models.CharField(max_length=cst.MEETING_NAME_LENGTH)
     age = models.DateTimeField(default=timezone.now)
     attendees = models.SmallIntegerField(default=0)
     end_callback_url = models.URLField(default="")
     listenerCount = models.SmallIntegerField(default=0)
-    nonce = models.CharField(max_length=NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
+    nonce = models.CharField(max_length=cst.NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
     voiceParticipantCount = models.SmallIntegerField(default=0)
     moderatorCount = models.SmallIntegerField(default=0)
     videoCount = models.SmallIntegerField(default=0)
@@ -642,7 +616,7 @@ class RecordSet(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     recording_archive = models.FileField(storage=get_storage)
     recording_ready_origin_url = models.URLField(default="")
-    nonce = models.CharField(max_length=NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
+    nonce = models.CharField(max_length=cst.NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="UNKNOWN")
     file_path = models.CharField(max_length=50)
 
@@ -652,8 +626,8 @@ class RecordSet(models.Model):
     meta_bbb_origin_server_name = models.CharField(max_length=50, default="")
     meta_is_breakout = models.BooleanField(default=False)
     meta_end_callback_url = models.URLField(default="")
-    meta_meeting_id = models.CharField(max_length=MEETING_ID_LENGTH, default="")
-    meta_meeting_name = models.CharField(max_length=MEETING_NAME_LENGTH, default="")
+    meta_meeting_id = models.CharField(max_length=cst.MEETING_ID_LENGTH, default="")
+    meta_meeting_name = models.CharField(max_length=cst.MEETING_NAME_LENGTH, default="")
     meta_start_time = models.CharField(max_length=14, default="")
     meta_end_time = models.CharField(max_length=14, default="")
     meta_participants = models.SmallIntegerField(default=0)
@@ -719,7 +693,7 @@ class RecordSetAdmin(admin.ModelAdmin):
 
 class RecordProfile(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
-    description = models.CharField(max_length=RECORD_PROFILE_DESCRIPTION_LENGTH)
+    description = models.CharField(max_length=cst.RECORD_PROFILE_DESCRIPTION_LENGTH)
     name = models.CharField(max_length=32, unique=True)
     width = models.IntegerField(default=1920, help_text="width of video")
     height = models.IntegerField(default=1080, help_text="height of video")
@@ -760,12 +734,12 @@ class Record(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     file = models.FileField(storage=get_storage)
     profile = models.ForeignKey(RecordProfile, on_delete=models.PROTECT, null=True)
-    name = models.CharField(max_length=RECORD_PROFILE_DESCRIPTION_LENGTH + MEETING_NAME_LENGTH + 3)
+    name = models.CharField(max_length=cst.RECORD_PROFILE_DESCRIPTION_LENGTH + cst.MEETING_NAME_LENGTH + 3)
     gl_listed = models.BooleanField(default=False)
     published = models.BooleanField(default=False)
     record_set = models.ForeignKey(RecordSet, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(default=timezone.now)
-    nonce = models.CharField(max_length=NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
+    nonce = models.CharField(max_length=cst.NONCE_LENGTH, default=get_nonce, editable=False, unique=True)
 
     def get_file_size(self) -> int:
         try:

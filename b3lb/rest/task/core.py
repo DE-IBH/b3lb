@@ -23,14 +23,12 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from json import dumps
 from requests import get
+from rest.b3lb.contants import RETURN_STRING_GET_MEETINGS_NO_MEETINGS
 from rest.b3lb.metrics import incr_metric, set_metric
 from rest.b3lb.utils import xml_escape
 from rest.classes.checks import NodeCheck
 from rest.models import Meeting, Metric, Node, NodeMeetingList, Secret, SecretMeetingList
 from xml.etree import ElementTree
-
-
-RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<meetings/>\r\n<messageKey>noMeetings</messageKey>\r\n<message>no meetings were found on this server</message>\r\n</response>'
 
 
 def check_node(check: NodeCheck):
