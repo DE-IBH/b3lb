@@ -75,7 +75,7 @@ class ClientB3lbRequest:
 
         if created:
             await sync_to_async(update_create_metrics)(self.secret, self.node)
-        await sync_to_async(self.check_parameters)(meeting)
+        await sync_to_async(self.check_parameters)(meeting, created)
         return await self.pass_through()
 
     async def join(self) -> HttpResponse:
@@ -313,7 +313,7 @@ class ClientB3lbRequest:
                 return True
         return False
 
-    def check_parameters(self, meeting: Meeting = None):
+    def check_parameters(self, meeting: Meeting = None, created: bool = False):
         parameters = Parameter.objects.filter(tenant=self.secret.tenant)
         if self.endpoint == "join":
             endpoint_parameters = Parameter.PARAMETERS_JOIN
@@ -354,8 +354,9 @@ class ClientB3lbRequest:
 
             # check if records are enabled
             if self.secret.is_record_enabled:
-                record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, meta_meeting_id=meeting.id, recording_ready_origin_url=self.parameters.pop("meta_bbb-recording-ready-url", ""), meta_end_callback_url=meeting.end_callback_url, nonce=meeting.nonce)
-                self.parameters[f"meta_{settings.B3LB_RECORD_META_DATA_TAG}"] = record_set.nonce
+                if created: # only if meeting has been created otherwise do nothing
+                    record_set = RecordSet.objects.create(secret=self.secret, meeting=meeting, meta_meeting_id=meeting.id, recording_ready_origin_url=self.parameters.pop("meta_bbb-recording-ready-url", ""), meta_end_callback_url=meeting.end_callback_url, nonce=meeting.nonce)
+                    self.parameters[f"meta_{settings.B3LB_RECORD_META_DATA_TAG}"] = record_set.nonce
             else:
                 # record aren't enabled -> suppress any record related parameter
                 for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
