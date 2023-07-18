@@ -21,12 +21,12 @@ import json
 
 
 class Command(BaseCommand):
-    help = 'Get first secret and hostnames of tenants.'
+    help = 'Get secrets, endpoints and if recording is enabled.'
 
     def handle(self, *args, **options):
         tenant_dict = {}
 
         for secret in Secret.objects.all():
-            tenant_dict["{}-{}".format(secret.tenant.slug, str(secret.sub_id).zfill(3))] = {"secret": secret.secret, "hostname": secret.endpoint}
+            tenant_dict["{}-{}".format(secret.tenant.slug, str(secret.sub_id).zfill(3))] = {"secret": secret.secret, "hostname": secret.endpoint, "recording": secret.is_record_enabled}
 
         self.stdout.write(json.dumps(tenant_dict))
