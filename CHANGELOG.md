@@ -11,7 +11,16 @@ Changes:
   - disabledFeaturesExclude(2.6.9)
   - userdata-bbb_hide_presentation_on_join
 - move configuration of checksum hash function from `ClusterGroups` to `Clusters`
-- bump dependencies
+- bumped python dependencies:
+  - boto3: `1.26.119` => `1.26.163`
+  - celery: `5.2.7` => `5.3.1`
+  - Django: `3.2.18` => `3.2.19`
+  - django-extensions: `3.2.1` => `3.2.3`
+  - requests: `2.28.2` => `2.31.0`
+  - django-cacheops: `7.0` => `7.0.1`
+  - django-celery-results: `2.5.0` => `2.5.1`
+  - django-redis: `5.2.0` => `5.3.0`
+  - uvicorn: `0.21.1` => `0.22.0`
 
 ## 3.0.7 - 2023-06-02
 
