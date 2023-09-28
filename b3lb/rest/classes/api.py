@@ -23,7 +23,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.db.models import Sum
-from django.db.models.query import QuerySet
+from django.db.models.query import QuerySet, Q
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
 from django.template.loader import render_to_string
 from json import dumps
@@ -35,6 +35,7 @@ from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.utils import get_checksum
 from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal, Union
+from uuid import UUID
 from urllib.parse import urlencode
 from xmltodict import parse
 import rest.b3lb.contants as cst
@@ -278,21 +279,31 @@ class ClientB3lbRequest:
         return ["GET", "POST"]
 
     def filter_recordings(self, meeting_id: str = "", recording_id: str = "") -> QuerySet[Record]:
-        if recording_id:
-            recordings = Record.objects.filter(uuid=recording_id, record_set__secret=self.secret)
-        elif meeting_id:
-            recordings = Record.objects.filter(record_set__meta_meeting_id=meeting_id, record_set__secret=self.secret)
-        else:
-            recordings = Record.objects.filter(record_set__secret=self.secret)
+        if self.state and self.state not in ["unpublished", "published"]:
+            return QuerySet(model=Record)  # return empty QuerySet if state isn't in allowed states
 
-        if not self.state:
-            return recordings
-        elif self.state == "published":
-            return recordings.filter(published=True)
+        query = Q(record_set__secret=self.secret)
+
+        if recording_id:
+            try:
+                UUID(recording_id)
+                query &= Q(uuid=recording_id)
+            except ValueError:
+                return QuerySet(model=Record)  # return empty QuerySet for BadRequest
+
+        if meeting_id:
+            try:
+                UUID(meeting_id)
+                query %= Q(record_set__meta_meeting_id=meeting_id)
+            except ValueError:
+                return QuerySet(model=Record)  # return empty QuerySet for BadRequest
+
+        if self.state == "published":
+            query &= Q(published=True)
         elif self.state == "unpublished":
-            return recordings.filter(published=False)
-        else:
-            return QuerySet(model=Record)  # return empty QuerySet
+            query &= Q(published=True)
+
+        return Record.objects.filter(query)
 
     def delete_recordings_by_recording_id(self, recording_id: str = ""):
         recordings = self.filter_recordings(recording_id=recording_id)

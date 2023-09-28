@@ -1,5 +1,13 @@
 # ChangeLog
 
+## 3.1.1 - 2023-09-28
+
+Fixes:
+- fix getRecordings endpoint when nothing is queried 
+- fix ConnectionError exception when sending callback to given url
+- fix filter records when no meeting_id or record_id aren't UUIDs
+
+
 ## 3.1.0 - 2023-06-29
 
 Changes:
