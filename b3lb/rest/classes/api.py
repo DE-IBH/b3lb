@@ -30,7 +30,7 @@ from json import dumps
 from _hashlib import HASH
 from random import randint
 from requests import get
-from requests.exceptions import ConnectionError
+from requests.exceptions import RequestException
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.utils import get_checksum
 from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
@@ -630,7 +630,8 @@ class NodeB3lbRequest:
                 url = f"{end_callback_url}?meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
             try:
                 get(url)
-            except ConnectionError:
+            except RequestException as rex:
+                print(f"Exception: {rex}")
                 print(f"Couldn't send callback to URL: {url}")
 
     async def upload_record(self) -> HttpResponse:
