@@ -30,6 +30,7 @@ from json import dumps
 from _hashlib import HASH
 from random import randint
 from requests import get
+from requests.exceptions import ConnectionError
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.utils import get_checksum
 from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
@@ -118,7 +119,7 @@ class ClientB3lbRequest:
             for meeting_id in self.meeting_id.split(","):
                 records = await sync_to_async(self.get_recording_dicts)(records, meeting_id=meeting_id)
         else:
-            records = await sync_to_async(self.get_recording_dicts)()
+            records = await sync_to_async(self.get_recording_dicts)([])
 
         if records:
             return HttpResponse(render_to_string(template_name="getRecordings.xml", context={"records": records}), content_type=cst.CONTENT_TYPE)
@@ -616,7 +617,10 @@ class NodeB3lbRequest:
                 url = f"{end_callback_url}&meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
             else:
                 url = f"{end_callback_url}?meetingID={self.meeting_id}&recordingmarks={self.recording_marks}"
-            get(url)
+            try:
+                get(url)
+            except ConnectionError:
+                print(f"Couldn't send callback to URL: {url}")
 
     async def upload_record(self) -> HttpResponse:
         record_set: RecordSet
