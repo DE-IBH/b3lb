@@ -301,7 +301,7 @@ class ClientB3lbRequest:
         if self.state == "published":
             query &= Q(published=True)
         elif self.state == "unpublished":
-            query &= Q(published=True)
+            query &= Q(published=False)
 
         return Record.objects.filter(query)
 
