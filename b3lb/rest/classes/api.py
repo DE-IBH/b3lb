@@ -120,7 +120,7 @@ class ClientB3lbRequest:
             for meeting_id in self.meeting_id.split(","):
                 records = await sync_to_async(self.get_recording_dicts)(records, meeting_id=meeting_id)
         else:
-            records = await sync_to_async(self.get_recording_dicts)([])
+            records = await sync_to_async(self.get_recording_dicts)(records)
 
         if records:
             return HttpResponse(render_to_string(template_name="getRecordings.xml", context={"records": records}), content_type=cst.CONTENT_TYPE)
