@@ -1258,7 +1258,7 @@ class Parameter(models.Model):
 
     def clean_fields(self, exclude=None):
         if self.mode in [self.SET, self.OVERRIDE]:
-            if not match(self.PARAMETER_REGEXES[self.parameter], self.value):
+            if not (self.value and match(self.PARAMETER_REGEXES[self.parameter], self.value)):
                 raise ValidationError(f'Value must have the format "{self.PARAMETER_REGEXES[self.parameter]}"!', params={'value': self.value})
 
     class Meta(object):
