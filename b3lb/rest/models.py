@@ -35,7 +35,7 @@ from rest.b3lb.parameters import SET, OVERRIDE, MODE_CHOICES, PARAMETER_REGEXES,
 from rest.b3lb.utils import xml_escape
 from rest.classes.statistics import MeetingStats
 from rest.classes.storage import DBStorage
-from storages.backends.s3boto3 import ClientError, S3Boto3Storage
+from storages.backends.s3 import ClientError, S3Storage
 from textwrap import wrap
 from typing import Any, Dict
 import rest.b3lb.constants as cst
@@ -53,7 +53,7 @@ def get_storage():
     if settings.B3LB_RECORD_STORAGE == "local":
         used_storage = FileSystemStorage()
     elif settings.B3LB_RECORD_STORAGE == "s3":
-        used_storage = S3Boto3Storage()
+        used_storage = S3Storage()
         used_storage.access_key = settings.B3LB_S3_ACCESS_KEY
         used_storage.secret_key = settings.B3LB_S3_SECRET_KEY
         used_storage.endpoint_url = settings.B3LB_S3_ENDPOINT_URL
