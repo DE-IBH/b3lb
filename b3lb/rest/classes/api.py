@@ -32,6 +32,7 @@ from random import randint
 from requests import get
 from requests.exceptions import RequestException
 from rest.b3lb.metrics import incr_metric, update_create_metrics
+from rest.b3lb.parameters import ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING, BLOCK, LOGO, OVERRIDE, PARAMETERS_CREATE, PARAMETERS_JOIN, RECORD, SET, USERDATA_BBB_CUSTOM_STYLE_URL
 from rest.b3lb.utils import get_checksum
 from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal, Union
@@ -328,32 +329,32 @@ class ClientB3lbRequest:
     def check_parameters(self, meeting: Meeting = None, created: bool = False):
         parameters = Parameter.objects.filter(tenant=self.secret.tenant)
         if self.endpoint == "join":
-            endpoint_parameters = Parameter.PARAMETERS_JOIN
+            endpoint_parameters = PARAMETERS_JOIN
         elif self.endpoint == "create":
-            endpoint_parameters = Parameter.PARAMETERS_CREATE
+            endpoint_parameters = PARAMETERS_CREATE
         else:
             endpoint_parameters = []
 
         for parameter in parameters:
             if parameter.parameter in endpoint_parameters:
                 if parameter.parameter in self.parameters:
-                    if parameter.mode == Parameter.BLOCK:
+                    if parameter.mode == BLOCK:
                         self.parameters.pop(parameter.parameter)
-                    elif parameter.mode == Parameter.OVERRIDE:
+                    elif parameter.mode == OVERRIDE:
                         self.parameters[parameter.parameter] = parameter.value
-                elif parameter.mode in [Parameter.SET, Parameter.OVERRIDE]:
+                elif parameter.mode in [SET, OVERRIDE]:
                     self.parameters[parameter.parameter] = parameter.value
 
-        if self.endpoint == "join" and Parameter.USERDATA_BBB_CUSTOM_STYLE_URL not in self.parameters and hasattr(self.secret.tenant, 'asset') and self.secret.tenant.asset.custom_css:
-            self.parameters[Parameter.USERDATA_BBB_CUSTOM_STYLE_URL] = self.secret.tenant.asset.custom_css_url
+        if self.endpoint == "join" and USERDATA_BBB_CUSTOM_STYLE_URL not in self.parameters and hasattr(self.secret.tenant, 'asset') and self.secret.tenant.asset.custom_css:
+            self.parameters[USERDATA_BBB_CUSTOM_STYLE_URL] = self.secret.tenant.asset.custom_css_url
 
         elif self.endpoint == "create":
             self.parameters.pop("dialNumber", None)
             self.parameters.pop("voiceBridge", None)
 
             # check for custom logo
-            if Parameter.LOGO not in self.parameters and hasattr(self.secret.tenant, 'asset') and self.secret.tenant.asset.logo:
-                self.parameters[Parameter.LOGO] = self.secret.tenant.asset.logo_url
+            if LOGO not in self.parameters and hasattr(self.secret.tenant, 'asset') and self.secret.tenant.asset.logo:
+                self.parameters[LOGO] = self.secret.tenant.asset.logo_url
 
             # check for custom slide
             if self.request.method == "GET" and hasattr(self.secret.tenant, 'asset') and self.secret.tenant.asset.slide:
@@ -371,7 +372,7 @@ class ClientB3lbRequest:
                     self.parameters[f"meta_{settings.B3LB_RECORD_META_DATA_TAG}"] = record_set.nonce
             else:
                 # record aren't enabled -> suppress any record related parameter
-                for param in [Parameter.RECORD, Parameter.ALLOW_START_STOP_RECORDING, Parameter.AUTO_START_RECORDING]:
+                for param in [RECORD, ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING]:
                     self.parameters[param] = "false"
 
             self.parameters["meta_endCallbackUrl"] = f"https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/b/meeting/end?nonce={meeting.nonce}"
