@@ -38,7 +38,7 @@ from typing import Any, Dict, List, Literal, Union
 from uuid import UUID
 from urllib.parse import urlencode
 from xmltodict import parse
-import rest.b3lb.contants as cst
+import rest.b3lb.constants as cst
 
 
 class ClientB3lbRequest:
