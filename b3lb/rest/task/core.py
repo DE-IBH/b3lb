@@ -23,7 +23,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from json import dumps
 from requests import get
-from rest.b3lb.contants import RETURN_STRING_GET_MEETINGS_NO_MEETINGS
+from rest.b3lb.constants import RETURN_STRING_GET_MEETINGS_NO_MEETINGS
 from rest.b3lb.metrics import incr_metric, set_metric
 from rest.b3lb.utils import xml_escape
 from rest.classes.checks import NodeCheck
