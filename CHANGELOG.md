@@ -1,5 +1,35 @@
 # ChangeLog
 
+## 3.2.0 - 2024-05-16
+
+Changes:
+- add new BBB 2.6 API parameters
+  - preUploadedPresentation
+  - preUploadedPresentationName
+  - errorRedirectUrl
+  - userdata-bbb_fullaudio_bridge
+- refactor Parameter model
+- added python dependencies:
+  - pyjwt: `2.8.0`
+- bumped python dependencies:
+  - Django: `3.2.19` => `3.2.25`
+  - PyGObject: `3.44.1` => `3.48.2`
+  - aiohttp: `3.8.4` => `3.9.5`
+  - boto3: `1.26.163` => `1.34.106`
+  - celery: `5.3.1` => `5.3.4`
+  - django-cacheops: `7.0.1` => `7.0.2`
+  - django-celery-beat: `2.5.0` => `2.6.0`
+  - django-db-file-storage: `0.5.5` => `0.5.6.1`
+  - django-environ: `0.10.0` => `0.11.2`
+  - django-redis: `5.3.0` => `5.4.0`
+  - django-storages: `1.13.2` => `1.14.3`
+  - uvicorn[standard]: `0.22.0` => `0.29.0`
+
+Fixes:
+- fix record ready callback
+- fix value check for empty parameters
+- fix errors when a very long meeting name (>500 chars) was given
+
 ## 3.1.1 - 2023-09-28
 
 Fixes:
