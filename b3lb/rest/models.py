@@ -37,7 +37,7 @@ from rest.classes.statistics import MeetingStats
 from rest.classes.storage import DBStorage
 from storages.backends.s3 import ClientError, S3Storage
 from textwrap import wrap
-from typing import Any, Dict
+from typing import Any, Dict, List
 import rest.b3lb.constants as cst
 import uuid as uid
 
@@ -417,6 +417,11 @@ class Secret(models.Model):
             return max(self.records_hold_time, self.tenant.records_hold_time)
         else:
             return min(self.records_hold_time, self.tenant.records_hold_time)
+
+    @property
+    def secrets(self) -> List[str]:
+        # returns all secrets for secret rollover use-cases
+        return [self.secret, self.secret2]
 
 
 class SecretAdmin(admin.ModelAdmin):
