@@ -15,12 +15,12 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM alpine:3.17 AS build
+FROM alpine:3.19 AS build
 
 RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel tar gcc gobject-introspection-dev
 
 ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH /usr/local/lib/python3.10/site-packages
+ENV PYTHONPATH /usr/local/lib/python3.11/site-packages
 ENV ENV_FILE .env.dev
 
 WORKDIR /usr/src/app

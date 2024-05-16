@@ -18,7 +18,8 @@
 from django.utils import timezone as tz
 from django.conf import settings
 from os import makedirs, path
-from requests import get
+from jwt import encode as jwt_encode
+from requests import post
 if settings.B3LB_RENDERING:
     from rest.b3lb.make_xges import render_xges
 from rest.models import Record, RecordSet, RecordProfile, SecretRecordProfileRelation
@@ -26,7 +27,7 @@ from subprocess import DEVNULL, PIPE, Popen
 from tempfile import TemporaryDirectory
 
 
-def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, tempdir: str):
+def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, tempdir: str) -> str:
     """
     Render RecordSet with given RecordProfile in tempdir with
 
@@ -59,6 +60,7 @@ def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, temp
     record.published = True
     record.save()
     print(f"Finished rendering {record_set.__str__()} with profile {record_profile.name}")
+    return str(record.uuid)
 
 
 def render_record(record_set: RecordSet):
@@ -79,18 +81,28 @@ def render_record(record_set: RecordSet):
             profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
             if profile_relations.count() > 0:
                 for profile_relation in profile_relations:
-                    render_by_profile(record_set, profile_relation.record_profile, tempdir)
+                    record_id = render_by_profile(record_set, profile_relation.record_profile, tempdir)
             else:
                 for record_profile in RecordProfile.objects.filter(is_default=True):
-                    render_by_profile(record_set, record_profile, tempdir)
+                    record_id = render_by_profile(record_set, record_profile, tempdir)
+
+    # implementation of recording ready callback url
+    # https://docs.bigbluebutton.org/development/api/#recording-ready-callback-url
+    if record_set.recording_ready_origin_url:
+        success = False
+        for secret in record_set.secret.secrets:
+            body = {"signed_parameters": jwt_encode({"meeting_id": record_set.meta_meeting_id, "record_id": record_id}, secret)}
+            response = post(record_set.recording_ready_origin_url, json=body)
+            print(f"Send record ready callback to: {record_set.recording_ready_origin_url} with return code: {response.status_code}")
+            if 200 <= response.status_code <= 299:
+                success = True
+                break
+
+        if not success:
+            return False
 
     record_set.status = RecordSet.RENDERED
     record_set.save()
-    if record_set.recording_ready_origin_url:
-        try:
-            get(record_set.recording_ready_origin_url)
-        except:
-            pass
     return True
 
 

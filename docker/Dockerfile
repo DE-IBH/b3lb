@@ -15,12 +15,12 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM alpine:3.17 AS build
+FROM alpine:3.19 AS build
 
 RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel gcc gobject-introspection-dev
 
 ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH /usr/local/lib/python3.10/site-packages
+ENV PYTHONPATH /usr/local/lib/python3.11/site-packages
 
 WORKDIR /usr/src/app
 
@@ -28,13 +28,13 @@ COPY b3lb/requirements.txt ./
 RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 
-FROM alpine:3.17
+FROM alpine:3.19
 
 RUN apk --no-cache add python3 postgresql-libs libffi py3-pip tar
 
 ARG B3LBUID=8318
 ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH /usr/local/lib/python3.10/site-packages
+ENV PYTHONPATH /usr/local/lib/python3.11/site-packages
 
 WORKDIR /usr/src/app
 
