@@ -34,7 +34,7 @@ from requests.exceptions import RequestException
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.parameters import ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING, BLOCK, LOGO, OVERRIDE, PARAMETERS_CREATE, PARAMETERS_JOIN, RECORD, SET, USERDATA_BBB_CUSTOM_STYLE_URL
 from rest.b3lb.utils import get_checksum
-from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
+from rest.models import check_room_name, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal, Union
 from uuid import UUID
 from urllib.parse import urlencode
@@ -432,7 +432,7 @@ class ClientB3lbRequest:
 
     ## Getter Routines ##
     def get_meeting_defaults(self) -> Dict[str, Any]:
-        return {"id": self.meeting_id, "secret": self.secret, "node": self.node, "room_name": self.parameters.get("name", "Unknown"), "end_callback_url": self.parameters.get("meta_endCallbackUrl", "")}
+        return {"id": self.meeting_id, "secret": self.secret, "node": self.node, "room_name": check_room_name(self.parameters.get("name", "Unknown")), "end_callback_url": self.parameters.get("meta_endCallbackUrl", "")}
 
     def get_node_endpoint_url(self) -> str:
         parameter_str = ""

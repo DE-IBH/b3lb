@@ -45,6 +45,11 @@ import uuid as uid
 #
 # FUNCTIONS
 #
+def check_room_name(name: str) -> str:
+    if len(name) > cst.MEETING_NAME_LENGTH:
+        return name[:cst.MEETING_NAME_LENGTH]
+    return name
+
 def get_nonce():
     return get_random_string(cst.NONCE_LENGTH, cst.NONCE_CHAR_POOL)
 
