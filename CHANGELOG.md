@@ -1,5 +1,15 @@
 # ChangeLog
 
+## 3.2.1 - 2024-05-21
+
+Changes:
+- adjust to BBB 2.7.8 API changes 
+  - forbid POST request for `join` endpoint ()
+  - adjustments for POST headers are already handled 
+- meeting name check:
+  - add check for meeting name length for faster response without sending a request to backend systems
+  - meeting name length must be between 2 and 256 characters as given by BBB API restictions
+
 ## 3.2.0 - 2024-05-16
 
 Changes:
