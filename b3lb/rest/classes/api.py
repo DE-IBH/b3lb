@@ -275,7 +275,7 @@ class ClientB3lbRequest:
 
     #### Class Routines ####
     def allowed_methods(self) -> List[Literal["GET", "POST", "DELETE", "PATCH", "PUT"]]:
-        if self.endpoint in ["b3lb_metrics", "b3lb_stats"]:
+        if self.endpoint in ["b3lb_metrics", "b3lb_stats", "join"]:
             return ["GET"]
         return ["GET", "POST"]
 
