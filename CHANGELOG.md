@@ -8,7 +8,7 @@ Changes:
   - adjustments for POST headers are already handled 
 - meeting name check:
   - add check for meeting name length for faster response without sending a request to backend systems
-  - meeting name length must be between 2 and 256 characters as given by BBB API restictions
+  - meeting name length must be between 2 and 256 characters as given by BBB API restrictions
 
 ## 3.2.0 - 2024-05-16
 
