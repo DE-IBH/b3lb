@@ -45,11 +45,6 @@ import uuid as uid
 #
 # FUNCTIONS
 #
-def check_room_name(name: str) -> str:
-    if len(name) > cst.MEETING_NAME_LENGTH:
-        return name[:cst.MEETING_NAME_LENGTH]
-    return name
-
 def get_nonce():
     return get_random_string(cst.NONCE_LENGTH, cst.NONCE_CHAR_POOL)
 
@@ -67,6 +62,10 @@ def get_storage():
     else:
         used_storage = default_storage
     return used_storage
+
+
+def is_meeting_name_length_fine(name: str) -> bool:
+    return 2 <= len(name) < cst.MEETING_NAME_LENGTH
 
 
 #
