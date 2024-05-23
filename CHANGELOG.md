@@ -1,11 +1,16 @@
 # ChangeLog
 
+## 3.2.2 - 2024-05-23
+
+Fixes:
+- fix missing specific POST Header when an asset is sent
+
 ## 3.2.1 - 2024-05-21
 
 Changes:
 - adjust to BBB 2.7.8 API changes 
   - forbid POST request for `join` endpoint ()
-  - adjustments for POST headers are already handled 
+  - adjustments for POST headers are already handled
 - meeting name check:
   - add check for meeting name length for faster response without sending a request to backend systems
   - meeting name length must be between 2 and 256 characters as given by BBB API restrictions

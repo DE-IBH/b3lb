@@ -56,8 +56,21 @@ class ClientB3lbRequest:
     node: Union[Node, None]
     secret: Union[Secret, None]
     state: str
+    has_assets: bool
     ENDPOINTS_PASS_THROUGH: List[str]
     ENDPOINTS: Dict[str, Any]
+
+    #### Class functions
+    async def _check_post_headers(self) -> Dict[str, Any]:
+        if not self.has_assets:
+            # request wasn't manipulated by B3LB
+            return self.request.headers
+
+        # An asset was added by B3LB
+        headers = dict(self.request.headers.copy())
+        headers["Content-Type"] = "application/xml"
+        headers["Content-Length"] = str(len(self.body))
+        return headers
 
     #### Asynchronous BBB Endpoints
     async def create(self) -> HttpResponse:
@@ -234,7 +247,7 @@ class ClientB3lbRequest:
             await self.set_node_by_meeting_id()
         async with ClientSession() as session:
             if self.request.method == "POST":
-                async with session.post(await sync_to_async(self.get_node_endpoint_url_encoded)(), data=self.body) as res:
+                async with session.post(await sync_to_async(self.get_node_endpoint_url_encoded)(), data=self.body, headers=await self._check_post_headers()) as res:
                     return HttpResponse(await res.text(), status=res.status, content_type=res.headers.get('content-type', cst.CONTENT_TYPE))
             else:
                 async with session.get(await sync_to_async(self.get_node_endpoint_url_encoded)()) as res:
@@ -367,6 +380,7 @@ class ClientB3lbRequest:
                 else:
                     self.body = f'<modules><module name="presentation"><document url="{self.secret.tenant.asset.slide_url}" filename="{self.secret.tenant.asset.s_filename}"></document></module></modules>'
                 self.request.method = "POST"
+                self.has_assets = True
 
             # check if records are enabled
             if self.secret.is_record_enabled:
@@ -528,6 +542,7 @@ class ClientB3lbRequest:
 
     ## INIT ##
     def __init__(self, request: HttpRequest, endpoint: str):
+        self.has_assets = False
         self.request = request
         self.endpoint = endpoint
         self.parameters = {}
