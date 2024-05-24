@@ -16,12 +16,13 @@
 
 
 from base64 import b32encode
-from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.conf import settings
 from django.contrib import admin
+from django.db import models
+from django.db.models.constraints import UniqueConstraint
 from django.utils import timezone
 from django.utils.crypto import get_random_string
 from django.utils.html import format_html
@@ -575,7 +576,8 @@ class SecretMetricsListAdmin(admin.ModelAdmin):
 
 # meeting - tenant - node relation class
 class Meeting(models.Model):
-    id = models.CharField(max_length=cst.MEETING_ID_LENGTH, primary_key=True)
+    uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
+    id = models.CharField(max_length=cst.MEETING_ID_LENGTH)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
     node = models.ForeignKey(Node, on_delete=models.CASCADE)
     room_name = models.CharField(max_length=cst.MEETING_NAME_LENGTH)
@@ -592,11 +594,13 @@ class Meeting(models.Model):
 
     class Meta(object):
         ordering = ['secret__tenant', 'age']
+        constraints = [UniqueConstraint(fields=['id', 'secret'], name='unique_meeting')]
 
     def __str__(self):
         return "{} {}".format(self.secret.tenant.slug, self.room_name)
 
 
+# meeting - tenant - node relation class
 class MeetingAdmin(admin.ModelAdmin):
     model = Meeting
     list_display = ['__str__', 'bbb_origin_server_name', 'node', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount', 'age', 'id']
