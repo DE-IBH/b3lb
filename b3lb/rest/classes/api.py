@@ -34,7 +34,7 @@ from requests.exceptions import RequestException
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.parameters import ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING, BLOCK, LOGO, OVERRIDE, PARAMETERS_CREATE, PARAMETERS_JOIN, RECORD, SET, USERDATA_BBB_CUSTOM_STYLE_URL
 from rest.b3lb.utils import get_checksum
-from rest.models import is_meeting_name_length_fine, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
+from rest.models import check_str_length, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal, Union
 from uuid import UUID
 from urllib.parse import urlencode
@@ -49,6 +49,7 @@ class ClientB3lbRequest:
     request: HttpRequest
     parameters: Dict[str, Any]
     meeting_id: str
+    meeting_name: str
     body: Union[str, bytes]
     endpoint: str
     checksum: str
@@ -59,6 +60,40 @@ class ClientB3lbRequest:
     has_assets: bool
     ENDPOINTS_PASS_THROUGH: List[str]
     ENDPOINTS: Dict[str, Any]
+
+    ## INIT ##
+    def __init__(self, request: HttpRequest, endpoint: str):
+        self.has_assets = False
+        self.request = request
+        self.endpoint = endpoint
+        self.parameters = {}
+        self.body = request.body
+        for parameter in request.GET.keys():
+            self.parameters[parameter] = request.GET.get(parameter)
+
+        self.meeting_id = self.parameters.get("meetingID", "")
+        self.meeting_name = self.parameters.get("name", "")
+        self.checksum = self.parameters.pop("checksum", "")
+        self.stats_token = self.request.headers.get("Authorization", "")
+
+        self.secret = None
+        self.node = None
+        self.state = self.parameters.get("state", "")
+        self.ENDPOINTS_PASS_THROUGH = ["end", "insertDocument", "setConfigXML", "getMeetingInfo"]
+        self.ENDPOINTS = {
+            "": self.version,
+            "create": self.create,
+            "join": self.join,
+            "isMeetingRunning": self.is_meeting_running,
+            "getMeetings": self.get_meetings,
+            "getRecordingTextTracks": self.get_recording_text_tracks,
+            "getRecordings": self.get_recordings,
+            "deleteRecordings": self.delete_recordings,
+            "publishRecordings": self.publish_recordings,
+            "updateRecordings": self.update_recordings,
+            "b3lb_metrics": self.metrics,
+            "b3lb_stats": self.stats
+        }
 
     #### Class functions
     async def _check_post_headers(self) -> Dict[str, Any]:
@@ -81,7 +116,10 @@ class ClientB3lbRequest:
         if not self.meeting_id:
             return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID, content_type=cst.CONTENT_TYPE)
 
-        if not is_meeting_name_length_fine(self.parameters.get("name", "")):
+        if not check_str_length(self.meeting_id, cst.MEETING_ID_LENGTH):
+            return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID_TO_LONG, content_type=cst.CONTENT_TYPE)
+
+        if not check_str_length(self.meeting_name, cst.MEETING_NAME_LENGTH):
             return HttpResponse(cst.RETURN_STRING_WRONG_MEETING_NAME_LENGTH, content_type=cst.CONTENT_TYPE)
 
         if not await self.is_meeting():
@@ -449,7 +487,7 @@ class ClientB3lbRequest:
 
     ## Getter Routines ##
     def get_meeting_defaults(self) -> Dict[str, Any]:
-        return {"id": self.meeting_id, "secret": self.secret, "node": self.node, "room_name": self.parameters.get("name", "Unknown"), "end_callback_url": self.parameters.get("meta_endCallbackUrl", "")}
+        return {"id": self.meeting_id, "secret": self.secret, "node": self.node, "room_name": self.meeting_name, "end_callback_url": self.parameters.get("meta_endCallbackUrl", "")}
 
     def get_node_endpoint_url(self) -> str:
         parameter_str = ""
@@ -540,39 +578,6 @@ class ClientB3lbRequest:
             except ObjectDoesNotExist:
                 pass
 
-    ## INIT ##
-    def __init__(self, request: HttpRequest, endpoint: str):
-        self.has_assets = False
-        self.request = request
-        self.endpoint = endpoint
-        self.parameters = {}
-        self.body = request.body
-        for parameter in request.GET.keys():
-            self.parameters[parameter] = request.GET.get(parameter)
-
-        self.meeting_id = self.parameters.get("meetingID", "")
-        self.checksum = self.parameters.pop("checksum", "")
-        self.stats_token = self.request.headers.get("Authorization", "")
-
-        self.secret = None
-        self.node = None
-        self.state = self.parameters.get("state", "")
-        self.ENDPOINTS_PASS_THROUGH = ["end", "insertDocument", "setConfigXML", "getMeetingInfo"]
-        self.ENDPOINTS = {
-            "": self.version,
-            "create": self.create,
-            "join": self.join,
-            "isMeetingRunning": self.is_meeting_running,
-            "getMeetings": self.get_meetings,
-            "getRecordingTextTracks": self.get_recording_text_tracks,
-            "getRecordings": self.get_recordings,
-            "deleteRecordings": self.delete_recordings,
-            "publishRecordings": self.publish_recordings,
-            "updateRecordings": self.update_recordings,
-            "b3lb_metrics": self.metrics,
-            "b3lb_stats": self.stats
-        }
-
 
 class NodeB3lbRequest:
     """
@@ -586,6 +591,19 @@ class NodeB3lbRequest:
     meeting_id: str
     nonce: str
     recording_marks: str
+
+    def __init__(self, request: HttpRequest, backend: str, endpoint: str):
+        self.request = request
+        self.meeting = None
+        self.backend = backend
+        self.endpoint = endpoint
+        self.meeting_id = self.request.GET.get("meetingID", "")
+        self.nonce = self.request.GET.get("nonce", "")
+        self.recording_marks = self.request.GET.get("recordingmarks", "false")
+        self.BACKENDS = {
+            "meeting/end": {"methods": ["GET"], "function": self.end_meeting},
+            "record/upload": {"methods": ["POST"], "function": self.upload_record}
+        }
 
     def is_allowed_endpoint(self) -> bool:
         if self.full_endpoint() in self.BACKENDS:
@@ -697,16 +715,3 @@ class NodeB3lbRequest:
         await sync_to_async(record_set.save)()
 
         return HttpResponse(status=204)
-
-    def __init__(self, request: HttpRequest, backend: str, endpoint: str):
-        self.request = request
-        self.meeting = None
-        self.backend = backend
-        self.endpoint = endpoint
-        self.meeting_id = self.request.GET.get("meetingID", "")
-        self.nonce = self.request.GET.get("nonce", "")
-        self.recording_marks = self.request.GET.get("recordingmarks", "false")
-        self.BACKENDS = {
-            "meeting/end": {"methods": ["GET"], "function": self.end_meeting},
-            "record/upload": {"methods": ["POST"], "function": self.upload_record}
-        }

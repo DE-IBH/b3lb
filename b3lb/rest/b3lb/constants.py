@@ -24,6 +24,7 @@ RETURN_STRING_GET_MEETINGS_NO_MEETINGS = '<response>\r\n<returncode>SUCCESS</ret
 RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON = '{"response":{"returncode":"FAILED","messageKey":"noRecordings","message":"No recording found"}}'
 RETURN_STRING_GET_RECORDING_NO_RECORDINGS = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<recordings></recordings>\r\n<messageKey>noRecordings</messageKey>\r\n<message>There are no recordings for the meeting(s).</message>\r\n</response>'
 RETURN_STRING_MISSING_MEETING_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamMeetingID</messageKey>\r\n<message>You must specify a meeting ID for the meeting.</message>\r\n</response>'
+RETURN_STRING_MISSING_MEETING_ID_TO_LONG = '<response>\r\n<returncode>FAILED</returncode>\r\n<message>Meeting id must be between 2 and 100 characters</message>\r\n</response>'
 RETURN_STRING_MISSING_RECORD_ID = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamRecordID</messageKey>\r\n<message>You must specify one or more a record IDs.</message>\r\n</response>'
 RETURN_STRING_MISSING_RECORD_PUBLISH = '<response>\r\n<returncode>FAILED</returncode>\r\n<messageKey>missingParamPublish</messageKey>\r\n<message>You must specify one a publish value true or false.</message>\r\n</response>'
 RETURN_STRING_RECORD_PUBLISHED = '<response>\r\n<returncode>SUCCESS</returncode>\r\n<published>{}</published>\r\n</response>'
