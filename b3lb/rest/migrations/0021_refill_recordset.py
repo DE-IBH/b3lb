@@ -6,7 +6,7 @@ def refill_record_set(apps, schema_editor):
     record_set_class = apps.get_model('rest', 'RecordSet')
     meeting_class = apps.get_model('rest', 'Meeting')
     for record_set in record_set_class.objects.all():
-        if record_set.status == "UNKNOWN" and record_set.meta_meeting_id:
+        if record_set.status in ["UNKNOWN", "UPLOADED"] and record_set.meta_meeting_id:
             meetings = meeting_class.objects.filter(id=record_set.meta_meeting_id, secret=record_set.secret)
             if meetings.count() == 1:
                 record_set.meeting = meetings[0]
