@@ -4,7 +4,7 @@
 
 Fixes:
 - add possibility to use the same meeting ID for two different secrets.
-- send an error if meeting id is too long (2 < id_length < 100 chars)
+- return an error message if meeting id is out of range (2 <= id_length <= 100 chars)
 
 
 ## 3.2.2 - 2024-05-23
