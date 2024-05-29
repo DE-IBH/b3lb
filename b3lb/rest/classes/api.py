@@ -34,7 +34,7 @@ from requests.exceptions import RequestException
 from rest.b3lb.metrics import incr_metric, update_create_metrics
 from rest.b3lb.parameters import ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING, BLOCK, LOGO, OVERRIDE, PARAMETERS_CREATE, PARAMETERS_JOIN, RECORD, SET, USERDATA_BBB_CUSTOM_STYLE_URL
 from rest.b3lb.utils import get_checksum
-from rest.models import check_str_length, ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
+from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal, Union
 from uuid import UUID
 from urllib.parse import urlencode
@@ -116,10 +116,10 @@ class ClientB3lbRequest:
         if not self.meeting_id:
             return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID, content_type=cst.CONTENT_TYPE)
 
-        if not check_str_length(self.meeting_id, cst.MEETING_ID_LENGTH):
+        if not 2 <= len(self.meeting_id) < cst.MEETING_ID_LENGTH:
             return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID_TO_LONG, content_type=cst.CONTENT_TYPE)
 
-        if not check_str_length(self.meeting_name, cst.MEETING_NAME_LENGTH):
+        if not 2 <= len(self.meeting_name) < cst.MEETING_NAME_LENGTH:
             return HttpResponse(cst.RETURN_STRING_WRONG_MEETING_NAME_LENGTH, content_type=cst.CONTENT_TYPE)
 
         if not await self.is_meeting():

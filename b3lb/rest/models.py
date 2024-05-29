@@ -46,9 +46,6 @@ import uuid as uid
 #
 # FUNCTIONS
 #
-def check_str_length(value: str, max_length: int) -> bool:
-    return 2 <= len(value) < max_length
-
 def get_nonce():
     return get_random_string(cst.NONCE_LENGTH, cst.NONCE_CHAR_POOL)
 
