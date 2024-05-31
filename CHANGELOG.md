@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 3.2.4 - 2024-05-31
+
+Fixes:
+- missing check for no clips during rendering task 
+
 ## 3.2.3 - 2024-05-28
 
 Fixes:
