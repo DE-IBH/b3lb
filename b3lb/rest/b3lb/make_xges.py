@@ -260,12 +260,14 @@ class Presentation:
 
             # Find the width/height of the slide corresponding to this
             # point in time
-            info = [i.data for i in slide_time.at(pos.start)][0]
-            width, height = self._constrain(
-                (info.width, info.height),
-                (self.slides_width, self.opts.height))
+            info_list = [i.data for i in slide_time.at(pos.start)]
+            if info_list:
+                info = info_list[0]
+                width, height = self._constrain(
+                    (info.width, info.height),
+                    (self.slides_width, self.opts.height))
 
-            self._add_clip(cursor_layer, dot, pos.start, 0, end - pos.start, round(width*pos.x - dot_width/2), round(height*pos.y - dot_height / 2), dot_width, dot_height)
+                self._add_clip(cursor_layer, dot, pos.start, 0, end - pos.start, round(width*pos.x - dot_width/2), round(height*pos.y - dot_height / 2), dot_width, dot_height)
 
         layer = self._add_layer('Annotations')
         # Move above the slides layer
