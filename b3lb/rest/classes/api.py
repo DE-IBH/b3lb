@@ -335,7 +335,7 @@ class ClientB3lbRequest:
 
     def filter_recordings(self, meeting_id: str = "", recording_id: str = "") -> QuerySet[Record]:
         if self.state and self.state not in ["unpublished", "published"]:
-            return QuerySet(model=Record)  # return empty QuerySet if state isn't in allowed states
+            return Record.objects.none()  # return empty QuerySet if state isn't in allowed states
 
         query = Q(record_set__secret=self.secret)
 
@@ -344,14 +344,12 @@ class ClientB3lbRequest:
                 UUID(recording_id)
                 query &= Q(uuid=recording_id)
             except ValueError:
-                return QuerySet(model=Record)  # return empty QuerySet for BadRequest
+                return Record.objects.none()  # return empty QuerySet for BadRequest
 
-        if meeting_id:
-            try:
-                UUID(meeting_id)
-                query %= Q(record_set__meta_meeting_id=meeting_id)
-            except ValueError:
-                return QuerySet(model=Record)  # return empty QuerySet for BadRequest
+        if meeting_id and 2 <= len(self.meeting_id) <= cst.MEETING_ID_LENGTH:
+            query &= Q(record_set__meta_meeting_id=meeting_id)
+        elif meeting_id:
+            return Record.objects.none()  # return empty QuerySet for BadRequest
 
         if self.state == "published":
             query &= Q(published=True)
