@@ -1,5 +1,10 @@
 # ChangeLog
 
+## 3.2.4 - 2024-06-15
+
+Fixes:
+- fix bug in getRecordings endpoint
+
 ## 3.2.3 - 2024-05-28
 
 Fixes:
