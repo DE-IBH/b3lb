@@ -346,10 +346,11 @@ class ClientB3lbRequest:
             except ValueError:
                 return Record.objects.none()  # return empty QuerySet for BadRequest
 
-        if meeting_id and 2 <= len(self.meeting_id) <= cst.MEETING_ID_LENGTH:
-            query &= Q(record_set__meta_meeting_id=meeting_id)
-        elif meeting_id:
-            return Record.objects.none()  # return empty QuerySet for BadRequest
+        if meeting_id:
+            if 2 <= len(meeting_id) <= cst.MEETING_ID_LENGTH:
+                query &= Q(record_set__meta_meeting_id=meeting_id)
+            else:
+                return Record.objects.none()  # return empty QuerySet for BadRequest
 
         if self.state == "published":
             query &= Q(published=True)
