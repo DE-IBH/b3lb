@@ -1,9 +1,11 @@
 # ChangeLog
 
-## 3.2.4 - 2024-06-15
+## 3.2.4 - 2024-06-16
 
 Fixes:
-- fix bug in getRecordings endpoint
+- fix **security** bug in getRecordings endpoint
+
+This release fixes a security bug that allowed authenticated api requests to manage recordings of any tenants and their secrets.
 
 ## 3.2.3 - 2024-05-28
 
@@ -21,7 +23,7 @@ Fixes:
 
 Changes:
 - adjust to BBB 2.7.8 API changes 
-  - forbid POST request for `join` endpoint ()
+  - forbid POST request for `join` endpoint
   - adjustments for POST headers are already handled
 - meeting name check:
   - add check for meeting name length for faster response without sending a request to backend systems
