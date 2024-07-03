@@ -28,7 +28,7 @@ Fixes:
 
 Changes:
 - adjust to BBB 2.7.8 API changes 
-  - forbid POST request for `join` endpoint ()
+  - forbid POST request for `join` endpoint
   - adjustments for POST headers are already handled
 - meeting name check:
   - add check for meeting name length for faster response without sending a request to backend systems
