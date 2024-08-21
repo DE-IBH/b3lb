@@ -1,5 +1,12 @@
 # ChangeLog
 
+# 3.2.6 - 2024-08-21
+
+Changes:
+- add new BBB 2.7 API parameters
+  - allowPromoteGuestToModerator
+  - webcamBackgroundURL
+
 # 3.2.5 - 2024-07-03
 
 Fixes:
