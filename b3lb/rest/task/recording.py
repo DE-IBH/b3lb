@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2025 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -18,14 +18,14 @@
 from django.utils import timezone as tz
 from django.conf import settings
 from os import makedirs, path
-from jwt import encode as jwt_encode
 from requests import post
-if settings.B3LB_RENDERING:
-    from rest.b3lb.make_xges import render_xges
 from rest.models import Record, RecordSet, RecordProfile, SecretRecordProfileRelation
 from subprocess import DEVNULL, PIPE, Popen
 from tempfile import TemporaryDirectory
 
+if settings.B3LB_RENDERING:
+    from rest.b3lb.make_xges import render_xges
+    from jwt import encode as jwt_encode
 
 def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, tempdir: str) -> str:
     """
@@ -64,45 +64,46 @@ def render_by_profile(record_set: RecordSet, record_profile: RecordProfile, temp
 
 
 def render_record(record_set: RecordSet):
-    if record_set.get_raw_size() == 0:
-        print(f"raw.tar of {record_set.__str__()} empty or non existing!")
-        return False
-
-    # create temporary directory
-    with TemporaryDirectory(dir="/srv/rendering") as tempdir:
-        makedirs(f"{tempdir}/in")
-        makedirs(f"{tempdir}/out")
-
-        with open(f"{tempdir}/raw.tar", "wb") as raw:
-            # download raw.tar
-            raw.write(record_set.recording_archive.file.read())
-
-            # render with profiles
-            profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
-            if profile_relations.count() > 0:
-                for profile_relation in profile_relations:
-                    record_id = render_by_profile(record_set, profile_relation.record_profile, tempdir)
-            else:
-                for record_profile in RecordProfile.objects.filter(is_default=True):
-                    record_id = render_by_profile(record_set, record_profile, tempdir)
-
-    # implementation of recording ready callback url
-    # https://docs.bigbluebutton.org/development/api/#recording-ready-callback-url
-    if record_set.recording_ready_origin_url:
-        success = False
-        for secret in record_set.secret.secrets:
-            body = {"signed_parameters": jwt_encode({"meeting_id": record_set.meta_meeting_id, "record_id": record_id}, secret)}
-            response = post(record_set.recording_ready_origin_url, json=body)
-            print(f"Send record ready callback to: {record_set.recording_ready_origin_url} with return code: {response.status_code}")
-            if 200 <= response.status_code <= 299:
-                success = True
-                break
-
-        if not success:
+    if settings.B3LB_RENDERING:
+        if record_set.get_raw_size() == 0:
+            print(f"raw.tar of {record_set.__str__()} empty or non existing!")
             return False
 
-    record_set.status = RecordSet.RENDERED
-    record_set.save()
+        # create temporary directory
+        with TemporaryDirectory(dir="/srv/rendering") as tempdir:
+            makedirs(f"{tempdir}/in")
+            makedirs(f"{tempdir}/out")
+
+            with open(f"{tempdir}/raw.tar", "wb") as raw:
+                # download raw.tar
+                raw.write(record_set.recording_archive.file.read())
+
+                # render with profiles
+                profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
+                if profile_relations.count() > 0:
+                    for profile_relation in profile_relations:
+                        record_id = render_by_profile(record_set, profile_relation.record_profile, tempdir)
+                else:
+                    for record_profile in RecordProfile.objects.filter(is_default=True):
+                        record_id = render_by_profile(record_set, record_profile, tempdir)
+
+        # implementation of recording ready callback url
+        # https://docs.bigbluebutton.org/development/api/#recording-ready-callback-url
+        if record_set.recording_ready_origin_url:
+            success = False
+            for secret in record_set.secret.secrets:
+                body = {"signed_parameters": jwt_encode({"meeting_id": record_set.meta_meeting_id, "record_id": record_id}, secret)}
+                response = post(record_set.recording_ready_origin_url, json=body)
+                print(f"Send record ready callback to: {record_set.recording_ready_origin_url} with return code: {response.status_code}")
+                if 200 <= response.status_code <= 299:
+                    success = True
+                    break
+
+            if not success:
+                return False
+
+        record_set.status = RecordSet.RENDERED
+        record_set.save()
     return True
 
 

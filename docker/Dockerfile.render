@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2025 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -14,42 +14,51 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-FROM python:3.10-slim as build
+FROM python:3.12-slim as build_render
 
 ENV PYTHONUNBUFFERED 1
 
 WORKDIR /usr/src/app
 
-RUN apt-get update && apt-get install -y libpq-dev build-essential python3-gi gir1.2-ges-1.0 ges1.0-tools gstreamer1.0-libav gstreamer1.0-plugins-* libcairo2-dev gcc python3-dev libgirepository1.0-dev
-COPY b3lb/requirements.txt ./
-RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
+RUN apt-get update && \
+    apt-get install -y  libpq-dev \
+                        build-essential \
+                        python3-gi \
+                        gir1.2-ges-1.0 \
+                        ges1.0-tools \
+                        gstreamer1.0-libav \
+                        gstreamer1.0-plugins-* \
+                        libcairo2-dev \
+                        gcc \
+                        python3-dev \
+                        libgirepository1.0-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-FROM python:3.10-slim
+COPY requirements ./
+RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt -r requirements_render.txt
+
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED 1
 # enable Rendering
 ENV B3LB_RENDERING=true
 ARG B3LBUID=8318
-ARG ENV_FILE=.env.dev
 
 WORKDIR /usr/src/app
 
-COPY --from=build /usr/local /usr/local
-RUN apt-get update && apt-get install -y libpq5 tar gir1.2-ges-1.0 ges1.0-tools gstreamer1.0-libav gstreamer1.0-plugins-*
+COPY --from=build_render /usr/local /usr/local
+RUN apt-get update && \
+    apt-get install -y libpq5 tar gir1.2-ges-1.0 ges1.0-tools gstreamer1.0-libav gstreamer1.0-plugins-* && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY b3lb/manage.py b3lb/loadbalancer/.env.dev docker/entrypoint.sh docker/static.sh ./
-COPY b3lb/loadbalancer ./loadbalancer
-COPY b3lb/rest ./rest
+COPY b3lb ./
 
 RUN addgroup --gid $B3LBUID b3lb && \
-    adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
-    ENV_FILE=.env.dev ./manage.py check --force-color && \
-    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
-RUN ./manage.py check --force-color && \
-    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
+    adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb
 
-RUN mkdir -p /srv/rendering
-RUN chown b3lb:b3lb /srv/rendering
+RUN mkdir -p /srv/rendering && \
+    chown b3lb:b3lb /srv/rendering
+
 USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 CMD ["celery-tasks", "-Q", "recording"]

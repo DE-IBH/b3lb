@@ -16,24 +16,23 @@
 
 
 from django.contrib import admin
-from django.urls import path, include
-from django.conf.urls import url
+from django.urls import path, include, re_path
 from rest import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    url(r'^bigbluebutton/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.bbb_entrypoint),
+    re_path(r'^bigbluebutton/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.bbb_entrypoint),
     path('b3lb/stats', views.stats),
     path('b3lb/metrics', views.metrics),
     path('b3lb/ping', views.ping),
-    url(r'^b3lb/b/(?P<backend>[a-z]+)/(?P<endpoint>[a-z]+)$', views.backend_endpoint),
-    url(r'^b3lb/r/(?P<nonce>[a-zA-Z0-9!@*(_)-]+)$', views.recording),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.bbb_entrypoint),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/stats', views.stats),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/metrics', views.metrics),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/logo', views.logo),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/slide', views.slide),
-    url(r'^b3lb/t/(?P<slug>[a-z]{2,10})/css', views.custom_css),
+    re_path(r'^b3lb/b/(?P<backend>[a-z]+)/(?P<endpoint>[a-z]+)$', views.backend_endpoint),
+    re_path(r'^b3lb/r/(?P<nonce>[a-zA-Z0-9!@*(_)-]+)$', views.recording),
+    re_path(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/bbb/api/(?P<endpoint>[0-9.a-zA-Z]*)$', views.bbb_entrypoint),
+    re_path(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/stats', views.stats),
+    re_path(r'^b3lb/t/(?P<slug>[a-z]{2,10})(-(?P<sub_id>\d{3}))?/metrics', views.metrics),
+    re_path(r'^b3lb/t/(?P<slug>[a-z]{2,10})/logo', views.logo),
+    re_path(r'^b3lb/t/(?P<slug>[a-z]{2,10})/slide', views.slide),
+    re_path(r'^b3lb/t/(?P<slug>[a-z]{2,10})/css', views.custom_css),
     # necessary for db-file-storage extension!
-    url(r'^files/', include('db_file_storage.urls'))
+    re_path(r'^files/', include('db_file_storage.urls'))
 ]

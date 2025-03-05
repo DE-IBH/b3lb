@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2025 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -15,26 +15,39 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM alpine:3.19 AS build
+FROM python:3.12-slim AS build_dev
 
-RUN apk --no-cache add build-base python3 python3-dev postgresql-dev libffi-dev py3-pip py3-wheel tar gcc gobject-introspection-dev
+RUN apt-get update && \
+    apt-get install -y libpq-dev build-essential && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH /usr/local/lib/python3.11/site-packages
-ENV ENV_FILE .env.dev
 
 WORKDIR /usr/src/app
 
-COPY b3lb/requirements.txt ./
-RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
-COPY b3lb/manage.py b3lb/loadbalancer/.env.dev  docker/entrypoint.sh  docker/static.sh ./
+COPY requirements ./
+RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt -r requirements_extra.txt
 
-COPY b3lb/loadbalancer ./loadbalancer
-COPY b3lb/rest ./rest
 
-RUN ./manage.py check --force-color
-RUN ./manage.py makemigrations --force-color
-RUN ./manage.py collectstatic --no-input --force-color
+FROM python:3.12-slim
 
+RUN apt-get update && \
+    apt-get install -y libpq5 && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG B3LBUID=8318
+ENV PYTHONUNBUFFERED 1
+
+WORKDIR /usr/src/app
+
+COPY --from=build_dev /usr/local /usr/local
+
+COPY b3lb ./
+
+RUN addgroup --gid $B3LBUID b3lb && \
+    adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
+    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
+
+USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
 CMD ["loadbalancer", "runserver", "0.0.0.0:8000", "--force-color"]

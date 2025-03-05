@@ -137,3 +137,7 @@ db
 *.img
 .run
 .github
+
+**/*.git
+**/*__pycache__
+build_dev_b3lb.sh
