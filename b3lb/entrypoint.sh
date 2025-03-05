@@ -35,7 +35,6 @@ case "$CMD" in
         ;;
     loadbalancer)
         /usr/bin/env python3 ./manage.py migrate --no-input --force-color
-        mkdir -p /media_root/record
         exec /usr/bin/env python3 ./manage.py $@
         ;;
     gunicorn)
@@ -62,7 +61,7 @@ case "$CMD" in
         exec /usr/bin/env python3 ./manage.py addsecrets $@
         ;;
     static)
-        cd static && exec /usr/bin/env python3 -m http.server 8001
+        cd /usr/src/app/static && exec /usr/bin/env python3 -m http.server 8001
         ;;
     *)
         echo "Unknown command '$CMD'!" 1>&2

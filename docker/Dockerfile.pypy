@@ -1,5 +1,5 @@
 # B3LB - BigBlueButton Load Balancer
-# Copyright (C) 2020-2021 IBH IT-Service GmbH
+# Copyright (C) 2020-2025 IBH IT-Service GmbH
 #
 # This program is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by
@@ -15,52 +15,44 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 
-FROM pypy:3.10-slim AS build
+FROM pypy:3.10-slim AS build_pypy
 
-RUN apt-get update && apt-get install -y build-essential libpq-dev libcairo2-dev gcc python3-dev libgirepository1.0-dev
+RUN apt-get update && \
+    apt-get install -y build-essential libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH /usr/local/lib/pypy3.10/site-packages
 
 WORKDIR /usr/src/app
 
-COPY b3lb/requirements.txt ./
+COPY requirements ./
 RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt
 
 
 FROM pypy:3.10-slim
 
-RUN apt-get update && apt-get install -y libpq5 tar
+RUN apt-get update && \
+    apt-get install -y libpq5 && \
+    rm -rf /var/lib/apt/lists/*
 
 ARG B3LBUID=8318
-ARG ENV_FILE=.env.dev
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH /usr/local/lib/pypy3.10/site-packages
 
 WORKDIR /usr/src/app
 
-COPY --from=build /usr/local /usr/local
-
-COPY b3lb/manage.py \
-     b3lb/loadbalancer/.env.dev \
-     docker/entrypoint.sh \
-     docker/static.sh \
-     ./
-COPY b3lb/loadbalancer ./loadbalancer
-COPY b3lb/rest ./rest
+COPY --from=build_pypy /usr/local /usr/local
+COPY b3lb ./
 
 RUN addgroup --gid $B3LBUID b3lb && \
     adduser --uid $B3LBUID --gid $B3LBUID --home /usr/src/app --disabled-password --no-create-home --system b3lb && \
-    ln -s $(which pypy3) /usr/local/bin/python3 && \
-    ENV_FILE=.env.dev ./manage.py check --force-color && \
-    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
-RUN ./manage.py check --force-color && \
-    ENV_FILE=.env.dev ./manage.py collectstatic --no-input --force-color
+    ln -s $(which pypy3) /usr/local/bin/python3
 
-RUN mkdir -p /srv/rendering
-RUN chown b3lb:b3lb /srv/rendering
+RUN mkdir -p /srv/rendering && \
+    chown b3lb:b3lb /srv/rendering
 USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
-CMD ["uvicorn", "--host", "0.0.0.0", "--ws", "none", "--no-access-log", "--use-colors"]
-# For celery tasks use with default queue use following command in docker-compose.yml
-# CMD ["celery-tasks", "-Q", "b3lb"]
+#CMD ["uvicorn", "--host", "0.0.0.0", "--ws", "none", "--use-colors"]
+# Runs with the default queue
+CMD ["celery-tasks", "-Q", "b3lb"]
