@@ -28,7 +28,7 @@ from _hashlib import HASH
 from math import pow
 from os.path import join as path_join
 from re import match
-from rest.b3lb.parameters import SET, OVERRIDE, MODE_CHOICES, PARAMETER_REGEXES, PARAMETER_CHOICES
+from rest.parameters import SET, OVERRIDE, MODE_CHOICES, PARAMETER_REGEXES, PARAMETER_CHOICES
 from rest.b3lb.utils import xml_escape
 from rest.classes.statistics import MeetingStats
 from rest.classes.storage import DBStorage
