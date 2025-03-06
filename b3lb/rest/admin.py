@@ -52,6 +52,7 @@ class AssetAdmin(ModelAdmin):
 class ClusterAdmin(ModelAdmin):
     model = Cluster
     list_display = ['name', 'sha_function', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes', 'a_factor', 'm_factor', 'cpu_iterations', 'cpu_max']
+    actions = ["set_cluster_nodes_to_active", "set_cluster_nodes_to_maintenance"]
 
     @staticmethod
     def _get_nodes(obj, condition: Q(), params: dict):
@@ -99,13 +100,13 @@ class ClusterAdmin(ModelAdmin):
 
     error_nodes.short_description = "# Errors"
 
-    @action(description="Set nodes of cluster to active")
+    @action(permissions=["change"], description="Set nodes of cluster to active")
     def set_cluster_nodes_to_active(self, request, queryset):
         for cluster in queryset:
             nodes = Node.objects.filter(cluster=cluster)
             nodes.update(maintenance=False)
 
-    @action(description="Set nodes of cluster to maintenance")
+    @action(permissions=["change"], description="Set nodes of cluster to maintenance")
     def set_cluster_nodes_to_maintenance(self, request, queryset):
         for cluster in queryset:
             nodes = Node.objects.filter(cluster=cluster)
@@ -171,6 +172,7 @@ class NodeAdmin(ModelAdmin):
     list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance', 'api_mate']
     list_filter = [('cluster', RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
     search_fields = ['slug']
+    actions = ["maintenance_on", "maintenance_off"]
 
     def api_mate(self, obj):
         params = {
@@ -191,11 +193,11 @@ class NodeAdmin(ModelAdmin):
 
     api_mate.short_description = "API Mate"
 
-    @action(description="Set Node to maintenance")
+    @action(permissions=["change"], description="Set Node to maintenance")
     def maintenance_on(self, request, queryset):
         queryset.update(maintenance=True)
 
-    @action(description="Set Node to active")
+    @action(permissions=["change"], description="Set Node to active")
     def maintenance_off(self, request, queryset):
         queryset.update(maintenance=False)
 
@@ -238,6 +240,7 @@ class RecordSetAdmin(ModelAdmin):
     model = RecordSet
     list_display = ['__str__', 'secret', 'status', 'meta_meeting_id', 'created_at']
     list_filter = [('secret__tenant', RelatedOnlyFieldListFilter), 'status', 'created_at']
+    actions = ["set_to_deletion", "set_to_rerender"]
 
     class Meta(object):
         ordering = ['secret', 'created_at']
@@ -248,11 +251,11 @@ class RecordSetAdmin(ModelAdmin):
                 record.delete()
             record_set.delete()
 
-    @action(description="Set status for deletion")
+    @action(permissions=["view"], description="Set status for deletion")
     def set_to_deletion(self, request, queryset):
         queryset.update(status=RecordSet.DELETING)
 
-    @action(description="Set status for re-rendering")
+    @action(permissions=["view"], description="Set status for re-rendering")
     def set_to_rerender(self, request, queryset):
         queryset.update(status=RecordSet.UPLOADED)
 
@@ -261,6 +264,7 @@ class SecretAdmin(ModelAdmin):
     model = Secret
     list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit', 'recording_enabled', 'api_mate']
     list_filter = [('tenant', RelatedOnlyFieldListFilter)]
+    actions = ["records_on", "records_off"]
 
     def api_mate(self, obj):
         low_slug = str(obj.tenant.slug).lower()
@@ -295,11 +299,11 @@ class SecretAdmin(ModelAdmin):
 
     api_mate.short_description = "API Mate"
 
-    @action(description="Enable recording")
+    @action(permissions=["change"], description="Enable recording")
     def records_on(self, request, queryset):
         queryset.update(recording_enabled=True)
 
-    @action(description="Disable recording")
+    @action(permissions=["change"], description="Disable recording")
     def records_off(self, request, queryset):
         queryset.update(recording_enabled=False)
 
@@ -331,12 +335,13 @@ class TenantAdmin(ModelAdmin):
     list_display = ['slug', 'description', 'hostname', 'cluster_group', 'recording_enabled', 'attendee_limit', 'meeting_limit']
     list_filter = [('cluster_group', RelatedOnlyFieldListFilter)]
     search_fields = ['cluster_group', 'slug', 'description']
+    actions = ["records_on", "records_off"]
 
-    @action(description="Enable recording")
+    @action(permissions=["change"], description="Enable recording")
     def records_on(self, request, queryset):
         queryset.update(recording_enabled=True)
 
-    @action(description="Disable recording")
+    @action(permissions=["change"], description="Disable recording")
     def records_off(self, request, queryset):
         queryset.update(recording_enabled=False)
 
