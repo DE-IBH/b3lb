@@ -81,7 +81,7 @@ class ClientB3lbRequest:
         self.secret = None
         self.node = None
         self.state = self.parameters.get("state", "")
-        self.ENDPOINTS_PASS_THROUGH = ["end", "insertDocument", "setConfigXML", "getMeetingInfo"]
+        self.ENDPOINTS_PASS_THROUGH = ["end", "insertDocument", "setConfigXML", "getMeetingInfo", "sendChatMessage"]
         self.ENDPOINTS = {
             "": self.version,
             "create": self.create,
@@ -260,7 +260,7 @@ class ClientB3lbRequest:
     async def get_recording_text_tracks() -> HttpResponse:
         """
         'getRecordingTextTracks' endpoint.
-        Currently, hardcoded for future implementation.
+        Currently hardcoded for future implementation.
         """
         return HttpResponse(cst.RETURN_STRING_GET_RECORDING_TEXT_TRACKS_NOTHING_FOUND_JSON, content_type="application/json")
 
