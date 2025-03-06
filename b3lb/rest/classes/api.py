@@ -32,7 +32,9 @@ from random import randint
 from requests import get
 from requests.exceptions import RequestException
 from rest.b3lb.metrics import incr_metric, update_create_metrics
-from rest.b3lb.parameters import ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING, BLOCK, LOGO, OVERRIDE, PARAMETERS_CREATE, PARAMETERS_JOIN, RECORD, SET, USERDATA_BBB_CUSTOM_STYLE_URL
+from rest.parameters import BLOCK, OVERRIDE, PARAMETERS_CREATE, PARAMETERS_JOIN, SET
+from rest.parameters.create import ALLOW_START_STOP_RECORDING, AUTO_START_RECORDING, LOGO, RECORD
+from rest.parameters.join import USERDATA_BBB_CUSTOM_STYLE_URL
 from rest.b3lb.utils import get_checksum
 from rest.models import ClusterGroupRelation, Meeting, Metric, Node, Parameter, Record, RecordSet, Secret, SecretMeetingList, SecretMetricsList, Stats
 from typing import Any, Dict, List, Literal, Union
