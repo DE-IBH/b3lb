@@ -20,17 +20,13 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.conf import settings
-from django.contrib import admin
 from django.db import models
 from django.db.models.constraints import UniqueConstraint
 from django.utils import timezone
 from django.utils.crypto import get_random_string
-from django.utils.html import format_html
-from django.utils.http import urlencode
-from django.urls import reverse
 from _hashlib import HASH
 from math import pow
-from os.path import join
+from os.path import join as path_join
 from re import match
 from rest.b3lb.parameters import SET, OVERRIDE, MODE_CHOICES, PARAMETER_REGEXES, PARAMETER_CHOICES
 from rest.b3lb.utils import xml_escape
@@ -66,23 +62,6 @@ def get_storage():
 
 
 #
-# ADMIN ACTIONS
-#
-@admin.action(description="Set nodes of cluster to active")
-def set_cluster_nodes_to_active(modeladmin, request, queryset):
-    for cluster in queryset:
-        nodes = Node.objects.filter(cluster=cluster)
-        nodes.update(maintenance=False)
-
-
-@admin.action(description="Set nodes of cluster to maintenance")
-def set_cluster_nodes_to_maintenance(modeladmin, request, queryset):
-    for cluster in queryset:
-        nodes = Node.objects.filter(cluster=cluster)
-        nodes.update(maintenance=True)
-
-
-#
 # MODELS
 #
 class Cluster(models.Model):
@@ -104,60 +83,6 @@ class Cluster(models.Model):
 
     def get_sha(self) -> HASH:
         return cst.SHA_BY_STRING.get(self.sha_function)()
-
-
-class ClusterAdmin(admin.ModelAdmin):
-    model = Cluster
-    list_display = ['name', 'sha_function', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes', 'a_factor', 'm_factor', 'cpu_iterations', 'cpu_max']
-    actions = [set_cluster_nodes_to_active, set_cluster_nodes_to_maintenance]
-
-    def a_factor(self, obj):
-        return obj.load_a_factor
-
-    a_factor.short_description = "a-Factor"
-
-    def m_factor(self, obj):
-        return obj.load_m_factor
-
-    m_factor.short_description = "m-Factor"
-
-    def cpu_iterations(self, obj):
-        return obj.load_cpu_iterations
-
-    cpu_iterations.short_description = "# CPU Iter."
-
-    def cpu_max(self, obj):
-        return obj.load_cpu_max
-
-    cpu_max.short_description = "CPU max. Load"
-
-    def number_of_nodes(self, obj):
-        count = Node.objects.filter(cluster=obj).count()
-        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}"}))
-        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
-
-    number_of_nodes.short_description = "# Nodes"
-
-    def available_nodes(self, obj):
-        count = Node.objects.filter(cluster=obj, has_errors=False, maintenance=False).count()
-        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 0, "has_errors__exact": 0}))
-        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
-
-    available_nodes.short_description = "# Avail."
-
-    def maintenance_nodes(self, obj):
-        count = Node.objects.filter(cluster=obj, maintenance=True).count()
-        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "maintenance__exact": 1}))
-        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
-
-    maintenance_nodes.short_description = "# Maint."
-
-    def error_nodes(self, obj):
-        count = Node.objects.filter(cluster=obj, has_errors=True).count()
-        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"cluster__uuid": f"{obj.uuid}", "has_errors__exact": 1}))
-        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
-
-    error_nodes.short_description = "# Errors"
 
 
 def get_b3lb_node_default_domain():
@@ -217,56 +142,9 @@ class Node(models.Model):
         return "{}{}.{}/{}".format(settings.B3LB_NODE_PROTOCOL, self.slug, self.domain, settings.B3LB_NODE_LOAD_ENDPOINT)
 
 
-@admin.action(description="Set Node to maintenance")
-def maintenance_on(modeladmin, request, queryset):
-    queryset.update(maintenance=True)
-
-
-@admin.action(description="Set Node to active")
-def maintenance_off(modeladmin, request, queryset):
-    queryset.update(maintenance=False)
-
-
-class NodeAdmin(admin.ModelAdmin):
-    model = Node
-    list_display = ['slug', 'cluster', 'load', 'attendees', 'meetings', 'show_cpu_load', 'has_errors', 'maintenance', 'api_mate']
-    list_filter = [('cluster', admin.RelatedOnlyFieldListFilter), 'has_errors', 'maintenance']
-    search_fields = ['slug']
-    actions = [maintenance_on, maintenance_off]
-
-    def api_mate(self, obj):
-        params = {
-            "sharedSecret": obj.secret,
-            "name": f"API Mate test room on {obj.slug.lower()}.{obj.domain}",
-            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL),
-            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL)
-        }
-
-        url_enc_params = urlencode(params)
-        url_base = f"{settings.B3LB_API_MATE_BASE_URL}#server=https://"
-        url = f"{url_base}{obj.slug.lower()}.{obj.domain}/bigbluebutton&{url_enc_params}"
-        # Todo
-        #   check if single-domain is used, when implemented
-        # url = f"{url_base} {settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
-
-        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Link</a>', url)
-
-    api_mate.short_description = "API Mate"
-
-    def show_cpu_load(self, obj):
-        return "{:.1f} %".format(obj.cpu_load/100)
-
-    show_cpu_load.short_description = "CPU Load"
-
-
 class NodeMeetingList(models.Model):
     node = models.OneToOneField(Node, on_delete=models.CASCADE, primary_key=True)
     xml = models.TextField(default="")
-
-
-class NodeMeetingListAdmin(admin.ModelAdmin):
-    model = NodeMeetingList
-    list_display = ['node']
 
 
 def get_random_secret():
@@ -285,46 +163,6 @@ class ClusterGroup(models.Model):
         return self.name
 
 
-class ClusterGroupAdmin(admin.ModelAdmin):
-    model = ClusterGroup
-    list_display = ['name', 'description', 'number_of_nodes', 'available_nodes', 'maintenance_nodes', 'error_nodes']
-
-    def number_of_nodes(self, obj):
-        count = 0
-        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
-            count += Node.objects.filter(cluster=cluster_group_relation.cluster).count()
-        return count
-
-    number_of_nodes.short_description = "# Nodes"
-
-    def available_nodes(self, obj):
-        count = 0
-        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
-            count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=False, maintenance=False).count()
-        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 0, "has_errors__exact": 0}))
-        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
-
-    available_nodes.short_description = "# Avail."
-
-    def maintenance_nodes(self, obj):
-        count = 0
-        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
-            count += Node.objects.filter(cluster=cluster_group_relation.cluster, maintenance=True).count()
-        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"maintenance__exact": 1}))
-        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
-
-    maintenance_nodes.short_description = "# Maint."
-
-    def error_nodes(self, obj):
-        count = 0
-        for cluster_group_relation in ClusterGroupRelation.objects.filter(cluster_group=obj):
-            count += Node.objects.filter(cluster=cluster_group_relation.cluster, has_errors=True).count()
-        url = (reverse("admin:rest_node_changelist") + "?" + urlencode({"has_errors__exact": 1}))
-        return format_html('<a href="{}">{}&nbsp;&nbsp;&nbsp;&nbsp;</a>', url, count)
-
-    error_nodes.short_description = "# Errors"
-
-
 class ClusterGroupRelation(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     cluster_group = models.ForeignKey(ClusterGroup, on_delete=models.PROTECT)
@@ -335,11 +173,6 @@ class ClusterGroupRelation(models.Model):
 
     def __str__(self):
         return "{}|{}".format(self.cluster_group.name, self.cluster.name)
-
-
-class ClusterGroupRelationAdmin(admin.ModelAdmin):
-    model = ClusterGroupRelation
-    list_display = ['cluster_group', 'cluster']
 
 
 class Tenant(models.Model):
@@ -362,24 +195,6 @@ class Tenant(models.Model):
     @property
     def hostname(self):
         return "{}.{}".format(str(self.slug).lower(), settings.B3LB_API_BASE_DOMAIN)
-
-
-@admin.action(description="Enable recording")
-def records_on(modeladmin, request, queryset):
-    queryset.update(recording_enabled=True)
-
-
-@admin.action(description="Disable recording")
-def records_off(modeladmin, request, queryset):
-    queryset.update(recording_enabled=False)
-
-
-class TenantAdmin(admin.ModelAdmin):
-    model = Tenant
-    list_display = ['slug', 'description', 'hostname', 'cluster_group', 'recording_enabled', 'attendee_limit', 'meeting_limit']
-    list_filter = [('cluster_group', admin.RelatedOnlyFieldListFilter)]
-    search_fields = ['cluster_group', 'slug', 'description']
-    actions = [records_on, records_off]
 
 
 class Secret(models.Model):
@@ -425,55 +240,10 @@ class Secret(models.Model):
         return [self.secret, self.secret2]
 
 
-class SecretAdmin(admin.ModelAdmin):
-    model = Secret
-    list_display = ['__str__', 'description', 'endpoint', 'attendee_limit', 'meeting_limit', 'recording_enabled', 'api_mate']
-    list_filter = [('tenant', admin.RelatedOnlyFieldListFilter)]
-    actions = [records_on, records_off]
-
-    def api_mate(self, obj):
-        low_slug = str(obj.tenant.slug).lower()
-        low_slug_id = f"{low_slug}-{str(obj.sub_id).zfill(3)}"
-        params = {
-            "sharedSecret": obj.secret,
-            "name": f"API Mate test room for {low_slug_id}",
-            "attendeePW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL),
-            "moderatorPW": get_random_string(settings.B3LB_API_MATE_PW_LENGTH, cst.API_MATE_CHAR_POOL)
-        }
-        slide_string = ""
-        try:
-            slide = Asset.objects.get(tenant__secret=obj).slide
-            if slide:
-                slide_string = f"pre-upload=https://{settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug}/slide"
-        except Asset.DoesNotExist:
-            pass
-
-        if obj.is_record_enabled:
-            params["record"] = True
-
-        url_enc_params = urlencode(params)
-        url_base = f" {settings.B3LB_API_MATE_BASE_URL}#server=https://"
-        url = f"{url_base}{obj.endpoint}/bigbluebutton&{url_enc_params}"
-        # Todo
-        #   check if single-domain is used, when implemented
-        # url = f"{url_base}{settings.B3LB_API_BASE_DOMAIN}/b3lb/t/{low_slug_id}/bbb&{url_enc_params}"
-        if slide_string:
-            url += f"&{slide_string}"
-
-        return format_html('<a href="{}" target="_blank" rel="noopener noreferrer">Link</a>', url)
-
-    api_mate.short_description = "API Mate"
-
-
 class AssetSlide(models.Model):
     blob = models.BinaryField()
     filename = models.CharField(max_length=255)
     mimetype = models.CharField(max_length=100)
-
-
-class AssetSlideAdmin(admin.ModelAdmin):
-    model = AssetSlide
-    list_display = ['filename', 'mimetype']
 
 
 class AssetLogo(models.Model):
@@ -482,20 +252,10 @@ class AssetLogo(models.Model):
     mimetype = models.CharField(max_length=50)
 
 
-class AssetLogoAdmin(admin.ModelAdmin):
-    model = AssetLogo
-    list_display = ['filename', 'mimetype']
-
-
 class AssetCustomCSS(models.Model):
     blob = models.BinaryField()
     filename = models.CharField(max_length=255)
     mimetype = models.CharField(max_length=50)
-
-
-class AssetCustomCSSAdmin(admin.ModelAdmin):
-    model = AssetCustomCSS
-    list_display = ['filename', 'mimetype']
 
 
 class Asset(models.Model):
@@ -539,19 +299,9 @@ class Asset(models.Model):
         return self.tenant.slug
 
 
-class AssetAdmin(admin.ModelAdmin):
-    model = Asset
-    list_display = ['__str__']
-
-
 class SecretMeetingList(models.Model):
     secret = models.OneToOneField(Secret, on_delete=models.CASCADE, primary_key=True)
     xml = models.TextField(default="")
-
-
-class SecretMeetingListAdmin(admin.ModelAdmin):
-    model = SecretMeetingList
-    list_display = ['secret']
 
 
 class SecretMetricsList(models.Model):
@@ -563,11 +313,6 @@ class SecretMetricsList(models.Model):
             return self.secret.__str__()
         else:
             return "<<total>>"
-
-
-class SecretMetricsListAdmin(admin.ModelAdmin):
-    model = SecretMetricsList
-    list_display = ['__str__']
 
 
 # meeting - tenant - node relation class
@@ -594,14 +339,6 @@ class Meeting(models.Model):
 
     def __str__(self):
         return "{} {}".format(self.secret.tenant.slug, self.room_name)
-
-
-# meeting - tenant - node relation class
-class MeetingAdmin(admin.ModelAdmin):
-    model = Meeting
-    list_display = ['__str__', 'bbb_origin_server_name', 'node', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount', 'age', 'id']
-    list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'node']
-    search_fields = ['room_name']
 
 
 # Meeting - Secret - Recording relation class
@@ -670,33 +407,7 @@ class RecordSet(models.Model):
         base32 = b32encode(self.uuid.bytes)[:26].lower().decode("utf-8")
         path = wrap(base32, settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH)[:settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT]
         path.append(base32[settings.B3LB_RECORD_PATH_HIERARCHY_WIDTH * settings.B3LB_RECORD_PATH_HIERARCHY_DEPHT:])
-        self.file_path = join("record", *path)
-
-
-@admin.action(description="Set status for re-rendering")
-def records_rerender(modeladmin, request, queryset):
-    queryset.update(status=RecordSet.UPLOADED)
-
-
-@admin.action(description="Set status for deletion")
-def records_to_delete(modeladmin, request, queryset):
-    queryset.update(status=RecordSet.DELETING)
-
-
-class RecordSetAdmin(admin.ModelAdmin):
-    model = RecordSet
-    list_display = ['__str__', 'secret', 'status', 'meta_meeting_id', 'created_at']
-    list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'status', 'created_at']
-    actions = [records_rerender, records_to_delete]
-
-    class Meta(object):
-        ordering = ['secret', 'created_at']
-
-    def delete_queryset(self, request, queryset):
-        for record_set in queryset:
-            for record in Record.objects.filter(record_set=record_set):
-                record.delete()
-            record_set.delete()
+        self.file_path = path_join("record", *path)
 
 
 class RecordProfile(models.Model):
@@ -718,11 +429,6 @@ class RecordProfile(models.Model):
         return self.name
 
 
-class RecordProfileAdmin(admin.ModelAdmin):
-    model = RecordProfile
-    list_display = ['name', 'description', 'width', 'height', 'webcam_size', 'annotations', 'is_default']
-
-
 class SecretRecordProfileRelation(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     secret = models.ForeignKey(Secret, on_delete=models.CASCADE)
@@ -730,12 +436,6 @@ class SecretRecordProfileRelation(models.Model):
 
     def __str__(self):
         return f"{self.secret.__str__()}-{self.record_profile.__str__()}"
-
-
-class SecretRecordProfileRelationAdmin(admin.ModelAdmin):
-    model = SecretRecordProfileRelation
-    list_display = ['__str__', 'secret', 'record_profile']
-    list_filter = [('secret__tenant', admin.RelatedOnlyFieldListFilter), 'record_profile']
 
 
 class Record(models.Model):
@@ -811,19 +511,6 @@ class Record(models.Model):
         return f"{self.record_set.__str__()} | {self.profile.name}"
 
 
-class RecordAdmin(admin.ModelAdmin):
-    model = Record
-    list_display = ['__str__', 'record_set', 'profile', 'file']
-    list_filter = [('record_set__secret__tenant', admin.RelatedOnlyFieldListFilter)]
-
-    class Meta(object):
-        ordering = ['record_set', 'record_profile']
-
-    def delete_queryset(self, request, queryset):
-        for record in queryset:
-            record.delete()
-
-
 class Stats(models.Model):
     uuid = models.UUIDField(primary_key=True, editable=False, unique=True, default=uid.uuid4)
     tenant = models.ForeignKey(Tenant, null=True, on_delete=models.CASCADE)
@@ -849,12 +536,6 @@ class Stats(models.Model):
 
     def __str__(self):
         return "{}: {} ({})".format(self.tenant.slug, self.bbb_origin_server_name, self.bbb_origin)
-
-
-class StatsAdmin(admin.ModelAdmin):
-    model = Stats
-    list_display = ['tenant', 'meetings', 'attendees', 'listenerCount', 'voiceParticipantCount', 'videoCount']
-    list_filter = ['tenant']
 
 
 class Metric(models.Model):
@@ -903,11 +584,6 @@ class Metric(models.Model):
         ]
 
 
-class MetricAdmin(admin.ModelAdmin):
-    model = Metric
-    list_display = ['name', 'secret', 'node', 'value']
-
-
 class Parameter(models.Model):
     mode = models.CharField(max_length=10, choices=MODE_CHOICES)
     parameter = models.CharField(max_length=64, choices=PARAMETER_CHOICES)
@@ -921,9 +597,3 @@ class Parameter(models.Model):
 
     class Meta(object):
         constraints = [models.UniqueConstraint(fields=['parameter', 'tenant'], name="unique_parameter")]
-
-
-class ParameterAdmin(admin.ModelAdmin):
-    model = Parameter
-    list_display = ['tenant', 'parameter', 'mode', 'value']
-    list_filter = [('tenant', admin.RelatedOnlyFieldListFilter), 'mode']
