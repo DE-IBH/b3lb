@@ -51,4 +51,4 @@ RUN addgroup --gid $B3LBUID b3lb && \
 
 USER b3lb:b3lb
 ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
-CMD ["uvicorn", "--host", "0.0.0.0", "--ws", "none", "--use-colors"]
+CMD ["uvicorn", "--host", "0.0.0.0", "--ws", "none", "--log-config=uvicorn_log.yml"]
