@@ -24,7 +24,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.db.models import Sum
 from django.db.models.query import QuerySet, Q
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseForbidden, HttpHeaders
 from django.template.loader import render_to_string
 from json import dumps
 from _hashlib import HASH
@@ -98,7 +98,7 @@ class ClientB3lbRequest:
         }
 
     #### Class functions
-    async def _check_post_headers(self) -> Dict[str, Any]:
+    async def _check_post_headers(self) -> Union[Dict[str, Any], HttpHeaders]:
         if not self.has_assets:
             # request wasn't manipulated by B3LB
             return self.request.headers
@@ -283,7 +283,7 @@ class ClientB3lbRequest:
             return HttpResponse(cst.RETURN_STRING_MISSING_MEETING_ID, content_type=cst.CONTENT_TYPE)
         if not await self.is_meeting():
             return HttpResponse(cst.RETURN_STRING_GET_MEETING_INFO_FALSE, content_type=cst.CONTENT_TYPE)
-        if not self.node:
+        if self.node is None:
             await self.set_node_by_meeting_id()
         async with ClientSession() as session:
             if self.request.method == "POST":
