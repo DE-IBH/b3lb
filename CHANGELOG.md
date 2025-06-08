@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 3.3.1 - 2025-06-08
+
+Changes:
+- bumped python dependencies:
+  - Django: `5.2.1` => `5.2.2`
+
 ## 3.3.0 - 2025-06-08
 
 Changes:
