@@ -1,5 +1,51 @@
 # ChangeLog
 
+## 3.3.0 - 2025-06-08
+
+Changes:
+- add new BBB 3.0 API parameters
+  - sendChatMessage
+  - allowOverrideClientSettingsOnCreateCall
+  - loginURL
+  - pluginManifests
+  - pluginManifestsFetchUrl
+  - presentationConversionCacheEnabled
+  - maxNumPages
+  - bot
+  - enforceLayout
+  - logoutURL
+  - firstName
+  - lastName
+  - userdata-bbb_default_layout,
+  - userdata-bbb_skip_echotest_if_previous_device
+  - userdata-bbb_prefer_dark_theme
+  - userdata-bbb_hide_notifications,
+  - userdata-bbb_hide_controls
+- removed deprecated API parameters
+  - breakoutRoomsEnabled
+  - learningDashboardEnabled
+  - virtualBackgroundsDisabled
+  - defaultLayout
+- bumped python dependencies:
+  - Django: `3.2.25` => `5.2.1`
+  - PyGObject: `3.48.2` => `3.52.3`
+  - aiohttp: `3.9.5` => `3.12.7`
+  - boto3: `1.34.106` => `1.38.28`
+  - celery: `5.3.4` => `5.5.3`
+  - django-cacheops: `7.0.2` => `7.2`
+  - django-celery-beat: `2.6.0` => `2.8.0`
+  - django-celery-results: `2.5.1` => `2.6.0`
+  - django-environ: `0.11.2` => `0.12.0`
+  - django-extensions: `3.2.3` => `4.1`
+  - django-storages: `1.14.3` => `1.14.6`
+  - pyjwt: `2.8.0` => `2.10.1`
+  - psycopg2cffi: `2.9.0` => psycopg: `3.2.6`
+  - requests: `2.31.0` = `2.32.3`
+  - uvicorn[standard]: `0.29.0` => `0.34.3`
+  - xmltodict: `0.13.0` => `0.14.2`
+
+With b3lb 3.3 the minimal support for PostgreSQL is now version 14, which is required by `psycopg`.
+
 ## 3.2.6 - 2024-08-21
 
 Changes:
