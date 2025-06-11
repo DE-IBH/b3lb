@@ -1,5 +1,11 @@
 # ChangeLog
 
+## 3.3.2 - 2025-06-11
+
+Fixes:
+- storing of logos, slides and custom css files in database instead of the filesystem
+- use PyObject `3.50.0` instead of `3.52.3` for debian 12 based build
+
 ## 3.3.1 - 2025-06-08
 
 Changes:

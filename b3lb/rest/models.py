@@ -16,6 +16,7 @@
 
 
 from base64 import b32encode
+from db_file_storage.storage import DatabaseFileStorage
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage, default_storage
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
@@ -260,10 +261,10 @@ class AssetCustomCSS(models.Model):
 
 class Asset(models.Model):
     tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, primary_key=True)
-    slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True)
+    slide = models.FileField(upload_to='rest.AssetSlide/blob/filename/mimetype', blank=True, null=True, storage=DatabaseFileStorage)
     slide_filename = models.CharField(max_length=250, blank=True, null=True)
-    logo = models.FileField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True)
-    custom_css = models.FileField(upload_to='rest.AssetCustomCSS/blob/filename/mimetype', blank=True, null=True)
+    logo = models.FileField(upload_to='rest.AssetLogo/blob/filename/mimetype', blank=True, null=True, storage=DatabaseFileStorage)
+    custom_css = models.FileField(upload_to='rest.AssetCustomCSS/blob/filename/mimetype', blank=True, null=True, storage=DatabaseFileStorage)
 
     @property
     def s_filename(self):
