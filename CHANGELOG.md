@@ -1,5 +1,26 @@
 # ChangeLog
 
+## 3.3.3 - 2025-12-17
+
+Fixes:
+- fix error when no slide was used during recording
+- fix race condition for multiple casts of rendering periodic tasks
+
+Changes:
+- use python 3.13 and Debian Trixie as new base image
+- bumped python dependencies:
+  - Django: `5.2.2` => `5.2.9`
+  - aoihttp: `3.12.7` => `3.13.2`
+  - boto3: `1.38.28` => `1.42.11`
+  - celery: `5.5.3` => `5.6.0`
+  - django-celery-beat: `2.8.0` => `2.8.1`
+  - django-redis: `5.4.0` => `6.0.0`
+  - PyObject: `3.50.0` => `3.54.5`
+  - psycopg: `3.2.6` => `3.3.2`
+  - requests: `2.32.2` => `2.32.5`
+  - uvicorn: `0.34.3` => `0.38.0`
+  - xmltodict: `0.14.2` => `1.0.2`
+
 ## 3.3.2 - 2025-06-11
 
 Fixes:
