@@ -206,10 +206,16 @@ class Presentation:
         slides = {}
         slide_time = IntervalTree()
         for img in doc.iterfind('./{http://www.w3.org/2000/svg}image[@class="slide"]'):
+            width = img.get('width')
+            if not width:
+                width = 0
+            height = img.get('height')
+            if not height:
+                height = 0
             info = SlideInfo(
                 id=img.get('id'),
-                width=int(img.get('width', 0)),
-                height=int(img.get('height', 0)),
+                width=int(width),
+                height=int(height),
                 start=round(float(img.get('in', 0)) * Gst.SECOND),
                 end=round(float(img.get('out', 0)) * Gst.SECOND),
             )

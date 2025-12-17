@@ -85,16 +85,16 @@ def render_record(record_set: RecordSet):
 
                     # render with profiles
                     profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
-                    try:
-                        if profile_relations.count() > 0:
-                            for profile_relation in profile_relations:
-                                record_id = render_by_profile(record_set, profile_relation.record_profile, tempdir)
-                        else:
-                            for record_profile in RecordProfile.objects.filter(is_default=True):
-                                record_id = render_by_profile(record_set, record_profile, tempdir)
-                    except Exception as ex:
-                        print(ex)
-                        record_id = None
+                    # try:
+                    if profile_relations.count() > 0:
+                        for profile_relation in profile_relations:
+                            record_id = render_by_profile(record_set, profile_relation.record_profile, tempdir)
+                    else:
+                        for record_profile in RecordProfile.objects.filter(is_default=True):
+                            record_id = render_by_profile(record_set, record_profile, tempdir)
+                    # except Exception as ex:
+                    #     print(ex)
+                    #     record_id = None
         elif record_set.status == record_set.TOSEND:
             record = Record.objects.filter(record_set=record_set).first()
             if record is not None:
