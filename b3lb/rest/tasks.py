@@ -18,6 +18,7 @@
 from celery.utils.log import get_task_logger
 from celery_singleton import Singleton
 from django.conf import settings as st
+from django.db.models import Q
 from loadbalancer.celery import app
 from rest.models import Node, RecordSet, Secret, Tenant
 from rest.task.recording import housekeeping_records
@@ -71,7 +72,11 @@ def render_record():
     Async starting of rendering tasks.
     """
     counter = 0
-    for record_set in RecordSet.objects.filter(status=RecordSet.UPLOADED):
+    if RecordSet.objects.filter(status=RecordSet.RENDERING).count() > 0:
+        return "There are running rendering tasks"
+
+    condition = Q(status=RecordSet.UPLOADED) | Q(status=RecordSet.TOSEND)
+    for record_set in RecordSet.objects.filter(condition):
         b3lbtask.recording_render_record.si(str(record_set.uuid)).apply_async(queue=st.B3LB_TASK_QUEUE_RECORD)
         counter += 1
     return f"Queue {counter} rendering tasks."

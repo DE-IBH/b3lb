@@ -346,12 +346,16 @@ class Meeting(models.Model):
 class RecordSet(models.Model):
     UNKNOWN = "UNKNOWN"
     UPLOADED = "UPLOADED"
+    RENDERING = "RENDERING"
+    TOSEND = "TOSEND"
     RENDERED = "RENDERED"
     DELETING = "DELETING"
 
     STATUS_CHOICES = [
         (UNKNOWN, "Recording state is unknown or meeting is running"),
         (UPLOADED, "Recording file has been uploaded"),
+        (RENDERING, "Recording is in rendering process..."),
+        (TOSEND, "Record has been rendered, but information wasn't send successful.."),
         (RENDERED, "Recordings have been rendered to video files"),
         (DELETING, "Recordings will be deleted"),
     ]

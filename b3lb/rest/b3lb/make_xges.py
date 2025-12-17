@@ -208,10 +208,10 @@ class Presentation:
         for img in doc.iterfind('./{http://www.w3.org/2000/svg}image[@class="slide"]'):
             info = SlideInfo(
                 id=img.get('id'),
-                width=int(img.get('width')),
-                height=int(img.get('height')),
-                start=round(float(img.get('in')) * Gst.SECOND),
-                end=round(float(img.get('out')) * Gst.SECOND),
+                width=int(img.get('width', 0)),
+                height=int(img.get('height', 0)),
+                start=round(float(img.get('in', 0)) * Gst.SECOND),
+                end=round(float(img.get('out', 0)) * Gst.SECOND),
             )
             slides[info.id] = info
             slide_time.addi(info.start, info.end, info)

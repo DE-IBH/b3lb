@@ -14,9 +14,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-FROM python:3.12-slim as build_render
+FROM python:3.13-slim as build_render
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /usr/src/app
 
@@ -25,6 +25,7 @@ RUN apt-get update && \
                         build-essential \
                         python3-gi \
                         gir1.2-ges-1.0 \
+                        girepository-2.0 \
                         ges1.0-tools \
                         gstreamer1.0-libav \
                         gstreamer1.0-plugins-* \
@@ -37,9 +38,9 @@ RUN apt-get update && \
 COPY requirements ./
 RUN pip3 install --no-cache-dir --prefix=/usr/local -r requirements.txt -r requirements_render.txt
 
-FROM python:3.12-slim
+FROM python:3.13-slim
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 # enable Rendering
 ENV B3LB_RENDERING=true
 ARG B3LBUID=8318
@@ -48,7 +49,7 @@ WORKDIR /usr/src/app
 
 COPY --from=build_render /usr/local /usr/local
 RUN apt-get update && \
-    apt-get install -y libpq5 tar gir1.2-ges-1.0 ges1.0-tools gstreamer1.0-libav gstreamer1.0-plugins-* && \
+    apt-get install -y libpq5 tar gir1.2-ges-1.0 ges1.0-tools girepository-2.0 gstreamer1.0-libav gstreamer1.0-plugins-* && \
     rm -rf /var/lib/apt/lists/*
 
 COPY b3lb ./

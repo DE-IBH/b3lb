@@ -139,3 +139,4 @@ db
 static
 bbb-render/bbb-render
 build_dev_b3lb.sh
+build_prod_b3lb.sh

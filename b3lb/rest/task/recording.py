@@ -18,7 +18,7 @@
 from django.utils import timezone as tz
 from django.conf import settings
 from os import makedirs, path
-from requests import post
+from requests import post, ConnectTimeout, ConnectionError
 from rest.models import Record, RecordSet, RecordProfile, SecretRecordProfileRelation
 from subprocess import DEVNULL, PIPE, Popen
 from tempfile import TemporaryDirectory
@@ -69,37 +69,65 @@ def render_record(record_set: RecordSet):
             print(f"raw.tar of {record_set.__str__()} empty or non existing!")
             return False
 
-        # create temporary directory
-        with TemporaryDirectory(dir="/srv/rendering") as tempdir:
-            makedirs(f"{tempdir}/in")
-            makedirs(f"{tempdir}/out")
+        record_id = None
+        if record_set.status == record_set.UPLOADED:
+            record_set.status = RecordSet.RENDERING
+            record_set.save()
+            # create temporary directory
 
-            with open(f"{tempdir}/raw.tar", "wb") as raw:
-                # download raw.tar
-                raw.write(record_set.recording_archive.file.read())
+            with TemporaryDirectory(dir="/srv/rendering") as tempdir:
+                makedirs(f"{tempdir}/in")
+                makedirs(f"{tempdir}/out")
 
-                # render with profiles
-                profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
-                if profile_relations.count() > 0:
-                    for profile_relation in profile_relations:
-                        record_id = render_by_profile(record_set, profile_relation.record_profile, tempdir)
-                else:
-                    for record_profile in RecordProfile.objects.filter(is_default=True):
-                        record_id = render_by_profile(record_set, record_profile, tempdir)
+                with open(f"{tempdir}/raw.tar", "wb") as raw:
+                    # download raw.tar
+                    raw.write(record_set.recording_archive.file.read())
+
+                    # render with profiles
+                    profile_relations = SecretRecordProfileRelation.objects.filter(secret=record_set.secret)
+                    try:
+                        if profile_relations.count() > 0:
+                            for profile_relation in profile_relations:
+                                record_id = render_by_profile(record_set, profile_relation.record_profile, tempdir)
+                        else:
+                            for record_profile in RecordProfile.objects.filter(is_default=True):
+                                record_id = render_by_profile(record_set, record_profile, tempdir)
+                    except Exception as ex:
+                        print(ex)
+                        record_id = None
+        elif record_set.status == record_set.TOSEND:
+            record = Record.objects.filter(record_set=record_set).first()
+            if record is not None:
+                record_id = str(record.uuid)
+
+        if record_id is None:
+            record_set.status = RecordSet.UPLOADED
+            record_set.save()
+            return False
 
         # implementation of recording ready callback url
         # https://docs.bigbluebutton.org/development/api/#recording-ready-callback-url
         if record_set.recording_ready_origin_url:
             success = False
             for secret in record_set.secret.secrets:
-                body = {"signed_parameters": jwt_encode({"meeting_id": record_set.meta_meeting_id, "record_id": record_id}, secret)}
-                response = post(record_set.recording_ready_origin_url, json=body)
-                print(f"Send record ready callback to: {record_set.recording_ready_origin_url} with return code: {response.status_code}")
-                if 200 <= response.status_code <= 299:
-                    success = True
-                    break
+                try:
+                    body = {"signed_parameters": jwt_encode({"meeting_id": record_set.meta_meeting_id, "record_id": record_id}, secret)}
+                    response = post(record_set.recording_ready_origin_url, json=body)
+                    print(f"Send record ready callback to: {record_set.recording_ready_origin_url} with return code: {response.status_code}")
+                    if 200 <= response.status_code <= 299:
+                        success = True
+                        break
+                except ConnectTimeout as ex:
+                    print(ex)
+                    continue
+                except ConnectionError as ex:
+                    print(ex)
+                    continue
+
 
             if not success:
+                record_set.status = RecordSet.TOSEND
+                record_set.save()
                 return False
 
         record_set.status = RecordSet.RENDERED
